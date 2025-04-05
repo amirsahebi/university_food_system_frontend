@@ -1,9 +1,6 @@
 import './globals.css'
-import { Inter } from 'next/font/google'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from '@/lib/auth-context'
-
-const inter = Inter({ subsets: ['latin'] })
 
 export const metadata = {
   title: 'سامانه رزرو غذای دانشگاه - ورود',
@@ -17,7 +14,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fa">
-      <body className={`${inter.className} bg-pattern bg-pattern-animate min-h-screen`}>
+      <body className={`font-sans bg-pattern bg-pattern-animate min-h-screen`}>
         <AuthProvider>
           {children}
         </AuthProvider>
@@ -26,4 +23,3 @@ export default function RootLayout({
     </html>
   )
 }
-

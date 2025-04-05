@@ -191,11 +191,11 @@ export default function SignUp() {
 
   const onSubmit = async (data: SignUpForm) => {
     try {
-      const response = await api.post(createApiUrl(API_ROUTES.SIGNUP), {
-        phone_number: data.phoneNumber,
-        password: data.password,
+      await api.post(createApiUrl(API_ROUTES.SIGNUP), {
         first_name: data.firstName,
         last_name: data.lastName,
+        phone_number: data.phoneNumber,
+        password: data.password,
         role: "student",
         verification_code: data.verificationCode,
         student_number: data.studentNumber,
@@ -209,6 +209,7 @@ export default function SignUp() {
         router.push("/")
       }, 4000)
     } catch (error) {
+      console.error(error)
       toast.error("خطا در ثبت نام. لطفا دوباره تلاش کنید.")
     }
   }
@@ -356,6 +357,7 @@ export default function SignUp() {
       resetField("verificationCode")
       setDisplayPhoneNumber(convertToPersianNumbers(phoneNumber)) // Update displayed phone number
     } catch (error) {
+      console.error('Error sending verification code:', error)
       toast.error("خطا در ارسال کد تایید")
     } finally {
       setIsVerifying(false)
@@ -373,10 +375,10 @@ export default function SignUp() {
         phone_number: phoneNumber,
         code: code,
       })
-
+      
       if (response.data.verified) {
         setIsCodeVerified(true)
-        setIsCodeError(false)
+      setIsCodeError(false)
         setValidationError(null)
         // Automatically proceed to next step after a short delay
         setTimeout(() => {
@@ -386,11 +388,12 @@ export default function SignUp() {
         setIsCodeVerified(false)
         setIsCodeError(true)
         // Clear the code after a short delay
-        setTimeout(() => {
-          resetField("verificationCode")
-        }, 600)
+      setTimeout(() => {
+        resetField("verificationCode")
+      }, 600)
       }
     } catch (error) {
+      console.error('Error verifying code:', error)
       setIsCodeVerified(false)
       setIsCodeError(true)
       // Clear the code after a short delay
@@ -415,6 +418,7 @@ export default function SignUp() {
       setIsCodeError(false)
       resetField("verificationCode")
     } catch (error) {
+      console.error(error)
       toast.error("خطا در ارسال مجدد کد تایید")
     }
   }
@@ -427,10 +431,6 @@ export default function SignUp() {
 
   const handleOtpComplete = (otp: string) => {
     verifyCode(otp)
-  }
-
-  const handleOtpClear = () => {
-    setIsCodeError(false)
   }
 
   useEffect(() => {
@@ -741,4 +741,3 @@ export default function SignUp() {
     </div>
   )
 }
-

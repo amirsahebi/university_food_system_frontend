@@ -14,7 +14,7 @@ export function withAuth<T extends object>(WrappedComponent: ComponentType<T>, a
       } else if (user && allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
         router.push('/')
       }
-    }, [user, isLoading, router, allowedRoles])
+    }, [isLoading, user, router])
 
     if (isLoading) {
       return <LoadingSpinner />
@@ -27,4 +27,3 @@ export function withAuth<T extends object>(WrappedComponent: ComponentType<T>, a
     return <WrappedComponent {...props} />
   }
 }
-

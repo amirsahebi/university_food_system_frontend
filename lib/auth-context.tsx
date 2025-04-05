@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import api from './axios'
 import { API_ROUTES, createApiUrl } from './api'
@@ -28,11 +28,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
 
-  useEffect(() => {
-    checkAuth()
-  }, [])
-
-  const checkAuth = async () => {
+  const checkAuth = useCallback(async () => {
     const token = localStorage.getItem('access_token')
     if (token) {
       try {
@@ -54,7 +50,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       router.push('/')
     }
     setIsLoading(false)
-  }
+  }, [router])
+
+  useEffect(() => {
+    checkAuth()
+  }, [checkAuth])
 
   const login = async (userData: User) => {
     setUser(userData)
@@ -84,4 +84,3 @@ export function useAuth() {
   }
   return context
 }
-

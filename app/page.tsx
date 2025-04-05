@@ -48,9 +48,10 @@ export default function LoginPage() {
       await authLogin(user)
       toast.success("ورود با موفقیت انجام شد")
       router.push(`/${user.role}-dashboard`)
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Login error:", error)
-      const errorMessage = error.response?.data?.message || "خطا در ورود. لطفا دوباره تلاش کنید."
+      const errorResponse = error as { response?: { data?: { message?: string } } }
+      const errorMessage = errorResponse.response?.data?.message || "خطا در ورود. لطفا دوباره تلاش کنید."
       setLoginError(errorMessage)
       toast.error(errorMessage, {
         duration: 5000, // Increase duration to 5 seconds

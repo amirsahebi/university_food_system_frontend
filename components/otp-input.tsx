@@ -28,7 +28,6 @@ const OTPInput = ({
   containerClassName,
   isError = false,
   isSuccess = false,
-  onClear,
 }: OTPInputProps) => {
   const [otp, setOtp] = useState<string[]>(
     value.split("").slice(0, length).concat(Array(length).fill("")).slice(0, length),
@@ -74,16 +73,6 @@ const OTPInput = ({
   const focusInput = (index: number) => {
     if (inputRefs.current[index]) {
       inputRefs.current[index]?.focus()
-    }
-  }
-
-  const clearOtp = () => {
-    setOtp(Array(length).fill(""))
-    if (onClear) {
-      onClear()
-    }
-    if (inputRefs.current[0]) {
-      inputRefs.current[0].focus()
     }
   }
 

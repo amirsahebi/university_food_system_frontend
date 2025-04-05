@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -8,7 +8,7 @@ import { CheckCircle, XCircle } from "lucide-react"
 import api from "@/lib/axios"
 import { API_ROUTES, createApiUrl } from "@/lib/api"
 
-export default function PaymentVerifyPage() {
+function PaymentVerifyContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading")
@@ -17,6 +17,33 @@ export default function PaymentVerifyPage() {
     amount: number
     ref_id: string
   } | null>(null)
+
+  const verifyPayment = useCallback(async (authority: string) => {
+    try {
+      const response = await api.get(createApiUrl(API_ROUTES.PAYMENT_VERIFY), {
+        params: { Authority: authority, Status: "OK" },
+      })
+
+      if (response.status === 200) {
+        // Set success state and payment details
+        setStatus("success")
+        setMessage("پرداخت با موفقیت انجام شد")
+        setPaymentDetails({
+          amount: response.data.amount,
+          ref_id: response.data.ref_id,
+        })
+
+        // Redirect after a short delay to show success state
+        setTimeout(() => {
+          router.push("/student-dashboard")
+        }, 5000)
+      }
+    } catch (error) {
+      console.error("Error verifying payment:", error)
+      setStatus("error")
+      setMessage("خطا در تایید پرداخت")
+    }
+  }, [router])
 
   useEffect(() => {
     const authority = searchParams.get("Authority")
@@ -35,35 +62,7 @@ export default function PaymentVerifyPage() {
     }
 
     verifyPayment(authority)
-  }, [searchParams])
-
-  const verifyPayment = async (authority: string) => {
-    try {
-      const response = await api.get(createApiUrl(API_ROUTES.PAYMENT_VERIFY), {
-        params: { Authority: authority, Status: "OK" },
-      })
-
-      if (response.status === 200) {
-        // Set success state and payment details
-        setStatus("success")
-        setMessage("پرداخت با موفقیت انجام شد")
-        setPaymentDetails({
-          amount: response.data.amount,
-          ref_id: response.data.ref_id,
-        })
-
-
-        // Redirect after a short delay to show success state
-        setTimeout(() => {
-          router.push("/student-dashboard")
-        }, 5000)
-      }
-    } catch (error) {
-      console.error("Error verifying payment:", error)
-      setStatus("error")
-      setMessage("خطا در تایید پرداخت")
-    }
-  }
+  }, [searchParams, verifyPayment])
 
   return (
     <div className="min-h-screen bg-[#FBF7F4] flex items-center justify-center p-4 rtl">
@@ -110,3 +109,10 @@ export default function PaymentVerifyPage() {
   )
 }
 
+export default function PaymentVerifyPage() {
+  return (
+    <Suspense fallback={<div>در حال بارگذاری...</div>}>
+      <PaymentVerifyContent />
+    </Suspense>
+  )
+}

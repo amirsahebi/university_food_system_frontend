@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { Button } from "@/components/ui/button"
@@ -10,17 +10,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { ChefHat, Clock, CheckCircle, AlertTriangle, Utensils, User, LogOut, Eye } from 'lucide-react'
 import { toast, Toaster } from 'react-hot-toast'
 import api from '@/lib/axios'
 import { API_ROUTES, createApiUrl } from '@/lib/api'
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon } from 'lucide-react'
-import { format } from "date-fns-jalali"
-import { cn } from "@/lib/utils"
 import DatePicker from "react-multi-date-picker"
 import persian from "react-date-object/calendars/persian"
 import persian_fa from "react-date-object/locales/persian_fa"
@@ -83,12 +76,7 @@ export default function ChefDashboard() {
 
   const [selectedMeal, setSelectedMeal] = useState<'lunch' | 'dinner'>(defaultMeal);
 
-  useEffect(() => {
-    fetchReservations()
-    console.log("orders",orders)
-  }, [selectedDate, selectedMeal])
-
-  const fetchReservations = async () => {
+  const fetchReservations = useCallback(async () => {
     try {
       const formattedDate = new DateObject(selectedDate).format("YYYY-MM-DD")
       const response = await api.get(createApiUrl(API_ROUTES.GET_CHEF_ORDERS), {
@@ -100,7 +88,12 @@ export default function ChefDashboard() {
       console.error('Error fetching reservations:', error);
       toast.error('خطا در دریافت رزروها');
     }
-  }
+  }, [selectedDate, selectedMeal])
+
+  useEffect(() => {
+    fetchReservations()
+    console.log("orders",orders)
+  }, [fetchReservations, orders])
 
   const handleUpdateStatus = async (reservationId: number, newStatus: 'waiting' | 'preparing' | 'ready_to_pickup' | 'picked_up') => {
     try {
@@ -146,11 +139,6 @@ export default function ChefDashboard() {
       case 'تحویل داده شده': return 'bg-gray-500'
       default: return 'bg-gray-500'
     }
-  }
-
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })
   }
 
   const getOrdersCount = (status: string) => {
@@ -405,4 +393,3 @@ export default function ChefDashboard() {
     </div>
   )
 }
-

@@ -1,7 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import Image from 'next/image'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
@@ -11,11 +10,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { toast, Toaster } from 'react-hot-toast'
-import { User, Phone, Camera, Save, Lock, Menu, LogOut, ChevronLeft, GraduationCap } from 'lucide-react'
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { User, Phone, Save, Lock, Menu, LogOut, ChevronLeft, GraduationCap } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import api from '@/lib/axios'
 import { API_ROUTES, createApiUrl } from '@/lib/api'
@@ -39,7 +36,7 @@ const changePasswordSchema = z.object({
 })
 
 export default function EditProfile() {
-  const { user, isLoading } = useAuth()
+  const { isLoading } = useAuth()
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isChangingPassword, setIsChangingPassword] = useState(false)
@@ -63,11 +60,7 @@ export default function EditProfile() {
     }
   })
 
-  useEffect(() => {
-    fetchUserData();
-  }, [setValue])
-
-  const fetchUserData = async () => {
+  const fetchUserData = useCallback(async () => {
     try {
       const response = await api.get(createApiUrl(API_ROUTES.ME));
       const userData = response.data;
@@ -80,7 +73,11 @@ export default function EditProfile() {
       console.error('Error fetching user data:', error);
       toast.error('خطا در دریافت اطلاعات کاربر');
     }
-  };
+  }, [setValue])
+
+  useEffect(() => {
+    fetchUserData();
+  }, [fetchUserData])
 
   const onSubmit = async (data: z.infer<typeof editProfileSchema>) => {
     setIsSubmitting(true)
@@ -283,4 +280,3 @@ export default function EditProfile() {
     </div>
   )
 }
-

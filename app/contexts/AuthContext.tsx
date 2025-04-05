@@ -7,6 +7,7 @@ interface User {
   id: string
   name: string
   role: 'admin' | 'student' | 'chef' | 'receiver'
+  username: string
 }
 
 interface AuthContextType {
@@ -35,7 +36,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Check for existing session
     const storedUser = localStorage.getItem('user')
     if (storedUser) {
-      setUser(JSON.parse(storedUser))
+      setUser(JSON.parse(storedUser) as User)
     }
     setIsLoading(false)
   }, [])
@@ -44,8 +45,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Mock login logic
     const foundUser = mockUsers.find(u => u.username === username && u.password === password)
     if (foundUser) {
-      const { password, username, ...userWithoutCredentials } = foundUser
-      setUser(userWithoutCredentials)
+      /* eslint-disable @typescript-eslint/no-unused-vars */
+      const { password: _, ...userWithoutCredentials } = foundUser
+      setUser(userWithoutCredentials as User)
       localStorage.setItem('user', JSON.stringify(userWithoutCredentials))
       router.push(`/${foundUser.role}-dashboard`)
     } else {
@@ -73,4 +75,3 @@ export function useAuth() {
   }
   return context
 }
-

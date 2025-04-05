@@ -1,13 +1,12 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { format as formatJalali, parse as parseJalali } from 'date-fns-jalali'
 import { format as formatGregorian } from 'date-fns'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -15,17 +14,14 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog"
 import { Switch } from "@/components/ui/switch"
-import { CalendarIcon, Utensils, Users, DollarSign, TrendingUp, User, LogOut, Save, PlusCircle, Trash2, Eye, EyeOff, Calendar, Clipboard, BarChart2, Plus, Edit, Trash, Upload, ChevronDown } from 'lucide-react'
+import { Utensils, DollarSign, User, LogOut, Calendar, Clipboard, BarChart2, Plus, Edit, Trash } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { toast, Toaster } from 'react-hot-toast'
-import { Calendar as CalendarComponent } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts'
 import api from '@/lib/axios'
 import { API_ROUTES, createApiUrl } from '@/lib/api'
-import { faIR } from 'date-fns/locale'
 import DatePicker from "react-multi-date-picker"
 import persian from "react-date-object/calendars/persian"
 import persian_fa from "react-date-object/locales/persian_fa"
@@ -97,25 +93,16 @@ export default function AdminDashboard() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
   const [dailyOrderCounts, setDailyOrderCounts] = useState<DailyOrderCount[]>([])
 
-  useEffect(() => {
-    fetchFoods()
-    fetchTemplateMenu()
-    fetchDailyMenu()
-    fetchVoucherPrice()
-    fetchReservationLogs()
-    fetchDailyOrderCounts()
-  }, [selectedDate, selectedMeal_type])
-
-  const fetchFoods = async () => {
+  const fetchFoods = useCallback(async () => {
     try {
       const response = await api.get(createApiUrl(API_ROUTES.GET_FOODS))
       setFoods(response.data)
     } catch (error) {
       console.error('Error fetching foods:', error)
     }
-  }
+  }, [])
 
-  const fetchTemplateMenu = async () => {
+  const fetchTemplateMenu = useCallback(async () => {
     try {
       const response = await api.get(createApiUrl(API_ROUTES.GET_TEMPLATE_MENU))
       setTemplateMenu(response.data)
@@ -123,9 +110,9 @@ export default function AdminDashboard() {
       console.error('Error fetching template menu:', error)
       setTemplateMenu(null)
     }
-  }
+  }, [])
 
-  const fetchDailyMenu = async () => {
+  const fetchDailyMenu = useCallback(async () => {
     if (!selectedDate || !selectedMeal_type) {
       toast.error('لطفاً تاریخ و نوع وعده را انتخاب کنید')
       return
@@ -142,18 +129,18 @@ export default function AdminDashboard() {
       console.error('Error fetching daily menu:', error)
       setDailyMenu(null)
     }
-  }
+  }, [selectedDate, selectedMeal_type])
 
-  const fetchVoucherPrice = async () => {
+  const fetchVoucherPrice = useCallback(async () => {
     try {
       const response = await api.get(createApiUrl(API_ROUTES.GET_VOUCHER_PRICE))
       setVoucherPrice(response.data.price)
     } catch (error) {
       console.error('Error fetching voucher price:', error)
     }
-  }
+  }, [])
 
-  const fetchReservationLogs = async () => {
+  const fetchReservationLogs = useCallback(async () => {
     try {
       const response = await api.get(createApiUrl(API_ROUTES.GET_RESERVATION_LOGS))
       setReservationLogs(response.data)
@@ -161,9 +148,9 @@ export default function AdminDashboard() {
       console.error('Error fetching reservation logs:', error)
       toast.error('خطا در دریافت گزارش رزروها')
     }
-  }
+  }, [])
 
-  const fetchDailyOrderCounts = async () => {
+  const fetchDailyOrderCounts = useCallback(async () => {
     try {
       const response = await api.get(createApiUrl(API_ROUTES.GET_DAILY_ORDER_COUNTS))
       setDailyOrderCounts(response.data)
@@ -171,19 +158,28 @@ export default function AdminDashboard() {
       console.error('Error fetching daily order counts:', error)
       toast.error('خطا در دریافت آمار سفارشات روزانه')
     }
-  }
+  }, [])
 
-  const openDialog = (content: React.ReactNode) => {
+  useEffect(() => {
+    fetchFoods()
+    fetchTemplateMenu()
+    fetchDailyMenu()
+    fetchVoucherPrice()
+    fetchReservationLogs()
+    fetchDailyOrderCounts()
+  }, [selectedDate, selectedMeal_type, fetchTemplateMenu, fetchDailyMenu, fetchFoods, fetchVoucherPrice, fetchReservationLogs, fetchDailyOrderCounts])
+
+  const openDialog = useCallback((content: React.ReactNode) => {
     setDialogContent(content)
     setIsDialogOpen(true)
-  }
+  }, [])
 
-  const closeDialog = () => {
+  const closeDialog = useCallback(() => {
     setIsDialogOpen(false)
     setDialogContent(null)
-  }
+  }, [])
 
-  const handleAddFood = () => {
+  const handleAddFood = useCallback(() => {
     openDialog(
       <div className="space-y-4" dir='rtl'>
         <h2 className="text-lg font-bold">افزودن غذای جدید</h2>
@@ -237,9 +233,9 @@ export default function AdminDashboard() {
         </Button>
       </div>
     )
-  }
+  }, [openDialog, closeDialog, fetchFoods])
 
-  const handleEditFood = (food: Food) => {
+  const handleEditFood = useCallback((food: Food) => {
     openDialog(
       <div className="space-y-4" dir='rtl'>
         <h2 className="text-lg font-bold">ویرایش غذا</h2>
@@ -285,15 +281,16 @@ export default function AdminDashboard() {
         }} className="w-full">ذخیره تغییرات</Button>
       </div>
     )
-  }
+  }, [openDialog, closeDialog, fetchFoods])
 
-  const handleDeleteFood = (food: Food) => {
+  const handleDeleteFood = useCallback((food: Food) => {
     openDialog(
       <div className="space-y-4" dir='rtl'>
         <h2 className="text-lg font-bold">حذف غذا</h2>
-        <p>آیا مطمئن هستید که می‌خواهید "{food.name}" را حذف کنید؟</p>
-        <div className="flex justify-end space-x-2">
-          <Button variant="outline" onClick={closeDialog}>انصراف</Button>
+        <p className="text-sm text-gray-600">
+          آیا مطمئن هستید که می‌خواهید غذای &quot;{food.name}&quot; را حذف کنید؟ این عمل غیرقابل برگشت است.
+        </p>
+        <div className="flex justify-between space-x-4">
           <Button variant="destructive" onClick={async () => {
             try {
               await api.delete(createApiUrl(API_ROUTES.DELETE_FOOD(food.id)))
@@ -304,11 +301,12 @@ export default function AdminDashboard() {
               console.error('Error deleting food:', error)
               toast.error('خطا در حذف غذا')
             }
-          }}>حذف</Button>
+          }} className="w-full">بله، حذف شود</Button>
+          <Button variant="outline" onClick={closeDialog} className="w-full">انصراف</Button>
         </div>
       </div>
     )
-  }
+  }, [openDialog, closeDialog, fetchFoods])
 
   const handleAddMenuItem = useCallback((isTemplate: boolean) => {
     if (isTemplate && (!selectedDay || !selectedMeal_type)) {
@@ -507,7 +505,7 @@ export default function AdminDashboard() {
     }
   }, [fetchTemplateMenu, fetchDailyMenu])
 
-  const handleUpdateVoucherPrice = () => {
+  const handleUpdateVoucherPrice = useCallback(() => {
     openDialog(
       <div className="space-y-4" dir='rtl'>
         <h2 className="text-lg font-bold">به‌روزرسانی قیمت ژتون</h2>
@@ -531,7 +529,7 @@ export default function AdminDashboard() {
         }} className="w-full">به‌روزرسانی قیمت</Button>
       </div>
     )
-  }
+  }, [voucherPrice, openDialog, closeDialog])
 
   const handleToggleAvailability = useCallback(async (itemId: string, is_available: boolean) => {
     try {
@@ -544,16 +542,16 @@ export default function AdminDashboard() {
     }
   }, [fetchDailyMenu])
 
-  const handleDateChange = (date: DateObject | DateObject[] | null) => {
+  const handleDateChange = useCallback((date: DateObject | DateObject[] | null) => {
     if (date instanceof DateObject) {
       const gregorianDate = date.convert(persian, persian_fa).toDate()
       setSelectedDate(gregorianDate)
     } else {
       setSelectedDate(undefined)
     }
-  }
+  }, [])
 
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     try {
       await api.post(createApiUrl(API_ROUTES.SIGNOUT),{
         refresh_token: localStorage.getItem('refresh_token')
@@ -566,7 +564,7 @@ export default function AdminDashboard() {
       console.error('Error logging out:', error)
       toast.error('خطا در خروج از حساب کاربری')
     }
-  }
+  }, [router])
 
   return (
     <div className="min-h-screen bg-gradient-to-bl from-orange-100 to-red-100 rtl p-8">
@@ -924,4 +922,3 @@ export default function AdminDashboard() {
             </div>
           )
         }
-

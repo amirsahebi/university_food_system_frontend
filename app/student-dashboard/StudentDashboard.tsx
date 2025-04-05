@@ -1,8 +1,6 @@
 "use client"
 
-import type React from "react"
-
-import { useState, useEffect } from "react"
+import React, { useState, useEffect, useCallback } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -77,25 +75,15 @@ interface Reservation {
   payment_status?: "pending" | "paid" | "failed"
 }
 
-interface Payment {
-  id: number
-  amount: number
-  authority: string
-  ref_id: string | null
-  status: "pending" | "paid" | "failed"
-  created_at: string
-}
-
-interface PaymentHistory {
-  count: number
-  results: Payment[]
-}
-
 const ModalOrSheet = ({
-  isOpen,
-  onClose,
+  isOpen, 
   children,
-}: { isOpen: boolean; onClose: () => void; children: React.ReactNode }) => {
+  onClose,
+}: { 
+  isOpen: boolean; 
+  children: React.ReactNode;
+  onClose?: () => void;
+}) => {
   const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
@@ -113,6 +101,7 @@ const ModalOrSheet = ({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-end justify-center sm:items-center"
+          onClick={onClose}
         >
           <motion.div
             initial={{ y: "100%" }}
@@ -120,6 +109,7 @@ const ModalOrSheet = ({
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 500 }}
             className={`bg-[#FBF7F4] w-full sm:w-[425px] ${isMobile ? "rounded-t-3xl" : "rounded-xl"} shadow-[0_0_10px_rgba(0,0,0,0.1)] overflow-hidden`}
+            onClick={(e) => e.stopPropagation()}
           >
             {children}
           </motion.div>
@@ -144,13 +134,27 @@ export default function StudentDashboard() {
   const [isPaymentProcessing, setIsPaymentProcessing] = useState(false)
   const [activeTab, setActiveTab] = useState("menu")
   const [voucherPrice, setVoucherPrice] = useState<number>(0)
-  const [walletBalance, setWalletBalance] = useState<number>(0)
+
+  const fetchDailyMenu = useCallback(async () => {
+    try {
+      const response = await api.get(createApiUrl(API_ROUTES.GET_DAILY_MENU), {
+        params: { 
+          date: new DateObject(selectedDate).format("YYYY-MM-DD"), 
+          meal_type: selectedMeal 
+        },
+      })
+      setDailyMenu(response.data)
+    } catch (error) {
+      console.error("Error fetching daily menu:", error)
+      setDailyMenu(null)
+    }
+  }, [selectedDate, selectedMeal])
 
   useEffect(() => {
     fetchDailyMenu()
     fetchReservations()
     fetchVoucherPrice()
-  }, [selectedDate, selectedMeal])
+  }, [fetchDailyMenu])
 
   // Add effect to refresh orders when returning from payment verification
   useEffect(() => {
@@ -173,19 +177,6 @@ export default function StudentDashboard() {
     document.addEventListener('visibilitychange', handleVisibilityChange)
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
   }, [])
-
-  const fetchDailyMenu = async () => {
-    try {
-      const formattedDate = new DateObject(selectedDate).format("YYYY-MM-DD")
-      const response = await api.get(createApiUrl(API_ROUTES.GET_DAILY_MENU), {
-        params: { date: formattedDate, meal_type: selectedMeal },
-      })
-      setDailyMenu(response.data)
-    } catch (error) {
-      console.error("Error fetching daily menu:", error)
-      setDailyMenu(null)
-    }
-  }
 
   const fetchVoucherPrice = async () => {
     try {
@@ -255,7 +246,6 @@ export default function StudentDashboard() {
 
     try {
       const callbackUrl = `${window.location.origin}/payment/verify`
-      const formattedDate = new DateObject(selectedDate).format("YYYY-MM-DD")
 
       // First place the order
       const orderResponse = await api.post(createApiUrl(API_ROUTES.PLACE_ORDER), {
@@ -286,9 +276,12 @@ export default function StudentDashboard() {
         toast.error("خطا در ایجاد درخواست پرداخت. لطفاً دوباره تلاش کنید")
         setIsPaymentProcessing(false)
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error in payment process:", error)
-      toast.error(error?.response?.data?.message || "خطا در فرآیند پرداخت. لطفاً دوباره تلاش کنید")
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : (error as { response?: { data?: { message?: string } } })?.response?.data?.message || "خطا در فرآیند پرداخت. لطفاً دوباره تلاش کنید"
+      toast.error(errorMessage)
       setIsPaymentProcessing(false)
     }
   }
@@ -297,25 +290,17 @@ export default function StudentDashboard() {
     setIsPaymentProcessing(true)
 
     try {
-      const callbackUrl = `${window.location.origin}/payment/verify`
-      
-      // Create a payment request for the existing order
-      const paymentResponse = await api.post(createApiUrl(API_ROUTES.PAYMENT_REQUEST), {
-        amount: Math.round(reservation.price),
-        callback_url: callbackUrl,
+      const response: { data: unknown } = await api.post(createApiUrl(API_ROUTES.PAYMENT_REQUEST), {
         reservation_id: reservation.id,
+        amount: Math.round(reservation.price),
+        callback_url: `${window.location.origin}/payment/verify`
       })
 
-      // If we get a payment authority, redirect to ZarinPal
-      if (paymentResponse.status === 201) {
-        window.location.href = paymentResponse.data.redirect_url
-      } else {
-        toast.error("خطا در ایجاد درخواست پرداخت. لطفاً دوباره تلاش کنید")
-        setIsPaymentProcessing(false)
-      }
-    } catch (error: any) {
-      console.error("Error in payment process:", error)
-      toast.error(error?.response?.data?.message || "خطا در فرآیند پرداخت. لطفاً دوباره تلاش کنید")
+      // Redirect to payment URL
+      window.location.href = (response.data as { redirect_url: string }).redirect_url
+    } catch (error) {
+      console.error("Error processing payment:", error)
+      toast.error("خطا در پرداخت سفارش")
       setIsPaymentProcessing(false)
     }
   }
@@ -585,8 +570,8 @@ export default function StudentDashboard() {
                   selectedTimeSlot === slot.id ? "bg-black text-white" : "text-black hover:bg-[#E8DED5]"
                 }`}
               >
-                {slot.start_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])} -{" "}
-                {slot.end_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])}
+                {slot.start_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])}{" "}
+                - {slot.end_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])}
               </Button>
             ))}
           </div>
@@ -697,4 +682,3 @@ export default function StudentDashboard() {
     </div>
   )
 }
-
