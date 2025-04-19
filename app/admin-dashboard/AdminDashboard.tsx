@@ -378,14 +378,16 @@ export default function AdminDashboard() {
               // Debug log
               console.log('Edit Food - Selected category:', category)
 
-              if (!name || !description || !price) {
+              if (!name || !price) {
                 toast.error("لطفاً تمام فیلدها را پر کنید")
                 return
               }
 
               const formData = new FormData()
               formData.append("name", name)
-              formData.append("description", description)
+              if (description) {
+                formData.append("description", description)
+              }
               formData.append("price", price.toString())
               // Try multiple possible field names to ensure one works
               if (category) {
