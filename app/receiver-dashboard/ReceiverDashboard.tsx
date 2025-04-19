@@ -237,7 +237,7 @@ export default function ReceiverDashboard() {
       setIsVerifying(false)
       setDeliveryCode("")
     }
-  }, [deliveryCode])
+  }, [deliveryCode, selectedDate, selectedMeal])
 
   const handleDeliverOrder = async () => {
     if (currentReservation) {

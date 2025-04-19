@@ -3,6 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect, useCallback } from "react"
+import { AxiosError } from "axios"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -116,9 +117,10 @@ export function CategoryManagement() {
       toast.success("دسته‌بندی با موفقیت حذف شد")
       setIsDeleteDialogOpen(false)
       fetchCategories()
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const isAxiosError = error instanceof AxiosError;
       console.error("Error deleting category:", error)
-      if (error.response?.status === 400) {
+      if (isAxiosError && error.response?.status === 400) {
         toast.error("این دسته‌بندی به یک یا چند غذا اختصاص داده شده است و قابل حذف نیست")
       } else {
         toast.error("خطا در حذف دسته‌بندی")
@@ -221,7 +223,7 @@ export function CategoryManagement() {
             <DialogTitle>حذف دسته‌بندی</DialogTitle>
           </DialogHeader>
           <div className="py-4" dir="rtl">
-            <p>آیا از حذف دسته‌بندی "{currentCategory?.name}" اطمینان دارید؟</p>
+            <p>آیا از حذف دسته‌بندی &quot;{currentCategory?.name}&quot; اطمینان دارید؟</p>
             <p className="text-sm text-red-500 mt-2">
               توجه: اگر این دسته‌بندی به غذایی اختصاص داده شده باشد، قابل حذف نخواهد بود.
             </p>

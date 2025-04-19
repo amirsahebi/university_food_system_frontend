@@ -167,7 +167,7 @@ export default function StudentDashboard() {
       console.error("Error fetching daily menu:", error)
       setDailyMenu(null)
     }
-  }, [selectedDate, selectedMeal, selectedCategory])
+  }, [selectedDate, selectedMeal])
 
   useEffect(() => {
     fetchDailyMenu()
