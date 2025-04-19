@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -56,10 +57,22 @@ const SuccessModal = ({ isOpen, onClose, studentName }: SuccessModalProps) => {
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.8, opacity: 0 }}
             transition={{ type: "spring", damping: 15 }}
-            className="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl"
+            className="bg-white/90 backdrop-blur-md rounded-3xl p-6 max-w-md w-full shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="text-center">
+              <div className="flex justify-center mb-4">
+                <div className="relative h-16 w-16">
+                  <Image
+                    src="/restaurant-logo.svg"
+                    alt="رستوران جوان"
+                    fill
+                    className="object-contain drop-shadow-md"
+                    priority
+                  />
+                </div>
+              </div>
+
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: [0, 1.2, 1] }}
@@ -79,7 +92,7 @@ const SuccessModal = ({ isOpen, onClose, studentName }: SuccessModalProps) => {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
-                className="text-2xl font-bold text-green-600 mb-2"
+                className="text-2xl font-bold text-[#f97316] mb-2"
               >
                 ثبت نام با موفقیت انجام شد!
               </motion.h2>
@@ -98,11 +111,11 @@ const SuccessModal = ({ isOpen, onClose, studentName }: SuccessModalProps) => {
                 initial={{ width: "0%" }}
                 animate={{ width: "100%" }}
                 transition={{ delay: 0.5, duration: 3 }}
-                className="h-1 bg-green-500 rounded-full mb-6"
+                className="h-1 bg-[#f97316] rounded-full mb-6"
               />
 
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}>
-                <Button onClick={onClose} className="bg-green-500 hover:bg-green-600">
+                <Button onClick={onClose} className="bg-[#f97316] hover:bg-orange-600">
                   ورود به حساب کاربری
                 </Button>
               </motion.div>
@@ -206,7 +219,7 @@ export default function SignUp() {
 
       // Set a timer to redirect to login page after 4 seconds
       redirectTimerRef.current = setTimeout(() => {
-        router.push("/")
+        router.push("/login")
       }, 4000)
     } catch (error) {
       console.error(error)
@@ -357,7 +370,7 @@ export default function SignUp() {
       resetField("verificationCode")
       setDisplayPhoneNumber(convertToPersianNumbers(phoneNumber)) // Update displayed phone number
     } catch (error) {
-      console.error('Error sending verification code:', error)
+      console.error("Error sending verification code:", error)
       toast.error("خطا در ارسال کد تایید")
     } finally {
       setIsVerifying(false)
@@ -375,10 +388,10 @@ export default function SignUp() {
         phone_number: phoneNumber,
         code: code,
       })
-      
+
       if (response.data.verified) {
         setIsCodeVerified(true)
-      setIsCodeError(false)
+        setIsCodeError(false)
         setValidationError(null)
         // Automatically proceed to next step after a short delay
         setTimeout(() => {
@@ -388,12 +401,12 @@ export default function SignUp() {
         setIsCodeVerified(false)
         setIsCodeError(true)
         // Clear the code after a short delay
-      setTimeout(() => {
-        resetField("verificationCode")
-      }, 600)
+        setTimeout(() => {
+          resetField("verificationCode")
+        }, 600)
       }
     } catch (error) {
-      console.error('Error verifying code:', error)
+      console.error("Error verifying code:", error)
       setIsCodeVerified(false)
       setIsCodeError(true)
       // Clear the code after a short delay
@@ -442,42 +455,77 @@ export default function SignUp() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-gradient-to-bl from-orange-100 to-red-100 flex items-center justify-center p-4">
-      <Toaster position="top-center" />
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="bg-white p-8 rounded-2xl shadow-[0_20px_50px_rgba(8,_112,_184,_0.3)] w-full max-w-md relative overflow-hidden"
-      >
-        <motion.div
-          className="absolute top-0 right-0 w-32 h-32 bg-orange-200 rounded-full"
-          style={{ filter: "blur(40px)" }}
-          animate={{
-            scale: [1, 1.2, 1],
-            opacity: [0.3, 0.5, 0.3],
-          }}
-          transition={{
-            duration: 5,
-            repeat: Number.POSITIVE_INFINITY,
-            repeatType: "reverse",
-          }}
-        />
-        <motion.div
-          className="absolute bottom-0 left-0 w-24 h-24 bg-red-200 rounded-full"
-          style={{ filter: "blur(30px)" }}
-          animate={{
-            scale: [1, 1.3, 1],
-            opacity: [0.2, 0.4, 0.2],
-          }}
-          transition={{
-            duration: 7,
-            repeat: Number.POSITIVE_INFINITY,
-            repeatType: "reverse",
-          }}
-        />
-        <div className="relative">
-          <h1 className="text-3xl font-bold text-center text-orange-500 mb-6">ثبت نام دانشجو</h1>
+    <div
+      className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-pattern bg-pattern-animate"
+    >
+      <div className="absolute inset-0">
+        <div className="absolute top-0 right-0 w-full h-full overflow-hidden">
+          <svg
+            className="absolute top-0 right-0 h-full w-full"
+            viewBox="0 0 900 600"
+            preserveAspectRatio="xMidYMid slice"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <g>
+              <path
+                className="blob-animate-1"
+                d="M0 486.7C-52.7 454 -105.4 421.3 -166.8 402.8C-228.3 384.3 -298.5 380 -344.2 344.2C-389.8 308.3 -410.9 241 -430.5 178.3C-450.2 115.7 -468.5 57.9 -486.7 0L0 0Z"
+                fill="url(#orange-gradient-1)"
+                transform="translate(900, 0)"
+              ></path>
+            </g>
+            <g>
+              <path
+                className="blob-animate-2"
+                d="M0 -486.7C59.2 -472.3 118.5 -457.9 181.4 -437.9C244.3 -417.9 311 -392.4 344.2 -344.2C377.4 -295.9 377.2 -224.9 395.4 -163.8C413.6 -102.6 450.2 -51.3 486.7 0L0 0Z"
+                fill="url(#orange-gradient-2)"
+                transform="translate(0, 600)"
+              ></path>
+            </g>
+            <defs>
+              <linearGradient id="orange-gradient-1" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#f97316" stopOpacity="0.3"></stop>
+                <stop offset="100%" stopColor="#fdba74" stopOpacity="0.2"></stop>
+              </linearGradient>
+              <linearGradient id="orange-gradient-2" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#fb923c" stopOpacity="0.3"></stop>
+                <stop offset="100%" stopColor="#fed7aa" stopOpacity="0.2"></stop>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+      </div>
+
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          style: {
+            background: "#FFF",
+            color: "#000",
+            borderRadius: "0.75rem",
+          },
+        }}
+      />
+
+      <Card className="w-full max-w-md backdrop-blur-md bg-white/55 rounded-3xl shadow-xl border-0 relative z-10 animate-fade-in">
+        <CardHeader className="flex flex-col items-center space-y-2 pb-2">
+          <div
+            className="mb-2"
+            style={{ animationDelay: "0.1s" }}
+          >
+            <div className="relative h-20 w-20">
+              <Image src="/images/javanfoods_logo.png" alt="رستوران جوان" fill className="object-contain" priority />
+            </div>
+          </div>
+          <h1 className="text-2xl font-bold text-gray-800" style={{ animationDelay: "0.2s" }}>
+            رستوران جوان
+          </h1>
+          <p className="text-gray-500 text-sm" style={{ animationDelay: "0.3s" }}>
+            ثبت نام دانشجو
+          </p>
+        </CardHeader>
+
+        <CardContent className="pt-4">
           <div className="mb-6">
             <div className="flex justify-between mb-2">
               {steps.map((stepItem, index) => (
@@ -485,7 +533,7 @@ export default function SignUp() {
                   <div
                     className={`flex items-center justify-center w-10 h-10 rounded-full mb-1 transition-colors ${
                       index === step
-                        ? "bg-orange-100 text-orange-500"
+                        ? "bg-orange-100 text-[#f97316]"
                         : index < step
                           ? "bg-green-100 text-green-500"
                           : "bg-gray-100 text-gray-400"
@@ -495,7 +543,7 @@ export default function SignUp() {
                   </div>
                   <span
                     className={`text-xs hidden md:block ${
-                      index === step ? "text-orange-500 font-bold" : index < step ? "text-green-500" : "text-gray-400"
+                      index === step ? "text-[#f97316] font-bold" : index < step ? "text-green-500" : "text-gray-400"
                     }`}
                   >
                     {stepItem.text}
@@ -503,11 +551,15 @@ export default function SignUp() {
                 </div>
               ))}
             </div>
-            <Progress value={(step + 1) * (100 / steps.length)} className="h-2" />
+            <Progress
+              value={(step + 1) * (100 / steps.length)}
+              className="h-2 bg-orange-100"
+              indicatorClassName="bg-[#f97316]"
+            />
           </div>
 
           {validationError && (
-            <Alert variant="destructive" className="mb-4">
+            <Alert variant="destructive" className="mb-4 animate-shake">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>{validationError}</AlertDescription>
             </Alert>
@@ -530,11 +582,16 @@ export default function SignUp() {
                         <Input
                           id="firstName"
                           {...register("firstName")}
-                          className={`pr-10 ${errors.firstName ? "border-red-500 focus:border-red-500" : ""}`}
+                          className={`pr-10 form-input-focus ${errors.firstName ? "border-red-500 focus:border-red-500" : ""}`}
                         />
-                        <User className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                        <User
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-orange-400"
+                          size={18}
+                        />
                       </div>
-                      {errors.firstName && <p className="text-red-500 text-sm mt-1">{errors.firstName.message}</p>}
+                      {errors.firstName && (
+                        <p className="text-red-500 text-sm mt-1 animate-shake">{errors.firstName.message}</p>
+                      )}
                     </div>
                     <div>
                       <Label htmlFor="lastName">نام خانوادگی</Label>
@@ -542,11 +599,16 @@ export default function SignUp() {
                         <Input
                           id="lastName"
                           {...register("lastName")}
-                          className={`pr-10 ${errors.lastName ? "border-red-500 focus:border-red-500" : ""}`}
+                          className={`pr-10 form-input-focus ${errors.lastName ? "border-red-500 focus:border-red-500" : ""}`}
                         />
-                        <User className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                        <User
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-orange-400"
+                          size={18}
+                        />
                       </div>
-                      {errors.lastName && <p className="text-red-500 text-sm mt-1">{errors.lastName.message}</p>}
+                      {errors.lastName && (
+                        <p className="text-red-500 text-sm mt-1 animate-shake">{errors.lastName.message}</p>
+                      )}
                     </div>
                   </div>
                 )}
@@ -563,12 +625,15 @@ export default function SignUp() {
                             setValue("studentNumber", englishValue)
                             setDisplayStudentNumber(convertToPersianNumbers(englishValue))
                           }}
-                          className={`pr-10 ${errors.studentNumber ? "border-red-500 focus:border-red-500" : ""}`}
+                          className={`pr-10 form-input-focus ${errors.studentNumber ? "border-red-500 focus:border-red-500" : ""}`}
                         />
-                        <Hash className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                        <Hash
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-orange-400"
+                          size={18}
+                        />
                       </div>
                       {errors.studentNumber && (
-                        <p className="text-red-500 text-sm mt-1">{errors.studentNumber.message}</p>
+                        <p className="text-red-500 text-sm mt-1 animate-shake">{errors.studentNumber.message}</p>
                       )}
                     </div>
                     <div>
@@ -582,20 +647,22 @@ export default function SignUp() {
                             setValue("phoneNumber", englishValue)
                             setDisplayPhoneNumber(convertToPersianNumbers(englishValue))
                           }}
-                          className={`pr-10 ${errors.phoneNumber ? "border-red-500 focus:border-red-500" : ""}`}
+                          className={`pr-10 form-input-focus ${errors.phoneNumber ? "border-red-500 focus:border-red-500" : ""}`}
                         />
                         <Phone
-                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-orange-400"
                           size={18}
                         />
                       </div>
-                      {errors.phoneNumber && <p className="text-red-500 text-sm mt-1">{errors.phoneNumber.message}</p>}
+                      {errors.phoneNumber && (
+                        <p className="text-red-500 text-sm mt-1 animate-shake">{errors.phoneNumber.message}</p>
+                      )}
                     </div>
                   </div>
                 )}
                 {step === 2 && (
                   <div className="space-y-4" dir="rtl">
-                    <Card className="w-full rounded-xl shadow-md">
+                    <Card className="w-full rounded-xl shadow-md bg-white/70 backdrop-blur-md">
                       <CardHeader>
                         <CardTitle className="text-xl text-center">کد تایید</CardTitle>
                         <CardDescription className="text-center">
@@ -637,7 +704,7 @@ export default function SignUp() {
                               type="button"
                               onClick={resendVerificationCode}
                               variant="link"
-                              className="text-orange-500 p-0"
+                              className="text-[#f97316] p-0"
                             >
                               ارسال مجدد کد
                             </Button>
@@ -656,12 +723,29 @@ export default function SignUp() {
                           id="password"
                           type="password"
                           {...register("password")}
-                          className={`pr-10 ${errors.password ? "border-red-500 focus:border-red-500" : ""}`}
+                          className={`pr-10 form-input-focus ${errors.password ? "border-red-500 focus:border-red-500" : ""}`}
                         />
-                        <Lock className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                        <Lock
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-orange-400"
+                          size={18}
+                        />
                       </div>
-                      {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>}
-                      <Progress value={passwordStrength} className="h-2 mt-2" />
+                      {errors.password && (
+                        <p className="text-red-500 text-sm mt-1 animate-shake">{errors.password.message}</p>
+                      )}
+                      <Progress
+                        value={passwordStrength}
+                        className="h-2 mt-2 bg-orange-100"
+                        indicatorClassName={`${
+                          passwordStrength <= 25
+                            ? "bg-red-500"
+                            : passwordStrength <= 50
+                              ? "bg-yellow-500"
+                              : passwordStrength <= 75
+                                ? "bg-blue-500"
+                                : "bg-green-500"
+                        }`}
+                      />
                       <p className="text-sm text-gray-500 mt-1">
                         قدرت رمز عبور:{" "}
                         {passwordStrength === 100
@@ -680,42 +764,68 @@ export default function SignUp() {
                           id="confirmPassword"
                           type="password"
                           {...register("confirmPassword")}
-                          className={`pr-10 ${errors.confirmPassword ? "border-red-500 focus:border-red-500" : ""}`}
+                          className={`pr-10 form-input-focus ${errors.confirmPassword ? "border-red-500 focus:border-red-500" : ""}`}
                         />
-                        <Lock className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                        <Lock
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-orange-400"
+                          size={18}
+                        />
                       </div>
                       {errors.confirmPassword && (
-                        <p className="text-red-500 text-sm mt-1">{errors.confirmPassword.message}</p>
+                        <p className="text-red-500 text-sm mt-1 animate-shake">{errors.confirmPassword.message}</p>
                       )}
                     </div>
                   </div>
                 )}
               </motion.div>
             </AnimatePresence>
-            <div className="mt-6 flex justify-between">
-              {step > 0 && (
-                <Button type="button" onClick={() => setStep(step - 1)} variant="outline">
+            <div className="mt-6 flex justify-between items-center">
+              {step === 0 ? (
+                <Button
+                  type="button"
+                  onClick={() => router.push('/')}
+                  variant="outline"
+                  className="btn-hover-effect"
+                >
+                  بازگشت به صفحه ورود
+                </Button>
+              ) : step > 0 && (
+                <Button type="button" onClick={() => setStep(step - 1)} variant="outline" className="btn-hover-effect">
                   <ChevronLeft className="mr-2 h-4 w-4" /> قبلی
                 </Button>
               )}
               {step < steps.length - 1 ? (
                 step === 1 ? (
-                  <Button type="button" onClick={sendVerificationCode} className="ml-auto" disabled={isVerifying}>
+                  <Button
+                    type="button"
+                    onClick={sendVerificationCode}
+                    className="ml-auto bg-[#f97316] hover:bg-orange-600 btn-hover-effect"
+                    disabled={isVerifying}
+                  >
                     <Send className="mr-2 h-4 w-4" /> {isVerifying ? "در حال ارسال..." : "ارسال کد تایید"}
                   </Button>
                 ) : step === 2 ? (
-                  <Button type="button" onClick={goToNextStep} className="ml-auto" disabled={!isCodeVerified}>
+                  <Button
+                    type="button"
+                    onClick={goToNextStep}
+                    className="ml-auto bg-[#f97316] hover:bg-orange-600 btn-hover-effect"
+                    disabled={!isCodeVerified}
+                  >
                     بعدی <ChevronRight className="ml-2 h-4 w-4" />
                   </Button>
                 ) : (
-                  <Button type="button" onClick={goToNextStep} className="ml-auto">
+                  <Button
+                    type="button"
+                    onClick={goToNextStep}
+                    className="ml-auto bg-[#f97316] hover:bg-orange-600 btn-hover-effect"
+                  >
                     بعدی <ChevronRight className="ml-2 h-4 w-4" />
                   </Button>
                 )
               ) : (
                 <Button
                   type="submit"
-                  className="ml-auto"
+                  className="ml-auto bg-[#f97316] hover:bg-orange-600 btn-hover-effect"
                   onClick={async (e) => {
                     const isValid = await validateCurrentStep()
                     if (!isValid) {
@@ -728,13 +838,13 @@ export default function SignUp() {
               )}
             </div>
           </form>
-        </div>
-      </motion.div>
+        </CardContent>
+      </Card>
       <SuccessModal
         isOpen={showSuccessModal}
         onClose={() => {
           setShowSuccessModal(false)
-          router.push("/")
+          router.push("/login")
         }}
         studentName={`${watch("firstName")} ${watch("lastName")}`}
       />

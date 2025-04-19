@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { ChefHat, Clock, CheckCircle, AlertTriangle, Utensils, User, LogOut, Eye } from 'lucide-react'
+import { ChefHat, Clock, CheckCircle, AlertTriangle, Utensils, User, LogOut, Eye, Printer } from 'lucide-react'
 import { toast, Toaster } from 'react-hot-toast'
 import api from '@/lib/axios'
 import { API_ROUTES, createApiUrl } from '@/lib/api'
@@ -147,6 +147,89 @@ export default function ChefDashboard() {
       (selectedDate ? new Date(order.reserved_date).toDateString() === selectedDate.toDateString() : true)
     ).length
   }
+
+  const printReservationSlip = useCallback((order: Reservation) => {
+    // Create a new window for printing
+    const printWindow = window.open('', '_blank', 'width=600,height=800')
+    
+    if (!printWindow) {
+      toast.error('خطا در باز کردن پنجره چاپ')
+      return
+    }
+
+    // Generate HTML for the reservation slip
+    const slipHtml = `
+      <html>
+        <head>
+          <title>رسید رزرو غذا</title>
+          <style>
+            body { 
+              font-family: Arial, sans-serif; 
+              direction: rtl; 
+              text-align: right; 
+              max-width: 500px; 
+              margin: 0 auto; 
+              padding: 20px; 
+              line-height: 1.6; 
+            }
+            .slip-header { 
+              background-color: #f4f4f4; 
+              padding: 10px; 
+              text-align: center; 
+              border-bottom: 2px solid #333; 
+            }
+            .slip-details { 
+              margin-top: 20px; 
+            }
+            .slip-details div { 
+              margin-bottom: 10px; 
+            }
+            .slip-footer { 
+              margin-top: 30px; 
+              text-align: center; 
+              font-size: 0.8em; 
+              color: #666; 
+            }
+          </style>
+        </head>
+        <body>
+          <div class="slip-header">
+            <h1>رسید رزرو غذا</h1>
+            <p>سیستم رزرواسیون غذای دانشگاه</p>
+          </div>
+          <div class="slip-details">
+            <div><strong>شماره رزرو:</strong> ${order.id}</div>
+            <div><strong>نام دانشجو:</strong> ${order.student.first_name} ${order.student.last_name}</div>
+            <div><strong>شماره تماس:</strong> ${order.student.phone_number}</div>
+            <div><strong>غذا:</strong> ${order.food.name}</div>
+            <div><strong>تاریخ رزرو:</strong> ${order.reserved_date}</div>
+            <div><strong>زمان سرو:</strong> ${order.time_slot.start_time} - ${order.time_slot.end_time}</div>
+            <div><strong>نوع وعده:</strong> ${order.meal_type === 'lunch' ? 'ناهار' : 'شام'}</div>
+            <div><strong>وضعیت:</strong> ${
+              order.status === 'waiting' ? 'در انتظار' : 
+              order.status === 'preparing' ? 'در حال آماده‌سازی' : 
+              order.status === 'ready_to_pickup' ? 'آماده تحویل' : 
+              'تحویل شده'
+            }</div>
+            <div><strong>قیمت:</strong> ${order.price.toLocaleString()} تومان</div>
+          </div>
+          <div class="slip-footer">
+            <p>تاریخ چاپ: ${new Date().toLocaleDateString('fa-IR')}</p>
+            <p>سیستم مدیریت رزرو غذای دانشگاه</p>
+          </div>
+        </body>
+      </html>
+    `
+
+    // Write the HTML to the new window
+    printWindow.document.write(slipHtml)
+    
+    // Close the document writing
+    printWindow.document.close()
+    
+    // Trigger print
+    printWindow.print()
+  }, [])
 
   return (
     <div className="min-h-screen bg-gradient-to-bl from-orange-100 to-red-100 rtl">
@@ -294,9 +377,9 @@ export default function ChefDashboard() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.3 }}
-                        className="bg-white rounded-lg shadow-[0_0_10px_rgba(0,0,0,0.1)] transition-all duration-300 ease-in-out hover:shadow-[0_0_15px_rgba(0,0,0,0.2)] p-4 mb-4 border border-gray-100"
+                        className="bg-white rounded-lg shadow-[0_0_10px_rgba(0,0,0,0.1)] transition-all duration-300 ease-in-out hover:shadow-[0_0_15px_rgba(0,0,0,0.2)] p-4 mb-4 border border-gray-100 flex justify-between items-center"
                       >
-                        <div className="flex justify-between items-center mb-4">
+                        <div className="flex flex-col">
                           <h3 className="font-bold text-xl">رزرو {new Intl.NumberFormat('fa-IR', { useGrouping: false }).format(order.id)}#</h3>
                           <Badge className={`${getStatusColor(order.status)} text-white px-2 py-1`}>
                             {order.status === 'waiting' ? 'در انتظار' : order.status === 'preparing' ? 'در حال آماده‌سازی' : order.status === 'ready_to_pickup' ? 'آماده تحویل' : 'تحویل داده شده'}
@@ -341,6 +424,15 @@ export default function ChefDashboard() {
                           >
                             <Eye className="w-4 h-4 ml-2" />
                             مشاهده جزئیات
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => printReservationSlip(order)}
+                            className="flex items-center gap-2"
+                          >
+                            <Printer className="w-4 h-4" />
+                            چاپ رسید
                           </Button>
                         </div>
                       </motion.div>

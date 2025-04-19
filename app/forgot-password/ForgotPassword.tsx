@@ -4,10 +4,11 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card"
 import { toast, Toaster } from "react-hot-toast"
 import { Send, ArrowLeft, LogIn, Phone, Key, Lock } from "lucide-react"
 import Link from "next/link"
@@ -94,22 +95,77 @@ export default function ForgotPasswordPage() {
 
   return (
     <div
-      className="min-h-screen bg-gradient-to-bl from-orange-100 to-red-100 flex items-center justify-center p-4 sm:p-6 md:p-8"
+      className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-pattern bg-pattern-animate"
       dir="rtl"
     >
-      <Toaster position="top-center" />
-      <Card className="w-full max-w-md shadow-[0_20px_50px_rgba(8,_112,_184,_0.3)] rounded-2xl overflow-hidden">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">
+      <div className="absolute inset-0">
+        <div className="absolute top-0 right-0 w-full h-full overflow-hidden">
+          <svg
+            className="absolute top-0 right-0 h-full w-full"
+            viewBox="0 0 900 600"
+            preserveAspectRatio="xMidYMid slice"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <g>
+              <path
+                className="blob-animate-1"
+                d="M0 486.7C-52.7 454 -105.4 421.3 -166.8 402.8C-228.3 384.3 -298.5 380 -344.2 344.2C-389.8 308.3 -410.9 241 -430.5 178.3C-450.2 115.7 -468.5 57.9 -486.7 0L0 0Z"
+                fill="url(#orange-gradient-1)"
+                transform="translate(900, 0)"
+              ></path>
+            </g>
+            <g>
+              <path
+                className="blob-animate-2"
+                d="M0 -486.7C59.2 -472.3 118.5 -457.9 181.4 -437.9C244.3 -417.9 311 -392.4 344.2 -344.2C377.4 -295.9 377.2 -224.9 395.4 -163.8C413.6 -102.6 450.2 -51.3 486.7 0L0 0Z"
+                fill="url(#orange-gradient-2)"
+                transform="translate(0, 600)"
+              ></path>
+            </g>
+            <defs>
+              <linearGradient id="orange-gradient-1" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#f97316" stopOpacity="0.3"></stop>
+                <stop offset="100%" stopColor="#fdba74" stopOpacity="0.2"></stop>
+              </linearGradient>
+              <linearGradient id="orange-gradient-2" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#fb923c" stopOpacity="0.3"></stop>
+                <stop offset="100%" stopColor="#fed7aa" stopOpacity="0.2"></stop>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+      </div>
+
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          style: {
+            background: "#FFF",
+            color: "#000",
+            borderRadius: "0.75rem",
+          },
+        }}
+      />
+
+      <Card className="w-full max-w-md backdrop-blur-md bg-white/55 rounded-3xl shadow-xl border-0 relative z-10 animate-fade-in">
+        <CardHeader className="flex flex-col items-center space-y-2 pb-2">
+          <div
+            className="mb-2"
+            style={{ animationDelay: "0.1s" }}
+          >
+            <div className="relative h-20 w-20">
+              <Image src="/images/javanfoods_logo.png" alt="رستوران جوان" fill className="object-contain" priority />
+            </div>
+          </div>
+          <h1 className="text-2xl font-bold text-gray-800" style={{ animationDelay: "0.2s" }}>
+            رستوران جوان
+          </h1>
+          <p className="text-gray-500 text-sm" style={{ animationDelay: "0.3s" }}>
             {step === "request" ? "بازیابی رمز عبور" : "تغییر رمز عبور"}
-          </CardTitle>
-          <CardDescription className="text-center">
-            {step === "request"
-              ? "شماره تلفن خود را وارد کنید تا کد تایید برای شما ارسال شود"
-              : "کد تایید و رمز عبور جدید خود را وارد کنید"}
-          </CardDescription>
+          </p>
         </CardHeader>
-        <CardContent className="px-4 sm:px-6">
+
+        <CardContent className="pt-4">
           <AnimatePresence mode="wait">
             {step === "request" ? (
               <motion.div
@@ -128,18 +184,21 @@ export default function ForgotPasswordPage() {
                         type="tel"
                         placeholder="09123456789"
                         {...registerRequest("phone_number")}
-                        className="pr-10"
+                        className="pr-10 form-input-focus"
                         dir="rtl"
                       />
-                      <Phone className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                      <Phone
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-orange-400"
+                        size={18}
+                      />
                     </div>
                     {errorsRequest.phone_number && (
-                      <p className="text-sm text-red-500">{errorsRequest.phone_number.message}</p>
+                      <p className="text-sm text-red-500 animate-shake">{errorsRequest.phone_number.message}</p>
                     )}
                   </div>
                   <Button
                     type="submit"
-                    className="w-full py-5 sm:py-6 text-base sm:text-lg"
+                    className="w-full py-5 sm:py-6 text-base sm:text-lg bg-[#f97316] hover:bg-orange-600 btn-hover-effect"
                     disabled={isSubmitting}
                     dir="rtl"
                   >
@@ -174,15 +233,18 @@ export default function ForgotPasswordPage() {
                         type="tel"
                         placeholder="09123456789"
                         {...registerReset("phone_number")}
-                        className="pr-10"
+                        className="pr-10 form-input-focus"
                         dir="rtl"
                         defaultValue={phoneNumber}
                         readOnly
                       />
-                      <Phone className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                      <Phone
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-orange-400"
+                        size={18}
+                      />
                     </div>
                     {errorsReset.phone_number && (
-                      <p className="text-sm text-red-500">{errorsReset.phone_number.message}</p>
+                      <p className="text-sm text-red-500 animate-shake">{errorsReset.phone_number.message}</p>
                     )}
                   </div>
                   <div className="space-y-2">
@@ -193,13 +255,13 @@ export default function ForgotPasswordPage() {
                         type="text"
                         placeholder="123456"
                         {...registerReset("verification_code")}
-                        className="pr-10"
+                        className="pr-10 form-input-focus"
                         dir="rtl"
                       />
-                      <Key className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                      <Key className="absolute right-3 top-1/2 transform -translate-y-1/2 text-orange-400" size={18} />
                     </div>
                     {errorsReset.verification_code && (
-                      <p className="text-sm text-red-500">{errorsReset.verification_code.message}</p>
+                      <p className="text-sm text-red-500 animate-shake">{errorsReset.verification_code.message}</p>
                     )}
                   </div>
                   <div className="space-y-2">
@@ -210,13 +272,13 @@ export default function ForgotPasswordPage() {
                         type="password"
                         placeholder="••••••••"
                         {...registerReset("new_password")}
-                        className="pr-10"
+                        className="pr-10 form-input-focus"
                         dir="rtl"
                       />
-                      <Lock className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                      <Lock className="absolute right-3 top-1/2 transform -translate-y-1/2 text-orange-400" size={18} />
                     </div>
                     {errorsReset.new_password && (
-                      <p className="text-sm text-red-500">{errorsReset.new_password.message}</p>
+                      <p className="text-sm text-red-500 animate-shake">{errorsReset.new_password.message}</p>
                     )}
                   </div>
                   <div className="space-y-2">
@@ -227,18 +289,18 @@ export default function ForgotPasswordPage() {
                         type="password"
                         placeholder="••••••••"
                         {...registerReset("confirm_password")}
-                        className="pr-10"
+                        className="pr-10 form-input-focus"
                         dir="rtl"
                       />
-                      <Lock className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                      <Lock className="absolute right-3 top-1/2 transform -translate-y-1/2 text-orange-400" size={18} />
                     </div>
                     {errorsReset.confirm_password && (
-                      <p className="text-sm text-red-500">{errorsReset.confirm_password.message}</p>
+                      <p className="text-sm text-red-500 animate-shake">{errorsReset.confirm_password.message}</p>
                     )}
                   </div>
                   <Button
                     type="submit"
-                    className="w-full py-5 sm:py-6 text-base sm:text-lg"
+                    className="w-full py-5 sm:py-6 text-base sm:text-lg bg-[#f97316] hover:bg-orange-600 btn-hover-effect"
                     disabled={isSubmitting}
                     dir="rtl"
                   >
@@ -261,16 +323,12 @@ export default function ForgotPasswordPage() {
         </CardContent>
         <CardFooter className="flex flex-col space-y-3 px-4 sm:px-6 pb-6">
           {step === "reset" && (
-            <Button
-              variant="ghost"
-              className="text-orange-600 hover:text-orange-700"
-              onClick={() => setStep("request")}
-            >
+            <Button variant="ghost" className="text-[#f97316] hover:text-orange-600" onClick={() => setStep("request")}>
               <ArrowLeft className="ml-2 h-4 w-4" />
               بازگشت به مرحله قبل
             </Button>
           )}
-          <Link href="/" className="text-sm text-orange-600 hover:underline text-center">
+          <Link href="/" className="text-sm text-[#f97316] hover:underline text-center">
             بازگشت به صفحه ورود
           </Link>
         </CardFooter>
@@ -278,4 +336,3 @@ export default function ForgotPasswordPage() {
     </div>
   )
 }
-

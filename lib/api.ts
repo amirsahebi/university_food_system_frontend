@@ -27,6 +27,10 @@ export const API_ROUTES = {
   ADD_FOOD: '/foods/',
   UPDATE_FOOD: (id: string) => `/foods/${id}/`,
   DELETE_FOOD: (id: string) => `/foods/${id}/`,
+  GET_FOOD_CATEGORIES: '/foods/categories/',
+  ADD_FOOD_CATEGORY: '/foods/categories/',
+  UPDATE_FOOD_CATEGORY: (id: string) => `/foods/categories/${id}/`,
+  DELETE_FOOD_CATEGORY: (id: string) => `/foods/categories/${id}/`,
 
   // Menu
   GET_TEMPLATE_MENU: '/menu/template/',
@@ -49,7 +53,7 @@ export const API_ROUTES = {
   GET_DAILY_ORDER_COUNTS: '/reports/orders/daily-counts/',
 
   // Orders
-  GET_CHEF_ORDERS: '/orders/chef/',
+  GET_RECEIVER_ORDERS: '/orders/receiver/',
   UPDATE_ORDER_STATUS: (id: string) => `/orders/${id}/status/`,
   PLACE_ORDER: '/orders/place/',
   GET_PENDING_ORDERS: '/orders/pending/',
@@ -57,7 +61,7 @@ export const API_ROUTES = {
   GET_STUDENT_ORDERS: '/orders/student/',
   GET_READY_TO_PICKUP_ORDERS: '/orders/ready-to-pickup/',
   GET_PICKED_UP_ORDERS: '/orders/picked-up/',
-  SCAN_QR:'/orders/qr/',
+  VERIFY_DELIVERY_CODE: '/orders/delivery-code/',
 
 
 };

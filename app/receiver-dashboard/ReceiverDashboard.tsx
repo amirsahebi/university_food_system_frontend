@@ -1,10 +1,10 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { motion } from "framer-motion"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Html5QrcodeScanner } from "html5-qrcode"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -12,12 +12,11 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   Loader2,
   CheckCircle,
-  QrCode,
   Package,
   User,
   LogOut,
@@ -28,6 +27,12 @@ import {
   UserCheck,
   X,
   Moon,
+  AlertTriangle,
+  Printer,
+  Eye,
+  Copy,
+  CheckCheck,
+  Search,
 } from "lucide-react"
 import { toast, Toaster } from "react-hot-toast"
 import DatePicker from "react-multi-date-picker"
@@ -45,304 +50,221 @@ interface Reservation {
     id: number
     first_name: string
     last_name: string
+    phone_number: string
   }
   food: {
     id: number
     name: string
-    price: number
+    decsription?: string
+    price: string | number
+    category_name?: string
   }
   time_slot: {
+    id: number
     start_time: string
     end_time: string
+    capacity: number
   }
   reserved_date: string
   has_voucher: boolean
-  price: number
+  meal_type: "lunch" | "dinner"
+  price: string | number
   status: "waiting" | "preparing" | "ready_to_pickup" | "picked_up"
   qr_code: string
+  delivery_code: string
+  reservation_number: string
   created_at: string
-  updated_at: string
+  updated_at: string | null
 }
 
-interface User {
+interface AppUser {
   first_name: string
   last_name: string
   phone_number: string
 }
 
-interface QRScannerProps {
-  onResult: (result: string) => void
-  onError?: (error: string) => void
-}
-
-function QRScanner({ onResult, onError }: QRScannerProps) {
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-
-  useEffect(() => {
-    const scanner = new Html5QrcodeScanner(
-      "qr-reader",
-      {
-        fps: 10,
-        qrbox: {
-          width: 250,
-          height: 250,
-        },
-        aspectRatio: 1.0,
-      },
-      false,
-    )
-
-    scanner.render(
-      (decodedText) => {
-        scanner.clear()
-        setErrorMessage(null)
-        if (errorTimeoutRef.current) {
-          clearTimeout(errorTimeoutRef.current)
-        }
-        onResult(decodedText)
-      },
-      (errorMessage) => {
-        if (errorTimeoutRef.current) {
-          clearTimeout(errorTimeoutRef.current)
-        }
-        errorTimeoutRef.current = setTimeout(() => {
-          setErrorMessage("QR لطفا دوباره تلاش کنید. خطا در اسکن کد")
-          if (onError) {
-            onError(errorMessage)
-          }
-        }, 30000)
-      },
-    )
-
-    return () => {
-      scanner.clear().catch(console.error)
-      if (errorTimeoutRef.current) {
-        clearTimeout(errorTimeoutRef.current)
-      }
-    }
-  }, [onResult, onError])
-
-  return (
-    <Card className="p-4">
-      <div className="space-y-4">
-        <div id="qr-reader" className="w-full max-w-sm mx-auto" />
-        {errorMessage && <p className="text-red-500 text-center">{errorMessage}</p>}
-      </div>
-    </Card>
-  )
-}
-
-interface ReservationDetailModalProps {
-  reservation: Reservation
-  onClose: () => void
-  onDeliver: () => void
-}
-
-function ReservationDetailModal({ reservation, onClose, onDeliver }: ReservationDetailModalProps) {
-  const statusSteps = [
-    { title: "در انتظار", icon: Clock, color: "text-yellow-500" },
-    { title: "در حال آماده‌سازی", icon: Utensils, color: "text-blue-500" },
-    { title: "آماده تحویل", icon: Package, color: "text-green-500" },
-    { title: "تحویل داده شده", icon: CheckCircle, color: "text-gray-400" },
-  ]
-
-  const currentStatusIndex = statusSteps.findIndex((step) => step.title === getStatusTitle(reservation.status))
-
-  function getStatusTitle(status: Reservation["status"]) {
-    switch (status) {
-      case "waiting":
-        return "در انتظار"
-      case "preparing":
-        return "در حال آماده‌سازی"
-      case "ready_to_pickup":
-        return "آماده تحویل"
-      case "picked_up":
-        return "تحویل داده شده"
-      default:
-        return ""
-    }
-  }
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.9 }}
-      transition={{ duration: 0.3 }}
-      className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-[90vw] sm:max-w-3xl mx-auto shadow-xl rtl relative"
-    >
-      <button
-        onClick={onClose}
-        className="absolute left-2 sm:left-4 top-2 sm:top-4 text-gray-500 hover:text-gray-700"
-        aria-label="Close"
-      >
-        <X className="h-6 w-6" />
-      </button>
-
-      <h2 className="text-2xl sm:text-3xl font-bold text-primary mb-4 sm:mb-6" dir="rtl">
-        جزئیات رزرو {new Intl.NumberFormat("fa-IR", { useGrouping: false }).format(reservation.id)}#
-      </h2>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-        <div className="space-y-3 sm:space-y-4">
-          <div className="flex items-center justify-end space-x-2">
-            <span className="text-sm sm:text-base">
-              {reservation.student.first_name} {reservation.student.last_name}
-            </span>
-            <span className="font-bold text-sm sm:text-base">:نام دانشجو</span>
-            <UserCheck className="w-4 h-4 sm:w-5 sm:h-5 text-primary ml-2" />
-          </div>
-          <div className="flex items-center justify-end space-x-2">
-            <span className="text-sm sm:text-base">{reservation.food.name}</span>
-            <span className="font-bold text-sm sm:text-base">:غذا</span>
-            <Utensils className="w-4 h-4 sm:w-5 sm:h-5 text-primary ml-2" />
-          </div>
-          <div className="flex items-center justify-end space-x-2">
-            <span className="text-sm sm:text-base">
-              {reservation.time_slot.start_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])} -{" "}
-              {reservation.time_slot.end_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])}
-            </span>
-            <span className="font-bold text-sm sm:text-base">:زمان تحویل</span>
-            <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-primary ml-2" />
-          </div>
-        </div>
-
-        <div className="space-y-3 sm:space-y-4">
-          <div className="flex items-center justify-end space-x-2">
-            <span className="text-sm sm:text-base">
-              {new Intl.DateTimeFormat("fa-IR").format(new Date(reservation.reserved_date))}
-            </span>
-            <span className="font-bold text-sm sm:text-base">:تاریخ رزرو</span>
-            <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-primary ml-2" />
-          </div>
-          <div className="flex items-center justify-end space-x-2">
-            <span className="text-sm sm:text-base" dir="rtl">
-              {new Intl.NumberFormat("fa-IR", { useGrouping: true }).format(reservation.food.price).replace(/٬/g, ",")}
-              <span className="text-xs sm:text-sm mr-1">تومان</span>
-            </span>
-            <span className="font-bold text-sm sm:text-base">:قیمت</span>
-            <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-primary ml-2" />
-          </div>
-          <div className="flex items-center justify-end space-x-2">
-            {reservation.has_voucher ? (
-              <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-500 ml-2" />
-            ) : (
-              <X className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 ml-2" />
-            )}
-            <span className="text-sm sm:text-base">{reservation.has_voucher ? "بله" : "خیر"}</span>
-            <span className="font-bold text-sm sm:text-base">:کوپن</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-4 sm:mt-6">
-        <h3 className="text-base sm:text-lg font-bold mb-2 text-right">وضعیت سفارش</h3>
-        <div className="flex justify-between items-center bg-gray-100 p-2 sm:p-4 rounded-lg">
-          {statusSteps.map((step, index) => (
-            <div key={index} className="flex flex-col items-center">
-              <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: index * 0.2 }}>
-                <step.icon
-                  className={`w-6 h-6 sm:w-8 sm:h-8 ${index <= currentStatusIndex ? step.color : "text-gray-300"}`}
-                />
-              </motion.div>
-              <span className="text-xs sm:text-sm mt-1">{step.title}</span>
-              {index < statusSteps.length - 1 && (
-                <div
-                  className={`h-1 w-8 sm:w-16 ${index < currentStatusIndex ? "bg-green-500" : "bg-gray-300"} mx-1 sm:mx-2`}
-                />
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="mt-4 sm:mt-6">
-        <Button
-          onClick={onDeliver}
-          className="w-full"
-          disabled={reservation.status !== "ready_to_pickup"}
-          variant={reservation.status === "ready_to_pickup" ? "default" : "secondary"}
-        >
-          <Package className="w-4 h-4 ml-2" />
-          {reservation.status === "ready_to_pickup" ? "تحویل سفارش" : getStatusTitle(reservation.status)}
-        </Button>
-      </div>
-    </motion.div>
-  )
+const getIranCurrentHour = () => {
+  const iranTime = new Date().toLocaleString("en-US", { timeZone: "Asia/Tehran" })
+  return new Date(iranTime).getHours() // Get the hour from Iran's local time
 }
 
 export default function ReceiverDashboard() {
   const router = useRouter()
-  const [user] = useState<User>({ first_name: "زهرا تحویل‌دهنده", last_name: "receiver", phone_number: "09123456789" })
-  const [scannedCode, setScannedCode] = useState("")
+  const [user] = useState<AppUser>({
+    first_name: "تحویل‌دهنده",
+    last_name: "receiver",
+    phone_number: "09123456789",
+  })
+  const [deliveryCode, setDeliveryCode] = useState("")
+  const [isVerifying, setIsVerifying] = useState(false)
   const [currentReservation, setCurrentReservation] = useState<Reservation | null>(null)
-  const [isScanning, setIsScanning] = useState(false)
+  const [isReservationDialogOpen, setIsReservationDialogOpen] = useState(false)
+  const [selectedOrder, setSelectedOrder] = useState<Reservation | null>(null)
+  const [isOrderDetailsDialogOpen, setIsOrderDetailsDialogOpen] = useState(false)
+  const [isCopied, setIsCopied] = useState(false)
+  // Add a new state for the search term
+  const [searchTerm, setSearchTerm] = useState<string>("")
+
+  // Orders by status
+  const [waitingOrders, setWaitingOrders] = useState<Reservation[]>([])
+  const [preparingOrders, setPreparingOrders] = useState<Reservation[]>([])
   const [readyToPickupOrders, setReadyToPickupOrders] = useState<Reservation[]>([])
   const [pickedUpOrders, setPickedUpOrders] = useState<Reservation[]>([])
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date())
-  const [selectedMealType, setSelectedMealType] = useState<"lunch" | "dinner">("lunch")
-  const [isQrDialogOpen, setIsQrDialogOpen] = useState(false)
-  const [isReservationDialogOpen, setIsReservationDialogOpen] = useState(false)
 
-  const fetchOrders = useCallback(async () => {
+  const currentHour = getIranCurrentHour()
+  const defaultMeal = currentHour < 17 ? "lunch" : "dinner"
+
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date())
+  const [selectedMeal, setSelectedMeal] = useState<"lunch" | "dinner">(defaultMeal)
+
+  // Add a search function to filter reservations by reservation number
+  const filterReservationsBySearch = useCallback(
+    (reservations: Reservation[]) => {
+      if (!searchTerm.trim()) return reservations
+
+      return reservations.filter((reservation) => reservation.reservation_number.toString().includes(searchTerm.trim()))
+    },
+    [searchTerm],
+  )
+
+  const fetchAllOrders = useCallback(async () => {
     try {
       const formattedDate = new DateObject(selectedDate).format("YYYY-MM-DD")
-      const [readyToPickupResponse, pickedUpResponse] = await Promise.all([
-        api.get(createApiUrl(API_ROUTES.GET_READY_TO_PICKUP_ORDERS), {
-          params: { reserved_date: formattedDate, meal_type: selectedMealType },
-        }),
-        api.get(createApiUrl(API_ROUTES.GET_PICKED_UP_ORDERS), {
-          params: { reserved_date: formattedDate, meal_type: selectedMealType },
-        }),
-      ])
-      setReadyToPickupOrders(readyToPickupResponse.data)
+
+      // Fetch all orders for the chef view
+      const chefResponse = await api.get(createApiUrl(API_ROUTES.GET_RECEIVER_ORDERS), {
+        params: { reserved_date: formattedDate, meal_type: selectedMeal },
+      })
+
+      // Separate orders by status and sort
+      const allOrders = chefResponse.data.sort((a: Reservation, b: Reservation) => {
+        // First, compare start times
+        const startTimeA = new Date(`1970-01-01T${a.time_slot.start_time}`).getTime()
+        const startTimeB = new Date(`1970-01-01T${b.time_slot.start_time}`).getTime()
+        
+        if (startTimeA !== startTimeB) {
+          return startTimeA - startTimeB
+        }
+        
+        // If start times are equal, compare reservation numbers
+        return a.reservation_number.localeCompare(b.reservation_number)
+      })
+      
+      setWaitingOrders(allOrders.filter((order: Reservation) => order.status === "waiting"))
+      setPreparingOrders(allOrders.filter((order: Reservation) => order.status === "preparing"))
+      setReadyToPickupOrders(allOrders.filter((order: Reservation) => order.status === "ready_to_pickup"))
+
+      // Fetch picked up orders separately
+      const pickedUpResponse = await api.get(createApiUrl(API_ROUTES.GET_PICKED_UP_ORDERS), {
+        params: { reserved_date: formattedDate, meal_type: selectedMeal },
+      })
       setPickedUpOrders(pickedUpResponse.data)
     } catch (error) {
       console.error("Error fetching orders:", error)
       toast.error("خطا در دریافت سفارش‌ها")
     }
-  }, [selectedDate, selectedMealType])
+  }, [selectedDate, selectedMeal])
 
   useEffect(() => {
-    fetchOrders()
-  }, [fetchOrders])
+    fetchAllOrders()
+  }, [fetchAllOrders])
 
-  const handleScan = useCallback(async (code: string) => {
-    if (!code || code.trim() === "") {
-      toast.error("را اسکن کنید QR لطفا کد")
+  const handleUpdateStatus = async (
+    reservationId: number,
+    newStatus: "waiting" | "preparing" | "ready_to_pickup" | "picked_up",
+  ) => {
+    try {
+      const apiStatus = {
+        waiting: "waiting",
+        preparing: "preparing",
+        ready_to_pickup: "ready_to_pickup",
+        picked_up: "picked_up",
+      }[newStatus]
+
+      await api.patch(createApiUrl(API_ROUTES.UPDATE_ORDER_STATUS(String(reservationId))), { status: apiStatus })
+
+      // Update the local state based on the new status
+      const updatedOrder = {
+        ...(waitingOrders.find((o) => o.id === reservationId) ||
+          preparingOrders.find((o) => o.id === reservationId) ||
+          readyToPickupOrders.find((o) => o.id === reservationId) ||
+          pickedUpOrders.find((o) => o.id === reservationId)),
+        status: newStatus,
+      } as Reservation
+
+      // Remove from current status list
+      if (newStatus === "preparing") {
+        setWaitingOrders(waitingOrders.filter((order) => order.id !== reservationId))
+        setPreparingOrders([...preparingOrders, updatedOrder])
+      } else if (newStatus === "ready_to_pickup") {
+        setPreparingOrders(preparingOrders.filter((order) => order.id !== reservationId))
+        setReadyToPickupOrders([...readyToPickupOrders, updatedOrder])
+      } else if (newStatus === "picked_up") {
+        setReadyToPickupOrders(readyToPickupOrders.filter((order) => order.id !== reservationId))
+        setPickedUpOrders([...pickedUpOrders, updatedOrder])
+      }
+
+      toast.success(`وضعیت رزرو ${updatedOrder.reservation_number} به ${getStatusTitle(newStatus)} تغییر کرد`)
+    } catch (error) {
+      console.error("Error updating reservation status:", error)
+      toast.error("خطا در به‌روزرسانی وضعیت رزرو")
+    }
+  }
+
+  const verifyDeliveryCode = useCallback(async () => {
+    if (!deliveryCode || deliveryCode.trim() === "") {
+      toast.error("لطفا کد تحویل را وارد کنید")
       return
     }
 
-    setIsScanning(true)
+    setIsVerifying(true)
 
     try {
-      const response = await api.post(createApiUrl(API_ROUTES.SCAN_QR), { qr_code_data: code })
+      const formattedDate = new DateObject(selectedDate).format("YYYY-MM-DD")
+      // Replace with your API endpoint for verifying delivery code
+      const response = await api.post(createApiUrl(API_ROUTES.VERIFY_DELIVERY_CODE), {
+        delivery_code: deliveryCode,
+        meal_type: selectedMeal,
+        date: formattedDate,
+      })
       setCurrentReservation(response.data)
-      toast.success("با موفقیت اسکن شد QR کد")
+      toast.success("کد تحویل با موفقیت تایید شد")
       setIsReservationDialogOpen(true)
-      setIsQrDialogOpen(false) // Close the QR dialog after successful scan
     } catch (error) {
-      console.error("Error scanning QR code:", error)
-      toast.error("نامعتبر است QR لطفاً دوباره تلاش کنید. کد")
+      console.error("Error verifying delivery code:", error)
+      toast.error("کد تحویل نامعتبر است. لطفاً دوباره تلاش کنید")
     } finally {
-      setIsScanning(false)
-      setScannedCode("")
+      setIsVerifying(false)
+      setDeliveryCode("")
     }
-  }, [])
+  }, [deliveryCode])
 
   const handleDeliverOrder = async () => {
     if (currentReservation) {
       try {
         const response = await api.patch(createApiUrl(API_ROUTES.DELIVER_ORDER(currentReservation.id.toString())))
+        
+        // More flexible response handling
+        const updatedOrder = response.data || response || currentReservation
+        
+        // Update orders
         setReadyToPickupOrders(readyToPickupOrders.filter((order) => order.id !== currentReservation.id))
-        setPickedUpOrders([...pickedUpOrders, response.data.data])
+        setPickedUpOrders((prevOrders) => {
+          // Check if the order is already in picked up orders to avoid duplicates
+          const isAlreadyInPickedUp = prevOrders.some((order) => order.id === updatedOrder.id)
+          return isAlreadyInPickedUp ? prevOrders : [...prevOrders, updatedOrder]
+        })
+        
         setCurrentReservation(null)
         setIsReservationDialogOpen(false)
-        toast.success(`سفارش ${currentReservation.id} با موفقیت تحویل داده شد`)
+        toast.success(`سفارش ${currentReservation.reservation_number} با موفقیت تحویل داده شد`)
       } catch (error) {
         console.error("Error delivering order:", error)
-        toast.error("خطا در تحویل سفارش")
+        if (error instanceof Error) {
+          toast.error(`خطا در تحویل سفارش: ${error.message}`)
+        } else {
+          toast.error("خطا در تحویل سفارش")
+        }
       }
     }
   }
@@ -362,14 +284,156 @@ export default function ReceiverDashboard() {
     }
   }
 
+  // Update the printReservationSlip function to enhance the logo in the receipt
+  const printReservationSlip = useCallback((order: Reservation) => {
+    // Create a new window for printing
+    const printWindow = window.open("", "_blank", "width=600,height=800")
+
+    if (!printWindow) {
+      toast.error("خطا در باز کردن پنجره چاپ")
+      return
+    }
+
+    // Generate HTML for the reservation slip
+    const slipHtml = `
+  <html>
+    <head>
+      <title>رسید رزرو غذا</title>
+      <style>
+        body { 
+          font-family: Arial, sans-serif; 
+          direction: rtl; 
+          text-align: right; 
+          max-width: 500px; 
+          margin: 0 auto; 
+          padding: 20px; 
+          line-height: 1.6; 
+        }
+        .slip-header { 
+          background-color: #f4f4f4; 
+          padding: 10px; 
+          text-align: center; 
+          border-bottom: 2px solid #F47B20; 
+        }
+        .slip-details { 
+          margin-top: 20px; 
+        }
+        .slip-details div { 
+          margin-bottom: 10px; 
+        }
+        .slip-footer { 
+          margin-top: 30px; 
+          text-align: center; 
+          font-size: 0.8em; 
+          color: #666; 
+        }
+        .delivery-code {
+          font-size: 24px;
+          font-weight: bold;
+          text-align: center;
+          margin: 20px 0;
+          padding: 15px;
+          background-color: #FFF8F2;
+          border: 2px dashed #F47B20;
+          border-radius: 10px;
+          letter-spacing: 5px;
+        }
+        .logo {
+          max-width: 120px;
+          margin: 0 auto 10px;
+          display: block;
+          filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+        }
+      </style>
+    </head>
+    <body>
+      <div class="slip-header">
+        <img src="/images/javanfoods_logo.png" alt="جوان" class="logo">
+        <h1 style="color: #F47B20;">رسید رزرو غذا</h1>
+        <p>سیستم رزرواسیون غذای دانشگاه</p>
+      </div>
+      <div class="slip-details">
+        <div><strong>شماره رزرو:</strong> ${order.reservation_number}</div>
+        <div><strong>نام دانشجو:</strong> ${order.student.first_name} ${order.student.last_name}</div>
+        <div><strong>شماره تماس:</strong> ${order.student.phone_number}</div>
+        <div><strong>غذا:</strong> ${order.food.name}</div>
+        ${order.food.category_name ? `<div><strong>دسته‌بندی:</strong> ${order.food.category_name}</div>` : ""}
+        <div><strong>تاریخ رزرو:</strong> ${order.reserved_date}</div>
+        <div><strong>زمان سرو:</strong> ${order.time_slot.start_time} - ${order.time_slot.end_time}</div>
+        <div><strong>نوع وعده:</strong> ${order.meal_type === "lunch" ? "ناهار" : "شام"}</div>
+        <div><strong>قیمت:</strong> ${Number(order.price).toLocaleString()} تومان</div>
+        <div class="delivery-code">کد تحویل: ${order.delivery_code || order.id.toString().padStart(6, "0")}</div>
+      </div>
+      <div class="slip-footer">
+        <p>تاریخ چاپ: ${new Date().toLocaleDateString("fa-IR")}</p>
+        <p>سیستم مدیریت رزرو غذای دانشگاه</p>
+      </div>
+    </body>
+  </html>
+`
+
+    // Write the HTML to the new window
+    printWindow.document.write(slipHtml)
+
+    // Close the document writing
+    printWindow.document.close()
+
+    // Trigger print
+    printWindow.print()
+  }, [])
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "waiting":
+        return "bg-yellow-500"
+      case "preparing":
+        return "bg-blue-500"
+      case "ready_to_pickup":
+        return "bg-green-500"
+      case "picked_up":
+        return "bg-gray-500"
+      default:
+        return "bg-gray-500"
+    }
+  }
+
+  const getStatusTitle = (status: Reservation["status"]) => {
+    switch (status) {
+      case "waiting":
+        return "در انتظار"
+      case "preparing":
+        return "در حال آماده‌سازی"
+      case "ready_to_pickup":
+        return "آماده تحویل"
+      case "picked_up":
+        return "تحویل داده شده"
+      default:
+        return ""
+    }
+  }
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text)
+    setIsCopied(true)
+    toast.success("کد تحویل کپی شد")
+    setTimeout(() => setIsCopied(false), 2000)
+  }
+
+  // Generate a delivery code for an order if it doesn't have one
+  const getDeliveryCode = (order: Reservation) => {
+    return order.delivery_code.toString()
+  }
+
   return (
-    <div className="min-h-screen bg-[#FBF7F4] rtl">
+    <div className="min-h-screen bg-[#FFF8F2] rtl">
       <Toaster position="top-center" />
       <header className="sticky top-0 z-50 w-full bg-white shadow-md">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          <Link href="/" className="flex items-center space-x-2">
-            <Package className="h-8 w-8 text-primary" />
-            <span className="text-xl font-bold text-primary">سامانه رزرو غذای دانشگاه - تحویل</span>
+          <Link href="/" className="flex items-center">
+            <div className="relative h-12 w-12 mr-3 transition-transform duration-300 hover:scale-110">
+              <Image src="/images/javanfoods_logo.png" alt="جوان" fill className="object-contain drop-shadow-md" />
+            </div>
+            <span className="text-xl font-bold text-[#F47B20]">رستوران جوان - تحویل</span>
           </Link>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -402,62 +466,101 @@ export default function ReceiverDashboard() {
             transition={{ duration: 0.5 }}
             className="text-center mb-8"
           >
-            <h1 className="text-4xl font-bold text-primary mb-2">داشبورد تحویل‌دهنده</h1>
-            <p className="text-xl text-gray-600">و تحویل سفارش‌ ها QR اسکن کد</p>
+            <h1 className="text-4xl font-bold text-[#F47B20] mb-2">داشبورد تحویل‌دهنده</h1>
+            <p className="text-xl text-gray-600">مدیریت، آماده‌سازی و تحویل سفارش‌ها</p>
           </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8" dir="rtl">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">در انتظار</CardTitle>
+                <AlertTriangle className="h-4 w-4 text-yellow-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {new Intl.NumberFormat("fa-IR", { useGrouping: false }).format(waitingOrders.length)}
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">در حال آماده‌سازی</CardTitle>
+                <Clock className="h-4 w-4 text-blue-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {new Intl.NumberFormat("fa-IR", { useGrouping: false }).format(preparingOrders.length)}
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">آماده تحویل</CardTitle>
+                <CheckCircle className="h-4 w-4 text-[#5CB85C]" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {new Intl.NumberFormat("fa-IR", { useGrouping: false }).format(readyToPickupOrders.length)}
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">تحویل داده شده</CardTitle>
+                <CheckCircle className="h-4 w-4 text-gray-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {new Intl.NumberFormat("fa-IR", { useGrouping: false }).format(pickedUpOrders.length)}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <Card>
               <CardHeader>
-                <CardTitle className="text-2xl text-primary flex items-center" dir="rtl">
-                  <QrCode className="w-6 h-6 ml-2" />
-                  اسکن کد QR
+                <CardTitle className="text-2xl text-[#F47B20] flex items-center" dir="rtl">
+                  <Package className="w-6 h-6 ml-2" />
+                  تایید کد تحویل
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <Dialog open={isQrDialogOpen} onOpenChange={setIsQrDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button className="w-full">QR اسکن کد</Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>QR اسکن کد</DialogTitle>
-                    </DialogHeader>
-                    <QRScanner
-                      onResult={handleScan}
-                      onError={(error) => {
-                        console.error("QR Scan Error:", error)
-                        toast.error("QR لطفا دوباره تلاش کنید. خطا در اسکن کد")
-                      }}
+                <div className="flex flex-col space-y-4">
+                  <div className="flex space-x-4">
+                    <Input
+                      type="text"
+                      placeholder="کد تحویل را وارد کنید"
+                      value={deliveryCode}
+                      onChange={(e) => setDeliveryCode(e.target.value)}
+                      className="flex-grow"
+                      dir="rtl"
                     />
-                  </DialogContent>
-                </Dialog>
-                <div className="flex space-x-4">
-                  <Input
-                    type="text"
-                    placeholder="یا کد QR را وارد کنید"
-                    value={scannedCode}
-                    onChange={(e) => setScannedCode(e.target.value)}
-                    className="flex-grow"
-                    dir="rtl"
-                  />
-                  <Button onClick={() => handleScan(scannedCode)} disabled={isScanning || !scannedCode}>
-                    {isScanning ? (
-                      <>
-                        <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-                        در حال اسکن...
-                      </>
-                    ) : (
-                      "اسکن دستی"
-                    )}
-                  </Button>
+                    <Button
+                      onClick={verifyDeliveryCode}
+                      disabled={isVerifying || !deliveryCode}
+                      className="bg-[#F47B20] hover:bg-[#E06A10] text-white"
+                    >
+                      {isVerifying ? (
+                        <>
+                          <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                          در حال بررسی...
+                        </>
+                      ) : (
+                        "تایید کد"
+                      )}
+                    </Button>
+                  </div>
+                  <p className="text-sm text-gray-500 text-center">
+                    کد تحویل را از دانشجو دریافت کرده و در اینجا وارد کنید
+                  </p>
                 </div>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-2xl text-primary flex items-center" dir="rtl">
+                <CardTitle className="text-2xl text-[#F47B20] flex items-center" dir="rtl">
                   <Calendar className="w-6 h-6 ml-2" />
                   انتخاب تاریخ و وعده غذایی
                 </CardTitle>
@@ -478,7 +581,7 @@ export default function ReceiverDashboard() {
                     calendar={persian}
                     locale={persian_fa}
                     calendarPosition="bottom-right"
-                    inputClass="w-full px-3 py-2 rounded-md bg-white shadow-sm border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    inputClass="w-full px-3 py-2 rounded-md bg-white shadow-sm border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#F47B20] focus:border-transparent"
                     containerClassName="w-full"
                   />
                 </div>
@@ -486,10 +589,7 @@ export default function ReceiverDashboard() {
                   <label htmlFor="meal-type" className="text-sm font-medium text-gray-700">
                     وعده غذایی:
                   </label>
-                  <Select
-                    value={selectedMealType}
-                    onValueChange={(value) => setSelectedMealType(value as "lunch" | "dinner")}
-                  >
+                  <Select value={selectedMeal} onValueChange={(value) => setSelectedMeal(value as "lunch" | "dinner")}>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="انتخاب وعده غذایی" />
                     </SelectTrigger>
@@ -513,21 +613,185 @@ export default function ReceiverDashboard() {
             </Card>
           </div>
 
+          {/* Add search bar */}
+          <Card className="mb-6">
+            <CardContent className="pt-6">
+              <div className="flex items-center space-x-2 rtl:space-x-reverse">
+                <Input
+                  type="text"
+                  placeholder="جستجو بر اساس شماره رزرو..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="flex-grow"
+                  dir="rtl"
+                />
+                {searchTerm && (
+                  <Button variant="ghost" size="icon" onClick={() => setSearchTerm("")} className="h-10 w-10">
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+                <Button className="bg-[#F47B20] hover:bg-[#E06A10]" dir="rtl">
+                  <Search className="h-4 w-4 ml-2" />
+                  جستجو
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
           {isReservationDialogOpen && currentReservation && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <ReservationDetailModal
-                reservation={currentReservation}
-                onClose={() => setIsReservationDialogOpen(false)}
-                onDeliver={handleDeliverOrder}
-              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ duration: 0.3 }}
+                className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-[90vw] sm:max-w-3xl mx-auto shadow-xl rtl relative"
+              >
+                <button
+                  onClick={() => setIsReservationDialogOpen(false)}
+                  className="absolute left-2 sm:left-4 top-2 sm:top-4 text-gray-500 hover:text-gray-700"
+                  aria-label="Close"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+
+                <h2 className="text-2xl sm:text-3xl font-bold text-[#F47B20] mb-4 sm:mb-6" dir="rtl">
+                  جزئیات رزرو{" "}
+                  {new Intl.NumberFormat("fa-IR", { useGrouping: false }).format(
+                    Number(currentReservation.reservation_number),
+                  )}
+                  #
+                </h2>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                  <div className="space-y-3 sm:space-y-4">
+                    <div className="flex items-center justify-end space-x-2">
+                      <span className="text-sm sm:text-base">
+                        {currentReservation.student.first_name} {currentReservation.student.last_name}
+                      </span>
+                      <span className="font-bold text-sm sm:text-base">:نام دانشجو</span>
+                      <UserCheck className="w-4 h-4 sm:w-5 sm:h-5 text-[#F47B20] ml-2" />
+                    </div>
+                    <div className="flex items-center justify-end space-x-2">
+                      <span className="text-sm sm:text-base">{currentReservation.food.name}</span>
+                      <span className="font-bold text-sm sm:text-base">:غذا</span>
+                      <Utensils className="w-4 h-4 sm:w-5 sm:h-5 text-[#F47B20] ml-2" />
+                    </div>
+                    <div className="flex items-center justify-end space-x-2">
+                      <span className="text-sm sm:text-base">
+                        {currentReservation.time_slot.start_time
+                          .slice(0, 5)
+                          .replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])}{" "}
+                        -{" "}
+                        {currentReservation.time_slot.end_time
+                          .slice(0, 5)
+                          .replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])}
+                      </span>
+                      <span className="font-bold text-sm sm:text-base">:زمان تحویل</span>
+                      <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-[#F47B20] ml-2" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 sm:space-y-4">
+                    <div className="flex items-center justify-end space-x-2">
+                      <span className="text-sm sm:text-base">
+                        {new Intl.DateTimeFormat("fa-IR").format(new Date(currentReservation.reserved_date))}
+                      </span>
+                      <span className="font-bold text-sm sm:text-base">:تاریخ رزرو</span>
+                      <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-[#F47B20] ml-2" />
+                    </div>
+                    <div className="flex items-center justify-end space-x-2">
+                      <span className="text-sm sm:text-base" dir="rtl">
+                        {new Intl.NumberFormat("fa-IR", { useGrouping: true })
+                          .format(Number(currentReservation.price))
+                          .replace(/٬/g, ",")}
+                        <span className="text-xs sm:text-sm mr-1">تومان</span>
+                      </span>
+                      <span className="font-bold text-sm sm:text-base">:قیمت</span>
+                      <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-[#F47B20] ml-2" />
+                    </div>
+                    <div className="flex items-center justify-end space-x-2">
+                      {currentReservation.has_voucher ? (
+                        <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-[#5CB85C] ml-2" />
+                      ) : (
+                        <X className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 ml-2" />
+                      )}
+                      <span className="text-sm sm:text-base">{currentReservation.has_voucher ? "بله" : "خیر"}</span>
+                      <span className="font-bold text-sm sm:text-base">:کوپن</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 sm:mt-6">
+                  <h3 className="text-base sm:text-lg font-bold mb-2 text-right">وضعیت سفارش</h3>
+                  <div className="flex justify-between items-center bg-gray-100 p-2 sm:p-4 rounded-lg">
+                    {[
+                      { title: "در انتظار", icon: Clock, color: "text-yellow-500" },
+                      { title: "در حال آماده‌سازی", icon: Utensils, color: "text-blue-500" },
+                      { title: "آماده تحویل", icon: Package, color: "text-[#5CB85C]" },
+                      { title: "تحویل داده شده", icon: CheckCircle, color: "text-gray-400" },
+                    ].map((step, index) => {
+                      const currentStatusIndex = ["waiting", "preparing", "ready_to_pickup", "picked_up"].indexOf(
+                        currentReservation.status,
+                      )
+                      return (
+                        <div key={index} className="flex flex-col items-center">
+                          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: index * 0.2 }}>
+                            <step.icon
+                              className={`w-6 h-6 sm:w-8 sm:h-8 ${index <= currentStatusIndex ? step.color : "text-gray-300"}`}
+                            />
+                          </motion.div>
+                          <span className="text-xs sm:text-sm mt-1">{step.title}</span>
+                          {index < 3 && (
+                            <div
+                              className={`h-1 w-8 sm:w-16 ${index < currentStatusIndex ? "bg-[#5CB85C]" : "bg-gray-300"} mx-1 sm:mx-2`}
+                            />
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <div className="mt-4 sm:mt-6">
+                  <Button
+                    onClick={handleDeliverOrder}
+                    className="w-full bg-[#F47B20] hover:bg-[#E06A10] text-white"
+                    disabled={currentReservation.status !== "ready_to_pickup"}
+                    variant={currentReservation.status === "ready_to_pickup" ? "default" : "secondary"}
+                  >
+                    <Package className="w-4 h-4 ml-2" />
+                    {currentReservation.status === "ready_to_pickup"
+                      ? "تحویل سفارش"
+                      : getStatusTitle(currentReservation.status)}
+                  </Button>
+                </div>
+              </motion.div>
             </div>
           )}
 
-          <Tabs defaultValue="ready_to_pickup" className="w-full">
-            <TabsList className="flex justify-between bg-gradient-to-r from-orange-100 to-red-100 p-1 rounded-xl mb-4 shadow-md">
+          <Tabs defaultValue="waiting" className="w-full">
+            <TabsList
+              className="flex justify-between bg-gradient-to-r from-orange-100 to-orange-200 p-1 rounded-xl mb-4 shadow-md"
+              dir="rtl"
+            >
+              <TabsTrigger
+                value="waiting"
+                className="flex-1 rounded-lg py-2 text-sm font-medium transition-all data-[state=active]:bg-gradient-to-r data-[state=active]:from-yellow-400 data-[state=active]:to-orange-500 data-[state=active]:text-white data-[state=active]:shadow-lg"
+              >
+                <AlertTriangle className="w-4 h-4 ml-2" />
+                در انتظار
+              </TabsTrigger>
+              <TabsTrigger
+                value="preparing"
+                className="flex-1 rounded-lg py-2 text-sm font-medium transition-all data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-400 data-[state=active]:to-cyan-500 data-[state=active]:text-white data-[state=active]:shadow-lg"
+              >
+                <Clock className="w-4 h-4 ml-2" />
+                در حال آماده‌سازی
+              </TabsTrigger>
               <TabsTrigger
                 value="ready_to_pickup"
-                className="flex-1 rounded-lg py-2 text-sm font-medium transition-all data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-400 data-[state=active]:to-red-500 data-[state=active]:text-white data-[state=active]:shadow-lg"
+                className="flex-1 rounded-lg py-2 text-sm font-medium transition-all data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-400 data-[state=active]:to-[#F47B20] data-[state=active]:text-white data-[state=active]:shadow-lg"
                 dir="rtl"
               >
                 <Package className="w-4 h-4 ml-2" />
@@ -535,91 +799,416 @@ export default function ReceiverDashboard() {
               </TabsTrigger>
               <TabsTrigger
                 value="picked_up"
-                className="flex-1 rounded-lg py-2 text-sm font-medium transition-all data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-400 data-[state=active]:to-emerald-500 data-[state=active]:text-white data-[state=active]:shadow-lg"
+                className="flex-1 rounded-lg py-2 text-sm font-medium transition-all data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-400 data-[state=active]:to-[#5CB85C] data-[state=active]:text-white data-[state=active]:shadow-lg"
                 dir="rtl"
               >
                 <CheckCircle className="w-4 h-4 ml-2" />
                 تحویل داده شده
               </TabsTrigger>
             </TabsList>
-            <TabsContent value="ready_to_pickup">
+
+            {/* Waiting Orders Tab */}
+            <TabsContent value="waiting">
+              <Card className="border border-gray-300" dir="rtl">
+                <CardHeader>
+                  <CardTitle className="text-2xl text-[#F47B20] flex items-center">
+                    <AlertTriangle className="w-6 h-6 ml-2" />
+                    رزروهای در انتظار
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {filterReservationsBySearch(waitingOrders).map((order) => (
+                    <motion.div
+                      key={order.reservation_number}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="bg-white rounded-lg shadow-[0_0_10px_rgba(0,0,0,0.1)] transition-all duration-300 ease-in-out hover:shadow-[0_0_15px_rgba(0,0,0,0.2)] p-4 mb-4 border border-gray-100 flex justify-between items-center"
+                    >
+                      <div className="flex flex-col">
+                        <h3 className="font-bold text-xl">
+                          رزرو{" "}
+                          {new Intl.NumberFormat("fa-IR", { useGrouping: false }).format(
+                            Number(order.reservation_number),
+                          )}
+                          #
+                        </h3>
+                        <Badge className={`${getStatusColor(order.status)} text-white px-2 py-1`}>
+                          {getStatusTitle(order.status)}
+                        </Badge>
+                      </div>
+                      <div className="mb-2 flex justify-between items-start">
+                        <div>
+                          <p className="text-gray-600 mb-1">
+                            دانشجو: {order.student.first_name} {order.student.last_name}
+                          </p>
+                          <p className="text-gray-600 mb-2">
+                            تاریخ رزرو: {new Intl.DateTimeFormat("fa-IR").format(new Date(order.reserved_date))}
+                          </p>
+                          <p className="text-gray-600 mb-4">
+                            زمان تحویل:{" "}
+                            {order.time_slot.start_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])} -{" "}
+                            {order.time_slot.end_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])}
+                          </p>
+                          {order.food.category_name && (
+                            <p className="text-gray-600 mb-2">دسته‌بندی: {order.food.category_name}</p>
+                          )}
+                        </div>
+                        <div className="bg-[#F47B20]/10 text-[#F47B20] text-sm font-medium px-3 py-1 rounded-full">
+                          {order.food.name}
+                        </div>
+                      </div>
+                      <div className="flex justify-between items-center gap-2">
+                        <Button
+                          onClick={() => {
+                            handleUpdateStatus(Number(order.id), "preparing")
+                            printReservationSlip(order)
+                          }}
+                          className="bg-blue-500 hover:bg-blue-600"
+                        >
+                          <Utensils className="w-4 h-4 ml-2" />
+                          شروع آماده‌سازی و چاپ رسید
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedOrder(order)
+                            setIsOrderDetailsDialogOpen(true)
+                          }}
+                          className="border-gray-300"
+                        >
+                          <Eye className="w-4 h-4 ml-2" />
+                          مشاهده جزئیات
+                        </Button>
+                      </div>
+                    </motion.div>
+                  ))}
+                  {waitingOrders.length > 0 && filterReservationsBySearch(waitingOrders).length === 0 && (
+                    <div className="text-center py-8">
+                      <p className="text-gray-500">هیچ سفارشی با این شماره رزرو یافت نشد</p>
+                    </div>
+                  )}
+                  {waitingOrders.length === 0 && (
+                    <div className="text-center py-8">
+                      <p className="text-gray-500">هیچ سفارش در انتظاری وجود ندارد</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Preparing Orders Tab */}
+            <TabsContent value="preparing">
+              <Card className="border border-gray-300" dir="rtl">
+                <CardHeader>
+                  <CardTitle className="text-2xl text-[#F47B20] flex items-center">
+                    <Clock className="w-6 h-6 ml-2" />
+                    رزروهای در حال آماده‌سازی
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {filterReservationsBySearch(preparingOrders).map((order) => (
+                    <motion.div
+                      key={order.reservation_number}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="bg-white rounded-lg shadow-[0_0_10px_rgba(0,0,0,0.1)] transition-all duration-300 ease-in-out hover:shadow-[0_0_15px_rgba(0,0,0,0.2)] p-4 mb-4 border border-gray-100 flex justify-between items-center"
+                    >
+                      <div className="flex flex-col">
+                        <h3 className="font-bold text-xl">
+                          رزرو{" "}
+                          {new Intl.NumberFormat("fa-IR", { useGrouping: false }).format(
+                            Number(order.reservation_number),
+                          )}
+                          #
+                        </h3>
+                        <Badge className={`${getStatusColor(order.status)} text-white px-2 py-1`}>
+                          {getStatusTitle(order.status)}
+                        </Badge>
+                      </div>
+                      <div className="mb-2 flex justify-between items-start">
+                        <div>
+                          <p className="text-gray-600 mb-1">
+                            دانشجو: {order.student.first_name} {order.student.last_name}
+                          </p>
+                          <p className="text-gray-600 mb-2">
+                            تاریخ رزرو: {new Intl.DateTimeFormat("fa-IR").format(new Date(order.reserved_date))}
+                          </p>
+                          <p className="text-gray-600 mb-4">
+                            زمان تحویل:{" "}
+                            {order.time_slot.start_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])} -{" "}
+                            {order.time_slot.end_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])}
+                          </p>
+                          {order.food.category_name && (
+                            <p className="text-gray-600 mb-2">دسته‌بندی: {order.food.category_name}</p>
+                          )}
+                        </div>
+                        <div className="bg-[#F47B20]/10 text-[#F47B20] text-sm font-medium px-3 py-1 rounded-full">
+                          {order.food.name}
+                        </div>
+                      </div>
+                      <div className="flex justify-between items-center gap-2">
+                        <Button
+                          onClick={() => handleUpdateStatus(order.id, "ready_to_pickup")}
+                          className="bg-[#5CB85C] hover:bg-[#4CAE4C]"
+                        >
+                          <CheckCircle className="w-4 h-4 ml-2" />
+                          علامت‌گذاری به عنوان آماده
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedOrder(order)
+                            setIsOrderDetailsDialogOpen(true)
+                          }}
+                          className="border-gray-300"
+                        >
+                          <Eye className="w-4 h-4 ml-2" />
+                          مشاهده جزئیات
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => printReservationSlip(order)}
+                          className="flex items-center gap-2"
+                        >
+                          <Printer className="w-4 h-4" />
+                          چاپ رسید
+                        </Button>
+                      </div>
+                    </motion.div>
+                  ))}
+                  {preparingOrders.length > 0 && filterReservationsBySearch(preparingOrders).length === 0 && (
+                    <div className="text-center py-8">
+                      <p className="text-gray-500">هیچ سفارشی با این شماره رزرو یافت نشد</p>
+                    </div>
+                  )}
+                  {preparingOrders.length === 0 && (
+                    <div className="text-center py-8">
+                      <p className="text-gray-500">هیچ سفارش در حال آماده‌سازی وجود ندارد</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Ready to Pickup Orders Tab */}
+            <TabsContent value="ready_to_pickup" dir="rtl">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-2xl text-primary flex items-center" dir="rtl">
+                  <CardTitle className="text-2xl text-[#F47B20] flex items-center" dir="rtl">
                     <Package className="w-6 h-6 ml-2" />
                     سفارش‌های آماده تحویل
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {readyToPickupOrders.map((order) => (
+                  {filterReservationsBySearch(readyToPickupOrders).map((order) => (
                     <motion.div
-                      key={order.id}
+                      key={order.reservation_number}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.3 }}
                       className="bg-white rounded-lg shadow-lg p-4 mb-4"
                     >
                       <div className="flex justify-between items-center mb-2">
-                        <h3 className="font-bold text-xl">رزرو {new Intl.NumberFormat("fa-IR", { useGrouping: false }).format(order.id)}#</h3>
-                        <Badge className="bg-orange-500">آماده تحویل</Badge>
+                        <h3 className="font-bold text-xl">
+                          رزرو{" "}
+                          {new Intl.NumberFormat("fa-IR", { useGrouping: false }).format(
+                            Number(order.reservation_number),
+                          )}
+                          #
+                        </h3>
+                        <Badge className="bg-[#F47B20]">آماده تحویل</Badge>
                       </div>
                       <p className="text-gray-600 mb-2">
                         دانشجو: {order.student.first_name} {order.student.last_name}
                       </p>
                       <p className="text-gray-600 mb-2">غذا: {order.food.name}</p>
                       <p className="text-gray-600 mb-2">
-                        زمان تحویل: {order.time_slot.start_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])} - {order.time_slot.end_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])}
+                        زمان تحویل:{" "}
+                        {order.time_slot.start_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])} -{" "}
+                        {order.time_slot.end_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])}
                       </p>
-                      <p className="font-bold text-lg">
-                        {new Intl.NumberFormat("fa-IR", { useGrouping: true }).format(order.price).replace(/٬/g, ",")}
-                        <span className="text-xs sm:text-sm mr-1">تومان</span>
-                      </p>
+                      <div className="flex justify-between items-center mt-4">
+                        <p className="font-bold text-lg">
+                          {new Intl.NumberFormat("fa-IR", { useGrouping: true })
+                            .format(Number(order.price))
+                            .replace(/٬/g, ",")}
+                          <span className="text-xs sm:text-sm mr-1">تومان</span>
+                        </p>
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => {
+                              setCurrentReservation(order)
+                              setIsReservationDialogOpen(true)
+                            }}
+                            className="bg-[#F47B20] hover:bg-[#E06A10]"
+                          >
+                            <Package className="w-4 h-4 ml-2" />
+                            تحویل سفارش
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => printReservationSlip(order)}
+                            className="flex items-center gap-2"
+                          >
+                            <Printer className="w-4 h-4" />
+                            چاپ رسید
+                          </Button>
+                        </div>
+                      </div>
                     </motion.div>
                   ))}
+                  {readyToPickupOrders.length > 0 && filterReservationsBySearch(readyToPickupOrders).length === 0 && (
+                    <div className="text-center py-8">
+                      <p className="text-gray-500">هیچ سفارشی با این شماره رزرو یافت نشد</p>
+                    </div>
+                  )}
+                  {readyToPickupOrders.length === 0 && (
+                    <div className="text-center py-8">
+                      <p className="text-gray-500">هیچ سفارش آماده تحویلی وجود ندارد</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
-            <TabsContent value="picked_up">
+
+            {/* Picked Up Orders Tab */}
+            <TabsContent value="picked_up" dir="rtl">
               <Card dir="rtl">
                 <CardHeader>
-                  <CardTitle className="text-2xl text-primary flex items-center" dir="rtl">
+                  <CardTitle className="text-2xl text-[#F47B20] flex items-center" dir="rtl">
                     <CheckCircle className="w-6 h-6 ml-2" />
                     سفارش‌های تحویل داده شده
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {pickedUpOrders.map((order) => (
+                  {filterReservationsBySearch(pickedUpOrders).map((order) => (
                     <motion.div
-                      key={order.id}
+                      key={order.reservation_number}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.3 }}
                       className="bg-white rounded-lg shadow-lg p-4 mb-4"
                     >
                       <div className="flex justify-between items-center mb-2">
-                        <h3 className="font-bold text-xl">رزرو {new Intl.NumberFormat("fa-IR", { useGrouping: false }).format(order.id)}#</h3>
-                        <Badge className="bg-green-500">تحویل داده شده</Badge>
+                        <h3 className="font-bold text-xl">
+                          رزرو{" "}
+                          {new Intl.NumberFormat("fa-IR", { useGrouping: false }).format(
+                            Number(order.reservation_number),
+                          )}
+                          #
+                        </h3>
+                        <Badge className="bg-[#5CB85C]" dir="rtl">تحویل داده شده</Badge>
                       </div>
                       <p className="text-gray-600 mb-2">
                         دانشجو: {order.student.first_name} {order.student.last_name}
                       </p>
                       <p className="text-gray-600 mb-2">غذا: {order.food.name}</p>
                       <p className="text-gray-600 mb-2">
-                        زمان تحویل: {order.time_slot.start_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])} - {order.time_slot.end_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])}
+                        زمان تحویل:{" "}
+                        {order.time_slot.start_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])} -{" "}
+                        {order.time_slot.end_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])}
                       </p>
                       <p className="font-bold text-lg">
-                        {new Intl.NumberFormat("fa-IR", { useGrouping: true }).format(order.price).replace(/٬/g, ",")}
+                        {new Intl.NumberFormat("fa-IR", { useGrouping: true })
+                          .format(Number(order.price))
+                          .replace(/٬/g, ",")}
                         <span className="text-xs sm:text-sm mr-1">تومان</span>
                       </p>
                     </motion.div>
                   ))}
+                  {pickedUpOrders.length > 0 && filterReservationsBySearch(pickedUpOrders).length === 0 && (
+                    <div className="text-center py-8">
+                      <p className="text-gray-500">هیچ سفارشی با این شماره رزرو یافت نشد</p>
+                    </div>
+                  )}
+                  {pickedUpOrders.length === 0 && (
+                    <div className="text-center py-8">
+                      <p className="text-gray-500">هیچ سفارش تحویل داده شده‌ای وجود ندارد</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
           </Tabs>
         </div>
       </main>
+
+      {/* Order Details Dialog */}
+      <Dialog open={isOrderDetailsDialogOpen} onOpenChange={setIsOrderDetailsDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]" dir="rtl">
+          <DialogHeader>
+            <DialogTitle>
+              جزئیات رزرو{" "}
+              {new Intl.NumberFormat("fa-IR", { useGrouping: false }).format(
+                Number(selectedOrder?.reservation_number ?? 0),
+              )}
+              #
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <span className="font-bold">دانشجو:</span>
+              <span className="col-span-3">
+                {selectedOrder?.student.first_name} {selectedOrder?.student.last_name}
+              </span>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <span className="font-bold">وضعیت:</span>
+              <span className="col-span-3">{getStatusTitle(selectedOrder?.status ?? "waiting")}</span>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <span className="font-bold">غذا:</span>
+              <span className="col-span-3">{selectedOrder?.food.name}</span>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <span className="font-bold">تاریخ رزرو:</span>
+              <span className="col-span-3">
+                {new Intl.DateTimeFormat("fa-IR").format(new Date(selectedOrder?.reserved_date ?? Date.now()))}
+              </span>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <span className="font-bold">زمان تحویل:</span>
+              <span className="col-span-3">
+                {selectedOrder?.time_slot?.start_time?.slice(0, 5)?.replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])} -{" "}
+                {selectedOrder?.time_slot?.end_time?.slice(0, 5)?.replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])}
+              </span>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <span className="font-bold">قیمت:</span>
+              <span className="col-span-3">
+                {new Intl.NumberFormat("fa-IR", { useGrouping: true })
+                  .format(Number(selectedOrder?.price ?? 0))
+                  .replace(/٬/g, ",")}{" "}
+                تومان
+              </span>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <span className="font-bold">کوپن:</span>
+              <span className="col-span-3">{selectedOrder?.has_voucher ? "بله" : "خیر"}</span>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <span className="font-bold">کد تحویل:</span>
+              <div className="col-span-3 flex items-center">
+                <span className="font-mono text-lg bg-gray-100 px-3 py-1 rounded-md">
+                  {selectedOrder ? getDeliveryCode(selectedOrder) : ""}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="ml-2"
+                  onClick={() => selectedOrder && copyToClipboard(getDeliveryCode(selectedOrder))}
+                >
+                  {isCopied ? <CheckCheck className="h-4 w-4 text-[#5CB85C]" /> : <Copy className="h-4 w-4" />}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
-
