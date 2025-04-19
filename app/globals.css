@@ -217,10 +217,6 @@
 /* Custom background pattern */
 .bg-pattern {
   background-color: #fff7ed; /* Lighter orange background */
-  background-image: radial-gradient(circle at 25px 25px, rgba(249, 115, 22, 0.1) 2%, transparent 0%),
-    radial-gradient(circle at 75px 75px, rgba(251, 146, 60, 0.1) 2%, transparent 0%);
-  background-size: 100px 100px;
-  background-position: 0 0, 50px 50px;
 }
 
 /* Animation for the pattern */
