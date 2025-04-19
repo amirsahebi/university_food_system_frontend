@@ -276,14 +276,16 @@ export default function AdminDashboard() {
             // Debug log
             console.log('Selected category:', category)
 
-            if (!name || !description || !price || !imageFile || !category) {
+            if (!name || !price || !imageFile || !category) {
               toast.error("لطفاً تمام فیلدها را پر کنید")
               return
             }
 
             const formData = new FormData()
             formData.append("name", name)
-            formData.append("description", description)
+            if (description) {
+              formData.append("description", description)
+            }
             formData.append("price", price.toString())
             formData.append("image", imageFile)
             // Try multiple possible field names to ensure one works
