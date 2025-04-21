@@ -4,11 +4,11 @@ import type React from "react"
 
 import { useState, useCallback, useEffect } from "react"
 import { format as formatGregorian } from "date-fns"
-import { motion } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -23,9 +23,23 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Switch } from "@/components/ui/switch"
-import { Utensils, DollarSign, User, LogOut, Calendar, Clipboard, BarChart2, Plus, Edit, Trash } from "lucide-react"
+import {
+  Utensils,
+  DollarSign,
+  User,
+  LogOut,
+  Calendar,
+  Clipboard,
+  BarChart2,
+  Plus,
+  Edit,
+  Trash,
+  Search,
+  Menu,
+  Home,
+} from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { toast, Toaster } from "react-hot-toast"
 import {
@@ -45,9 +59,10 @@ import persian from "react-date-object/calendars/persian"
 import persian_fa from "react-date-object/locales/persian_fa"
 import { DateObject } from "react-multi-date-picker"
 import { useRouter } from "next/navigation"
-
-// Import the CategoryManagement component
-import { CategoryManagement } from "@/components/admin/category-management"
+import { AxiosError } from "axios"
+import { Textarea } from "@/components/ui/textarea"
+import { Badge } from "@/components/ui/badge"
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 
 // Interfaces
 interface Food {
@@ -105,9 +120,238 @@ interface DailyOrderCount {
   count: number
 }
 
+interface FoodCategory {
+  id: number
+  name: string
+  description: string | null
+  created_at: string
+  updated_at: string
+}
+
+interface CategoryFormData {
+  name: string
+  description: string | null
+}
+
+// Add utility functions for number conversion
+const convertToEnglishNumbers = (input: string): string => {
+  if (!input) return ""
+  const persianNumbers = ["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"]
+  let result = input.toString()
+
+  for (let i = 0; i < 10; i++) {
+    const persianRegex = new RegExp(persianNumbers[i], "g")
+    result = result.replace(persianRegex, i.toString())
+  }
+
+  return result
+}
+
+const convertToPersianNumbers = (input: string | number): string => {
+  if (input === undefined || input === null) return ""
+  const persianNumbers = ["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"]
+  let result = input.toString()
+
+  for (let i = 0; i < 10; i++) {
+    const englishRegex = new RegExp(i.toString(), "g")
+    result = result.replace(englishRegex, persianNumbers[i])
+  }
+
+  return result
+}
+
+// Replace the PersianNumberInput component with this improved version
+const PersianNumberInput = ({
+  value,
+  onChange,
+  placeholder,
+  className,
+  min,
+  max,
+  id,
+  name,
+  required,
+}: {
+  value: number | string
+  onChange: (value: string) => void
+  placeholder?: string
+  className?: string
+  min?: number
+  max?: number
+  id?: string
+  name?: string
+  required?: boolean
+}) => {
+  const [displayValue, setDisplayValue] = useState(convertToPersianNumbers(value))
+
+  useEffect(() => {
+    setDisplayValue(convertToPersianNumbers(value))
+  }, [value])
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value
+
+    // Remove any non-numeric characters and ensure it's an integer
+    const persianOrEnglishDigits = newValue.replace(/[^\d۰-۹]/g, "")
+    setDisplayValue(persianOrEnglishDigits)
+
+    // Convert to English numbers for the onChange handler
+    const englishValue = convertToEnglishNumbers(persianOrEnglishDigits)
+    onChange(englishValue)
+  }
+
+  return (
+    <Input
+      id={id}
+      name={name}
+      type="text"
+      value={displayValue}
+      onChange={handleChange}
+      placeholder={placeholder}
+      className={className}
+      min={min}
+      max={max}
+      required={required}
+      inputMode="numeric"
+    />
+  )
+}
+
+// Replace the TimePicker component with this standard implementation
+const TimePicker = ({
+  value,
+  onChange,
+  className,
+  id,
+  name,
+  required,
+}: {
+  value: string
+  onChange: (value: string) => void
+  className?: string
+  id?: string
+  name?: string
+  required?: boolean
+}) => {
+  const [isOpen, setIsOpen] = useState(false)
+  const [selectedHour, setSelectedHour] = useState<number>(value ? Number.parseInt(value.split(":")[0]) : 12)
+  const [selectedMinute, setSelectedMinute] = useState<number>(value ? Number.parseInt(value.split(":")[1]) : 0)
+
+  useEffect(() => {
+    if (value) {
+      const [hour, minute] = value.split(":")
+      setSelectedHour(Number.parseInt(hour))
+      setSelectedMinute(Number.parseInt(minute))
+    }
+  }, [value])
+
+  const formatTimeDisplay = () => {
+    return `${selectedHour.toString().padStart(2, "0")}:${selectedMinute.toString().padStart(2, "0")}`
+  }
+
+  const handleHourChange = (hour: number) => {
+    setSelectedHour(hour)
+    onChange(`${hour.toString().padStart(2, "0")}:${selectedMinute.toString().padStart(2, "0")}`)
+  }
+
+  const handleMinuteChange = (minute: number) => {
+    setSelectedMinute(minute)
+    onChange(`${selectedHour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`)
+  }
+
+  return (
+    <div className="relative">
+      <Input
+        id={id}
+        name={name}
+        type="text"
+        value={convertToPersianNumbers(formatTimeDisplay())}
+        onClick={() => setIsOpen(true)}
+        readOnly
+        className={className}
+        required={required}
+      />
+      {isOpen && (
+        <div className="fixed inset-0 z-50" onClick={() => setIsOpen(false)}>
+          <div
+            className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg shadow-lg p-4 w-72 max-w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-center font-bold mb-4">انتخاب زمان</div>
+            <div className="flex justify-between gap-4">
+
+              {/* Minutes */}
+              <div className="w-1/2">
+                <div className="text-center mb-2 text-sm text-gray-500">دقیقه</div>
+                <div className="border rounded-md h-48 overflow-y-auto">
+                  {Array.from(
+                    { length: 60 },
+                    (_, i) =>
+                      i % 5 === 0 && (
+                        <div
+                          key={`minute-${i}`}
+                          className={`px-4 py-2 cursor-pointer hover:bg-orange-100 text-center ${
+                            selectedMinute === i ? "bg-orange-500 text-white" : ""
+                          }`}
+                          onClick={() => handleMinuteChange(i)}
+                        >
+                          {convertToPersianNumbers(i.toString().padStart(2, "0"))}
+                        </div>
+                      ),
+                  )}
+                </div>
+              </div>
+
+              {/* Hours */}
+              <div className="w-1/2">
+                <div className="text-center mb-2 text-sm text-gray-500">ساعت</div>
+                <div className="border rounded-md h-48 overflow-y-auto">
+                  {Array.from({ length: 24 }, (_, i) => (
+                    <div
+                      key={`hour-${i}`}
+                      className={`px-4 py-2 cursor-pointer hover:bg-orange-100 text-center ${
+                        selectedHour === i ? "bg-orange-500 text-white" : ""
+                      }`}
+                      onClick={() => handleHourChange(i)}
+                    >
+                      {convertToPersianNumbers(i.toString().padStart(2, "0"))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end mt-4">
+              <Button size="sm" className="bg-[#f97316] hover:bg-orange-600" onClick={() => setIsOpen(false)}>
+                تایید
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Dashboard Stats Card Component
+const StatCard = ({ icon: Icon, title, value, color }: { icon: any; title: string; value: string; color: string }) => (
+  <Card className="backdrop-blur-md bg-white/80 border-0 shadow-md hover:shadow-lg transition-all duration-300 animate-fade-in">
+    <CardContent className="p-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-gray-500">{title}</p>
+          <h3 className="text-2xl font-bold mt-1">{value}</h3>
+        </div>
+        <div className={`p-3 rounded-full ${color}`}>
+          <Icon className="w-6 h-6 text-white" />
+        </div>
+      </div>
+    </CardContent>
+  </Card>
+)
+
 export default function AdminDashboard() {
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState("food")
+  const [activeTab, setActiveTab] = useState("dashboard")
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [dialogContent, setDialogContent] = useState<React.ReactNode | null>(null)
   const [foods, setFoods] = useState<Food[]>([])
@@ -119,15 +363,32 @@ export default function AdminDashboard() {
   const [selectedMeal_type, setSelectedMeal_type] = useState<"lunch" | "dinner">("lunch")
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
   const [dailyOrderCounts, setDailyOrderCounts] = useState<DailyOrderCount[]>([])
-  // Add state for categories
-  const [categories, setCategories] = useState<{ id: number; name: string }[]>([])
+  const [categories, setCategories] = useState<FoodCategory[]>([])
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false)
+  const [categoryDeleteDialogOpen, setCategoryDeleteDialogOpen] = useState(false)
+  const [currentCategory, setCurrentCategory] = useState<FoodCategory | null>(null)
+  const [categoryFormData, setCategoryFormData] = useState<CategoryFormData>({
+    name: "",
+    description: "",
+  })
+  const [isCategorySubmitting, setIsCategorySubmitting] = useState(false)
+
+  // Dashboard stats
+  const [totalFoods, setTotalFoods] = useState(0)
+  const [totalCategories, setTotalCategories] = useState(0)
+  const [totalReservations, setTotalReservations] = useState(0)
+  const [todayReservations, setTodayReservations] = useState(0)
 
   const fetchFoods = useCallback(async () => {
     try {
       const response = await api.get(createApiUrl(API_ROUTES.GET_FOODS))
       setFoods(response.data)
+      setTotalFoods(response.data.length)
     } catch (error) {
       console.error("Error fetching foods:", error)
+      toast.error("خطا در دریافت لیست غذاها")
     }
   }, [])
 
@@ -143,7 +404,6 @@ export default function AdminDashboard() {
 
   const fetchDailyMenu = useCallback(async () => {
     if (!selectedDate || !selectedMeal_type) {
-      toast.error("لطفاً تاریخ و نوع وعده را انتخاب کنید")
       return
     }
     try {
@@ -173,6 +433,12 @@ export default function AdminDashboard() {
     try {
       const response = await api.get(createApiUrl(API_ROUTES.GET_RESERVATION_LOGS))
       setReservationLogs(response.data)
+      setTotalReservations(response.data.length)
+
+      // Calculate today's reservations
+      const today = new Date().toISOString().split("T")[0]
+      const todayCount = response.data.filter((log: ReservationLog) => log.date && log.date.includes(today)).length
+      setTodayReservations(todayCount)
     } catch (error) {
       console.error("Error fetching reservation logs:", error)
       toast.error("خطا در دریافت گزارش رزروها")
@@ -189,13 +455,14 @@ export default function AdminDashboard() {
     }
   }, [])
 
-  // Add fetchCategories function
   const fetchCategories = useCallback(async () => {
     try {
       const response = await api.get(createApiUrl(API_ROUTES.GET_FOOD_CATEGORIES))
       setCategories(response.data)
+      setTotalCategories(response.data.length)
     } catch (error) {
       console.error("Error fetching categories:", error)
+      toast.error("خطا در دریافت دسته‌بندی‌ها")
     }
   }, [])
 
@@ -208,11 +475,9 @@ export default function AdminDashboard() {
     fetchDailyOrderCounts()
     fetchCategories()
   }, [
-    selectedDate,
-    selectedMeal_type,
+    fetchFoods,
     fetchTemplateMenu,
     fetchDailyMenu,
-    fetchFoods,
     fetchVoucherPrice,
     fetchReservationLogs,
     fetchDailyOrderCounts,
@@ -229,23 +494,100 @@ export default function AdminDashboard() {
     setDialogContent(null)
   }, [])
 
-  // Modify the handleAddFood function to include category selection
+  const handleAddCategory = useCallback(() => {
+    setCurrentCategory(null)
+    setCategoryFormData({ name: "", description: "" })
+    setCategoryDialogOpen(true)
+  }, [])
+
+  const handleEditCategory = useCallback((category: FoodCategory) => {
+    setCurrentCategory(category)
+    setCategoryFormData({
+      name: category.name,
+      description: category.description,
+    })
+    setCategoryDialogOpen(true)
+  }, [])
+
+  const handleDeleteCategory = useCallback((category: FoodCategory) => {
+    setCurrentCategory(category)
+    setCategoryDeleteDialogOpen(true)
+  }, [])
+
+  const handleCategoryInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target
+    setCategoryFormData((prev) => ({ ...prev, [name]: value }))
+  }, [])
+
+  const handleCategorySubmit = useCallback(async () => {
+    if (!categoryFormData.name.trim()) {
+      toast.error("لطفاً نام دسته‌بندی را وارد کنید")
+      return
+    }
+
+    setIsCategorySubmitting(true)
+
+    try {
+      if (currentCategory) {
+        await api.put(createApiUrl(API_ROUTES.UPDATE_FOOD_CATEGORY(currentCategory.id.toString())), categoryFormData)
+        toast.success("دسته‌بندی با موفقیت به‌روزرسانی شد")
+      } else {
+        await api.post(createApiUrl(API_ROUTES.ADD_FOOD_CATEGORY), categoryFormData)
+        toast.success("دسته‌بندی جدید با موفقیت ایجاد شد")
+      }
+
+      setCategoryDialogOpen(false)
+      await fetchCategories()
+    } catch (error) {
+      console.error("Error saving category:", error)
+      toast.error(currentCategory ? "خطا در به‌روزرسانی دسته‌بندی" : "خطا در ایجاد دسته‌بندی")
+    } finally {
+      setIsCategorySubmitting(false)
+    }
+  }, [categoryFormData, currentCategory, fetchCategories])
+
+  const handleCategoryDelete = useCallback(async () => {
+    if (!currentCategory) return
+
+    setIsCategorySubmitting(true)
+
+    try {
+      await api.delete(createApiUrl(API_ROUTES.DELETE_FOOD_CATEGORY(currentCategory.id.toString())))
+      toast.success("دسته‌بندی با موفقیت حذف شد")
+      setCategoryDeleteDialogOpen(false)
+      await fetchCategories()
+    } catch (error: unknown) {
+      const isAxiosError = error instanceof AxiosError
+      console.error("Error deleting category:", error)
+      if (isAxiosError && error.response?.status === 400) {
+        toast.error("این دسته‌بندی به یک یا چند غذا اختصاص داده شده است و قابل حذف نیست")
+      } else {
+        toast.error("خطا در حذف دسته‌بندی")
+      }
+    } finally {
+      setIsCategorySubmitting(false)
+    }
+  }, [currentCategory, fetchCategories])
+
   const handleAddFood = useCallback(() => {
     openDialog(
       <div className="space-y-4" dir="rtl">
         <h2 className="text-lg font-bold">افزودن غذای جدید</h2>
         <div className="space-y-2">
           <Label htmlFor="food">نام غذا</Label>
-          <Input id="food" placeholder="نام غذا را وارد کنید" />
+          <Input id="food" placeholder="نام غذا را وارد کنید" className="form-input-focus" />
         </div>
         <div className="space-y-2">
           <Label htmlFor="foodDescription">توضیحات</Label>
-          <Input id="foodDescription" placeholder="توضیحات غذا را وارد کنید" />
+          <Input id="foodDescription" placeholder="توضیحات غذا را وارد کنید" className="form-input-focus" />
         </div>
         <div className="space-y-2">
           <Label htmlFor="foodCategory">دسته‌بندی</Label>
           <div className="flex">
-            <select id="foodCategory" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
+            <select
+              id="foodCategory"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 form-input-focus"
+            >
               <option value="">انتخاب دسته‌بندی</option>
               {categories.map((category) => (
                 <option key={category.id} value={category.id.toString()}>
@@ -257,26 +599,33 @@ export default function AdminDashboard() {
         </div>
         <div className="space-y-2">
           <Label htmlFor="foodPrice">قیمت (تومان)</Label>
-          <Input id="foodPrice" type="number" placeholder="قیمت را وارد کنید" />
+          <PersianNumberInput
+            id="foodPrice"
+            placeholder="قیمت را وارد کنید"
+            value=""
+            onChange={(value) => {
+              const priceInput = document.getElementById("foodPrice") as HTMLInputElement
+              if (priceInput) {
+                priceInput.value = value
+              }
+            }}
+            className="form-input-focus"
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="foodImage">تصویر غذا</Label>
-          <Input id="foodImage" type="file" accept="image/*" />
+          <Input id="foodImage" type="file" accept="image/*" className="form-input-focus" />
         </div>
         <Button
           onClick={async () => {
             const name = (document.getElementById("food") as HTMLInputElement).value
             const description = (document.getElementById("foodDescription") as HTMLInputElement).value
-            // Get the category directly from the HTML select element
             const categorySelect = document.getElementById("foodCategory") as HTMLSelectElement
-            const category = categorySelect?.value || ''
+            const category = categorySelect?.value || ""
             const price = Number.parseInt((document.getElementById("foodPrice") as HTMLInputElement).value)
             const imageFile = (document.getElementById("foodImage") as HTMLInputElement).files?.[0]
-            
-            // Debug log
-            console.log('Selected category:', category)
 
-            if (!name || !price || !imageFile || !category) {
+            if (!name || !price) {
               toast.error("لطفاً تمام فیلدها را پر کنید")
               return
             }
@@ -287,17 +636,12 @@ export default function AdminDashboard() {
               formData.append("description", description)
             }
             formData.append("price", price.toString())
-            formData.append("image", imageFile)
-            // Try multiple possible field names to ensure one works
+            if (imageFile) {
+              formData.append("image", imageFile)
+            }
             if (category) {
               formData.append("category_id", category)
               formData.append("category", category)
-            }
-            
-            // Debug log the form data
-            console.log('Form data being sent:')
-            for (const pair of formData.entries()) {
-              console.log(pair[0] + ': ' + pair[1])
             }
 
             try {
@@ -312,7 +656,7 @@ export default function AdminDashboard() {
               toast.error("خطا در افزودن غذای جدید")
             }
           }}
-          className="w-full bg-[#F47B20] hover:bg-[#E06A10]"
+          className="w-full bg-[#f97316] hover:bg-orange-600 btn-hover-effect"
         >
           <Plus className="w-4 h-4 mr-2" />
           افزودن غذا
@@ -321,20 +665,23 @@ export default function AdminDashboard() {
     )
   }, [openDialog, closeDialog, fetchFoods, categories])
 
-  // Modify the handleEditFood function to include category selection
   const handleEditFood = useCallback(
     (food: Food) => {
       openDialog(
         <div className="space-y-4" dir="rtl">
           <h2 className="text-lg font-bold">ویرایش غذا</h2>
           <Label htmlFor="food">نام غذا</Label>
-          <Input id="food" defaultValue={food.name} />
+          <Input id="food" defaultValue={food.name} className="form-input-focus" />
           <Label htmlFor="foodDescription">توضیحات</Label>
-          <Input id="foodDescription" defaultValue={food.description} />
+          <Input id="foodDescription" defaultValue={food.description} className="form-input-focus" />
           <div className="space-y-2">
             <Label htmlFor="foodCategory">دسته‌بندی</Label>
             <div className="flex">
-              <select id="foodCategory" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" defaultValue={food.category_id?.toString() || ""}>
+              <select
+                id="foodCategory"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 form-input-focus"
+                defaultValue={food.category_id?.toString() || ""}
+              >
                 <option value="">انتخاب دسته‌بندی</option>
                 {categories.map((category) => (
                   <option key={category.id} value={category.id.toString()}>
@@ -345,13 +692,23 @@ export default function AdminDashboard() {
             </div>
           </div>
           <Label htmlFor="foodPrice">قیمت (تومان)</Label>
-          <Input id="foodPrice" type="number" defaultValue={food.price} />
+          <PersianNumberInput
+            id="foodPrice"
+            value={food.price}
+            onChange={(value) => {
+              const priceInput = document.getElementById("foodPrice") as HTMLInputElement
+              if (priceInput) {
+                priceInput.value = value
+              }
+            }}
+            className="form-input-focus"
+          />
           <Label htmlFor="foodImage">تصویر غذا</Label>
-          <Input id="foodImage" type="file" accept="image/*" />
+          <Input id="foodImage" type="file" accept="image/*" className="form-input-focus" />
           <div className="flex justify-center mb-4">
             <div className="relative h-24 w-24">
               <Image
-                src={food.image_url || "/placeholder.svg"}
+                src={food.image_url || "/placeholder.svg?height=96&width=96"}
                 alt={food.name}
                 fill
                 className="object-contain rounded-md"
@@ -360,25 +717,22 @@ export default function AdminDashboard() {
           </div>
           <Button
             onClick={async () => {
-              const foodElement = document.getElementById("food") as HTMLInputElement;
-              const descriptionElement = document.getElementById("foodDescription") as HTMLInputElement;
-              const categoryElement = document.getElementById("foodCategory") as HTMLSelectElement;
-              const priceElement = document.getElementById("foodPrice") as HTMLInputElement;
-              const imageElement = document.getElementById("foodImage") as HTMLInputElement;
-              
+              const foodElement = document.getElementById("food") as HTMLInputElement
+              const descriptionElement = document.getElementById("foodDescription") as HTMLInputElement
+              const categoryElement = document.getElementById("foodCategory") as HTMLSelectElement
+              const priceElement = document.getElementById("foodPrice") as HTMLInputElement
+              const imageElement = document.getElementById("foodImage") as HTMLInputElement
+
               if (!foodElement || !descriptionElement || !priceElement) {
-                toast.error("خطا در دریافت مقادیر فرم");
-                return;
+                toast.error("خطا در دریافت مقادیر فرم")
+                return
               }
-              
-              const name = foodElement.value;
-              const description = descriptionElement.value;
-              const category = categoryElement?.value;
-              const price = Number.parseInt(priceElement.value);
+
+              const name = foodElement.value
+              const description = descriptionElement.value
+              const category = categoryElement?.value
+              const price = Number.parseInt(priceElement.value)
               const imageFile = imageElement?.files?.[0]
-              
-              // Debug log
-              console.log('Edit Food - Selected category:', category)
 
               if (!name || !price) {
                 toast.error("لطفاً تمام فیلدها را پر کنید")
@@ -391,16 +745,9 @@ export default function AdminDashboard() {
                 formData.append("description", description)
               }
               formData.append("price", price.toString())
-              // Try multiple possible field names to ensure one works
               if (category) {
                 formData.append("category_id", category)
                 formData.append("category", category)
-              }
-              
-              // Debug log the form data
-              console.log('Edit Food - Form data being sent:')
-              for (const pair of formData.entries()) {
-                console.log(pair[0] + ': ' + pair[1])
               }
               if (imageFile) {
                 formData.append("image", imageFile)
@@ -418,7 +765,7 @@ export default function AdminDashboard() {
                 toast.error("خطا در به‌روزرسانی غذا")
               }
             }}
-            className="w-full bg-[#F47B20] hover:bg-[#E06A10]"
+            className="w-full bg-[#f97316] hover:bg-orange-600 btn-hover-effect"
           >
             ذخیره تغییرات
           </Button>
@@ -532,7 +879,7 @@ export default function AdminDashboard() {
           <h2 className="text-lg font-bold">افزودن غذا به منو</h2>
           <Label htmlFor="food">غذا</Label>
           <Select name="food" required>
-            <SelectTrigger id="food">
+            <SelectTrigger id="food" className="form-input-focus">
               <SelectValue placeholder="انتخاب غذا" />
             </SelectTrigger>
             <SelectContent>
@@ -544,16 +891,79 @@ export default function AdminDashboard() {
             </SelectContent>
           </Select>
           <Label htmlFor="start_time">زمان شروع</Label>
-          <Input id="start_time" name="start_time" type="time" required />
+          <TimePicker
+            id="start_time"
+            name="start_time"
+            value=""
+            onChange={(value) => {
+              const timeInput = document.getElementById("start_time") as HTMLInputElement
+              if (timeInput) {
+                timeInput.value = value
+              }
+            }}
+            className="form-input-focus"
+            required
+          />
           <Label htmlFor="end_time">زمان پایان</Label>
-          <Input id="end_time" name="end_time" type="time" required />
+          <TimePicker
+            id="end_time"
+            name="end_time"
+            value=""
+            onChange={(value) => {
+              const timeInput = document.getElementById("end_time") as HTMLInputElement
+              if (timeInput) {
+                timeInput.value = value
+              }
+            }}
+            className="form-input-focus"
+            required
+          />
           <Label htmlFor="time_slot_count">تعداد بازه‌های زمانی</Label>
-          <Input id="time_slot_count" name="time_slot_count" type="number" required min="1" />
+          <PersianNumberInput
+            id="time_slot_count"
+            name="time_slot_count"
+            value=""
+            onChange={(value) => {
+              const input = document.getElementById("time_slot_count") as HTMLInputElement
+              if (input) {
+                input.value = value
+              }
+            }}
+            min={1}
+            required
+            className="form-input-focus"
+          />
           <Label htmlFor="time_slot_capacity">ظرفیت هر بازه زمانی</Label>
-          <Input id="time_slot_capacity" name="time_slot_capacity" type="number" required min="1" />
+          <PersianNumberInput
+            id="time_slot_capacity"
+            name="time_slot_capacity"
+            value=""
+            onChange={(value) => {
+              const input = document.getElementById("time_slot_capacity") as HTMLInputElement
+              if (input) {
+                input.value = value
+              }
+            }}
+            min={1}
+            required
+            className="form-input-focus"
+          />
           <Label htmlFor="daily_capacity">ظرفیت روزانه</Label>
-          <Input id="daily_capacity" name="daily_capacity" type="number" required min="1" />
-          <Button type="submit" className="w-full bg-[#F47B20] hover:bg-[#E06A10]">
+          <PersianNumberInput
+            id="daily_capacity"
+            name="daily_capacity"
+            value=""
+            onChange={(value) => {
+              const input = document.getElementById("daily_capacity") as HTMLInputElement
+              if (input) {
+                input.value = value
+              }
+            }}
+            min={1}
+            required
+            className="form-input-focus"
+          />
+          <Button type="submit" className="w-full bg-[#f97316] hover:bg-orange-600 btn-hover-effect">
             افزودن غذا به منو
           </Button>
         </form>,
@@ -638,7 +1048,7 @@ export default function AdminDashboard() {
           <h2 className="text-lg font-bold">ویرایش غذای منو</h2>
           <Label htmlFor="food">غذا</Label>
           <Select name="food" defaultValue={item.food?.name} required>
-            <SelectTrigger id="food">
+            <SelectTrigger id="food" className="form-input-focus">
               <SelectValue placeholder="انتخاب غذا" />
             </SelectTrigger>
             <SelectContent>
@@ -651,7 +1061,7 @@ export default function AdminDashboard() {
           </Select>
           <Label htmlFor="foodCategory">دسته‌بندی</Label>
           <Select name="foodCategory" defaultValue={item.food.category_id?.toString()}>
-            <SelectTrigger>
+            <SelectTrigger className="form-input-focus">
               <SelectValue placeholder="انتخاب دسته‌بندی" />
             </SelectTrigger>
             <SelectContent dir="rtl">
@@ -663,43 +1073,85 @@ export default function AdminDashboard() {
             </SelectContent>
           </Select>
           <Label htmlFor="start_time">زمان شروع</Label>
-          <Input id="start_time" name="start_time" type="time" defaultValue={item.start_time} required />
+          <TimePicker
+            id="start_time"
+            name="start_time"
+            value={item.start_time}
+            onChange={(value) => {
+              const timeInput = document.getElementById("start_time") as HTMLInputElement
+              if (timeInput) {
+                timeInput.value = value
+              }
+            }}
+            className="form-input-focus"
+            required
+          />
           <Label htmlFor="end_time">زمان پایان</Label>
-          <Input id="end_time" name="end_time" type="time" defaultValue={item.end_time} required />
+          <TimePicker
+            id="end_time"
+            name="end_time"
+            value={item.end_time}
+            onChange={(value) => {
+              const timeInput = document.getElementById("end_time") as HTMLInputElement
+              if (timeInput) {
+                timeInput.value = value
+              }
+            }}
+            className="form-input-focus"
+            required
+          />
           <Label htmlFor="time_slot_count">تعداد بازه‌های زمانی</Label>
-          <Input
+          <PersianNumberInput
             id="time_slot_count"
             name="time_slot_count"
-            type="number"
-            defaultValue={item.time_slot_count}
+            value={item.time_slot_count}
+            onChange={(value) => {
+              const input = document.getElementById("time_slot_count") as HTMLInputElement
+              if (input) {
+                input.value = value
+              }
+            }}
+            min={1}
             required
-            min="1"
+            className="form-input-focus"
           />
           <Label htmlFor="time_slot_capacity">ظرفیت هر بازه زمانی</Label>
-          <Input
+          <PersianNumberInput
             id="time_slot_capacity"
             name="time_slot_capacity"
-            type="number"
-            defaultValue={item.time_slot_capacity}
+            value={item.time_slot_capacity}
+            onChange={(value) => {
+              const input = document.getElementById("time_slot_capacity") as HTMLInputElement
+              if (input) {
+                input.value = value
+              }
+            }}
+            min={1}
             required
-            min="1"
+            className="form-input-focus"
           />
           <Label htmlFor="daily_capacity">ظرفیت روزانه</Label>
-          <Input
+          <PersianNumberInput
             id="daily_capacity"
             name="daily_capacity"
-            type="number"
-            defaultValue={item.daily_capacity}
+            value={item.daily_capacity}
+            onChange={(value) => {
+              const input = document.getElementById("daily_capacity") as HTMLInputElement
+              if (input) {
+                input.value = value
+              }
+            }}
+            min={1}
             required
-            min="1"
+            className="form-input-focus"
           />
-          <Button type="submit" className="w-full bg-[#F47B20] hover:bg-[#E06A10]">
+          <Button type="submit" className="w-full bg-[#f97316] hover:bg-orange-600 btn-hover-effect">
             ذخیره تغییرات
           </Button>
         </form>,
       )
     },
-    [foods, categories, openDialog, closeDialog, fetchTemplateMenu, fetchDailyMenu]
+    [foods, categories, openDialog, closeDialog, fetchTemplateMenu, fetchDailyMenu],
   )
 
   const handleDeleteMenuItem = useCallback(
@@ -727,7 +1179,17 @@ export default function AdminDashboard() {
       <div className="space-y-4" dir="rtl">
         <h2 className="text-lg font-bold">به‌روزرسانی قیمت ژتون</h2>
         <Label htmlFor="voucherPrice">قیمت جدید ژتون (تومان)</Label>
-        <Input id="voucherPrice" type="number" defaultValue={voucherPrice} />
+        <PersianNumberInput
+          id="voucherPrice"
+          value={voucherPrice}
+          onChange={(value) => {
+            const priceInput = document.getElementById("voucherPrice") as HTMLInputElement
+            if (priceInput) {
+              priceInput.value = value
+            }
+          }}
+          className="form-input-focus"
+        />
         <Button
           onClick={async () => {
             const newPrice = Number.parseInt((document.getElementById("voucherPrice") as HTMLInputElement).value)
@@ -745,7 +1207,7 @@ export default function AdminDashboard() {
               toast.error("خطا در به‌روزرسانی قیمت ژتون")
             }
           }}
-          className="w-full bg-[#F47B20] hover:bg-[#E06A10]"
+          className="w-full bg-[#f97316] hover:bg-orange-600 btn-hover-effect"
         >
           به‌روزرسانی قیمت
         </Button>
@@ -784,7 +1246,7 @@ export default function AdminDashboard() {
       localStorage.removeItem("access_token")
       localStorage.removeItem("refresh_token")
       toast.success("با موفقیت از حساب کاربری خارج شدید")
-      router.push("/")
+      router.push("/login")
     } catch (error) {
       console.error("Error logging out:", error)
       toast.error("خطا در خروج از حساب کاربری")
@@ -792,429 +1254,982 @@ export default function AdminDashboard() {
   }, [router])
 
   return (
-    <div className="min-h-screen bg-gradient-to-bl from-orange-100 to-red-100 rtl p-8">
-      <Toaster position="top-center" />
-      <header className="sticky top-0 z-50 w-full bg-white shadow-md mb-8">
+    <div className="min-h-screen relative overflow-hidden bg-pattern bg-pattern-animate rtl">
+      <div className="absolute inset-0">
+        <div className="absolute top-0 right-0 w-full h-full overflow-hidden">
+          <svg
+            className="absolute top-0 right-0 h-full w-full"
+            viewBox="0 0 900 600"
+            preserveAspectRatio="xMidYMid slice"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <g>
+              <path
+                className="blob-animate-1"
+                d="M0 486.7C-52.7 454 -105.4 421.3 -166.8 402.8C-228.3 384.3 -298.5 380 -344.2 344.2C-389.8 308.3 -410.9 241 -430.5 178.3C-450.2 115.7 -468.5 57.9 -486.7 0L0 0Z"
+                fill="url(#orange-gradient-1)"
+                transform="translate(900, 0)"
+              ></path>
+            </g>
+            <g>
+              <path
+                className="blob-animate-2"
+                d="M0 -486.7C59.2 -472.3 118.5 -457.9 181.4 -437.9C244.3 -417.9 311 -392.4 344.2 -344.2C377.4 -295.9 377.2 -224.9 395.4 -163.8C413.6 -102.6 450.2 -51.3 486.7 0L0 0Z"
+                fill="url(#orange-gradient-2)"
+                transform="translate(0, 600)"
+              ></path>
+            </g>
+            <defs>
+              <linearGradient id="orange-gradient-1" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#f97316" stopOpacity="0.3"></stop>
+                <stop offset="100%" stopColor="#fdba74" stopOpacity="0.2"></stop>
+              </linearGradient>
+              <linearGradient id="orange-gradient-2" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#fb923c" stopOpacity="0.3"></stop>
+                <stop offset="100%" stopColor="#fed7aa" stopOpacity="0.2"></stop>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+      </div>
+
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          style: {
+            background: "#FFF",
+            color: "#000",
+            borderRadius: "0.75rem",
+          },
+        }}
+      />
+
+      {/* Header */}
+      <header
+        className="sticky top-0 z-50 w-full backdrop-blur-md bg-white/80 shadow-md animate-slide-up"
+        style={{ animationDelay: "0.1s" }}
+      >
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          <Link href="/" className="flex items-center">
-            <div className="relative h-12 w-12 mr-3 transition-transform duration-300 hover:scale-110">
-              <Image
-                src="/images/javanfoods_logo.png"
-                alt="رستوران جوان"
-                fill
-                className="object-contain drop-shadow-md"
-                priority
-              />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-medium text-gray-600">رستوران جوان</span>
-              <span className="text-xl font-bold text-[#F47B20]">سامانه رزرو غذای دانشگاه - پنل مدیریت</span>
-            </div>
-          </Link>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage src="/placeholder-avatar.jpg" alt="مدیر سیستم" />
-                        <AvatarFallback>مدیر</AvatarFallback>
-                      </Avatar>
+          <div className="flex items-center">
+            <Sheet>
+              <SheetTrigger asChild className="md:hidden">
+                <Button variant="ghost" size="icon" className="mr-2">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-[240px] sm:w-[300px]">
+                <div className="flex flex-col h-full py-6">
+                  <div className="flex items-center mb-6">
+                    <div className="relative h-10 w-10 mr-3">
+                      <Image src="/images/javanfoods_logo.png" alt="رستوران جوان" fill className="object-contain" />
+                    </div>
+                    <span className="text-lg font-bold">رستوران جوان</span>
+                  </div>
+                  <div className="flex flex-col space-y-1">
+                    <Button
+                      variant={activeTab === "dashboard" ? "secondary" : "ghost"}
+                      className="justify-start"
+                      onClick={() => {
+                        setActiveTab("dashboard")
+                        setIsMobileMenuOpen(false)
+                      }}
+                    >
+                      <Home className="ml-2 h-4 w-4" />
+                      داشبورد
                     </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-56" align="end" forceMount>
-                    <DropdownMenuLabel className="font-normal">
-                      <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">مدیر سیستم</p>
-                        <p className="text-xs leading-none text-muted-foreground">admin@example.com</p>
-                      </div>
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem>
-                      <User className="ml-2 h-4 w-4" />
-                      <span>پروفایل</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleLogout}>
+                    <Button
+                      variant={activeTab === "food" ? "secondary" : "ghost"}
+                      className="justify-start"
+                      onClick={() => {
+                        setActiveTab("food")
+                        setIsMobileMenuOpen(false)
+                      }}
+                    >
+                      <Utensils className="ml-2 h-4 w-4" />
+                      مدیریت غذاها
+                    </Button>
+                    <Button
+                      variant={activeTab === "categories" ? "secondary" : "ghost"}
+                      className="justify-start"
+                      onClick={() => {
+                        setActiveTab("categories")
+                        setIsMobileMenuOpen(false)
+                      }}
+                    >
+                      <Clipboard className="ml-2 h-4 w-4" />
+                      دسته‌بندی‌ها
+                    </Button>
+                    <Button
+                      variant={activeTab === "template-menu" ? "secondary" : "ghost"}
+                      className="justify-start"
+                      onClick={() => {
+                        setActiveTab("template-menu")
+                        setIsMobileMenuOpen(false)
+                      }}
+                    >
+                      <Calendar className="ml-2 h-4 w-4" />
+                      منوی الگو
+                    </Button>
+                    <Button
+                      variant={activeTab === "daily-menu" ? "secondary" : "ghost"}
+                      className="justify-start"
+                      onClick={() => {
+                        setActiveTab("daily-menu")
+                        setIsMobileMenuOpen(false)
+                      }}
+                    >
+                      <Clipboard className="ml-2 h-4 w-4" />
+                      منوی روزانه
+                    </Button>
+                    <Button
+                      variant={activeTab === "voucher-price" ? "secondary" : "ghost"}
+                      className="justify-start"
+                      onClick={() => {
+                        setActiveTab("voucher-price")
+                        setIsMobileMenuOpen(false)
+                      }}
+                    >
+                      <DollarSign className="ml-2 h-4 w-4" />
+                      قیمت ژتون
+                    </Button>
+                    <Button
+                      variant={activeTab === "analytics" ? "secondary" : "ghost"}
+                      className="justify-start"
+                      onClick={() => {
+                        setActiveTab("analytics")
+                        setIsMobileMenuOpen(false)
+                      }}
+                    >
+                      <BarChart2 className="ml-2 h-4 w-4" />
+                      آمار و گزارشات
+                    </Button>
+                  </div>
+                  <div className="mt-auto">
+                    <Button variant="ghost" className="justify-start w-full" onClick={handleLogout}>
                       <LogOut className="ml-2 h-4 w-4" />
-                      <span>خروج</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>پروفایل کاربری</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+                      خروج
+                    </Button>
+                  </div>
+                </div>
+              </SheetContent>
+            </Sheet>
+
+            <Link href="/" className="flex items-center">
+              <div className="relative h-10 w-10 mr-3 transition-transform duration-300 hover:scale-110">
+                <Image src="/images/javanfoods_logo.png" alt="رستوران جوان" fill className="object-contain" priority />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm font-medium text-gray-600 hidden md:block">رستوران جوان</span>
+                <span className="text-lg md:text-xl font-bold text-[#f97316]">پنل مدیریت</span>
+              </div>
+            </Link>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src="/placeholder.svg?height=32&width=32" alt="مدیر سیستم" />
+                          <AvatarFallback>مدیر</AvatarFallback>
+                        </Avatar>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-56" align="end" forceMount>
+                      <DropdownMenuLabel className="font-normal">
+                        <div className="flex flex-col space-y-1">
+                          <p className="text-sm font-medium leading-none">مدیر سیستم</p>
+                          <p className="text-xs leading-none text-muted-foreground">admin@example.com</p>
+                        </div>
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem>
+                        <User className="ml-2 h-4 w-4" />
+                        <span>پروفایل</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleLogout}>
+                        <LogOut className="ml-2 h-4 w-4" />
+                        <span>خروج</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>پروفایل کاربری</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 pb-8">
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="text-center mb-8"
-        >
-          <h1 className="text-4xl font-bold text-[#F47B20] mb-2">پنل مدیریت</h1>
-          <p className="text-xl text-gray-600">مدیریت غذاها، منوها، ژتون‌ها و گزارش‌ها</p>
-        </motion.div>
+      <div className="flex flex-row-reverse min-h-screen">
+        {/* Sidebar - Desktop only */}
+        <aside className="hidden md:flex flex-col w-64 p-4 animate-slide-left" style={{ animationDelay: "0.2s" }}>
+          <Card className="flex-1 backdrop-blur-md bg-white/80 border-0 shadow-md">
+            <CardContent className="p-4" dir="rtl">
+              <div className="space-y-1 mt-2">
+                <Button
+                  variant={activeTab === "dashboard" ? "secondary" : "ghost"}
+                  className="w-full justify-start"
+                  onClick={() => setActiveTab("dashboard")}
+                >
+                  <Home className="ml-2 h-4 w-4" />
+                  داشبورد
+                </Button>
+                <Button
+                  variant={activeTab === "food" ? "secondary" : "ghost"}
+                  className="w-full justify-start"
+                  onClick={() => setActiveTab("food")}
+                >
+                  <Utensils className="ml-2 h-4 w-4" />
+                  مدیریت غذاها
+                </Button>
+                <Button
+                  variant={activeTab === "categories" ? "secondary" : "ghost"}
+                  className="w-full justify-start"
+                  onClick={() => setActiveTab("categories")}
+                >
+                  <Clipboard className="ml-2 h-4 w-4" />
+                  دسته‌بندی‌ها
+                </Button>
+                <Button
+                  variant={activeTab === "template-menu" ? "secondary" : "ghost"}
+                  className="w-full justify-start"
+                  onClick={() => setActiveTab("template-menu")}
+                >
+                  <Calendar className="ml-2 h-4 w-4" />
+                  منوی الگو
+                </Button>
+                <Button
+                  variant={activeTab === "daily-menu" ? "secondary" : "ghost"}
+                  className="w-full justify-start"
+                  onClick={() => setActiveTab("daily-menu")}
+                >
+                  <Clipboard className="ml-2 h-4 w-4" />
+                  منوی روزانه
+                </Button>
+                <Button
+                  variant={activeTab === "voucher-price" ? "secondary" : "ghost"}
+                  className="w-full justify-start"
+                  onClick={() => setActiveTab("voucher-price")}
+                >
+                  <DollarSign className="ml-2 h-4 w-4" />
+                  قیمت ژتون
+                </Button>
+                <Button
+                  variant={activeTab === "analytics" ? "secondary" : "ghost"}
+                  className="w-full justify-start"
+                  onClick={() => setActiveTab("analytics")}
+                >
+                  <BarChart2 className="ml-2 h-4 w-4" />
+                  آمار و گزارشات
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </aside>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          {/* Add a new tab for categories in the TabsList */}
-          <TabsList className="grid w-full grid-cols-6 gap-4 mb-8">
-            <TabsTrigger value="food" className="flex items-center justify-center space-x-2">
-              <Utensils className="w-5 h-5" />
-              <span>مدیریت غذاها</span>
-            </TabsTrigger>
-            <TabsTrigger value="categories" className="flex items-center justify-center space-x-2">
-              <Utensils className="w-5 h-5" />
-              <span>دسته‌بندی‌ها</span>
-            </TabsTrigger>
-            <TabsTrigger value="template-menu" className="flex items-center justify-center space-x-2">
-              <Calendar className="w-5 h-5" />
-              <span>منوی الگو</span>
-            </TabsTrigger>
-            <TabsTrigger value="daily-menu" className="flex items-center justify-center space-x-2">
-              <Clipboard className="w-5 h-5" />
-              <span>منوی روزانه</span>
-            </TabsTrigger>
-            <TabsTrigger value="voucher-price" className="flex items-center justify-center space-x-2">
-              <DollarSign className="w-5 h-5" />
-              <span>قیمت ژتون</span>
-            </TabsTrigger>
-            <TabsTrigger value="analytics" className="flex items-center justify-center space-x-2">
-              <BarChart2 className="w-5 h-5" />
-              <span>آمار و گزارشات</span>
-            </TabsTrigger>
-          </TabsList>
+        {/* Main Content */}
+        <main className="flex-1 p-4 md:p-6 animate-fade-in" style={{ animationDelay: "0.3s" }}>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              {/* Dashboard Tab */}
+              {activeTab === "dashboard" && (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <StatCard icon={Utensils} title="تعداد غذاها" value={totalFoods.toString()} color="bg-[#f97316]" />
+                    <StatCard
+                      icon={Clipboard}
+                      title="تعداد دسته‌بندی‌ها"
+                      value={totalCategories.toString()}
+                      color="bg-[#f97316]"
+                    />
+                    <StatCard icon={User} title="کل رزروها" value={totalReservations.toString()} color="bg-[#f97316]" />
+                    <StatCard
+                      icon={Calendar}
+                      title="رزروهای امروز"
+                      value={todayReservations.toString()}
+                      color="bg-[#f97316]"
+                    />
+                  </div>
 
-          {/* Add a new TabsContent for categories */}
-          <TabsContent value="categories">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex justify-between items-center">
-                  <span>مدیریت دسته‌بندی‌های غذا</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <CategoryManagement />
-              </CardContent>
-            </Card>
-          </TabsContent>
+                  <Card className="backdrop-blur-md bg-white/80 border-0 shadow-md">
+                    <CardHeader>
+                      <CardTitle>آمار سفارشات روزانه</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="w-full h-[300px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={dailyOrderCounts}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="date" />
+                            <YAxis />
+                            <RechartsTooltip />
+                            <Legend />
+                            <Bar dataKey="count" fill="#f97316" name="تعداد سفارشات" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </CardContent>
+                  </Card>
 
-          <TabsContent value="food">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex justify-between items-center">
-                  <span>مدیریت غذاها</span>
-                  <Button onClick={handleAddFood} className="bg-[#F47B20] hover:bg-[#E06A10]">
-                    <Plus className="w-4 h-4 mr-2" /> افزودن غذا
-                  </Button>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  {/* Modify the food table to include category */}
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>تصویر</TableHead>
-                      <TableHead>نام غذا</TableHead>
-                      <TableHead>دسته‌بندی</TableHead>
-                      <TableHead>توضیحات</TableHead>
-                      <TableHead>قیمت (تومان)</TableHead>
-                      <TableHead>عملیات</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {foods.map((food) => (
-                      <TableRow key={food.id}>
-                        <TableCell>
-                          <div className="relative h-12 w-12">
-                            <Image
-                              src={food.image_url || "/placeholder.svg"}
-                              alt={food.name}
-                              fill
-                              className="object-contain rounded-md"
-                            />
-                          </div>
-                        </TableCell>
-                        <TableCell>{food.name}</TableCell>
-                        <TableCell>{food.category_name || "-"}</TableCell>
-                        <TableCell>{food.description}</TableCell>
-                        <TableCell>{food.price.toLocaleString()}</TableCell>
-                        <TableCell>
-                          <div className="flex space-x-2">
-                            <Button variant="outline" size="sm" onClick={() => handleEditFood(food)}>
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button variant="destructive" size="sm" onClick={() => handleDeleteFood(food)}>
-                              <Trash className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="template-menu">
-            <Card>
-              <CardHeader>
-                <CardTitle dir="rtl">مدیریت منوی الگو</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex space-x-4 mb-4">
-                  <Select value={selectedDay} onValueChange={setSelectedDay}>
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="انتخاب روز هفته" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {[
-                        { en: "Saturday", fa: "شنبه" },
-                        { en: "Sunday", fa: "یکشنبه" },
-                        { en: "Monday", fa: "دوشنبه" },
-                        { en: "Tuesday", fa: "سه‌شنبه" },
-                        { en: "Wednesday", fa: "چهارشنبه" },
-                        { en: "Thursday", fa: "پنج‌شنبه" },
-                        { en: "Friday", fa: "جمعه" },
-                      ].map((day) => (
-                        <SelectItem key={day.en} value={day.en}>
-                          {day.fa}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Select
-                    value={selectedMeal_type}
-                    onValueChange={(value: "lunch" | "dinner") => setSelectedMeal_type(value)}
-                  >
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="انتخاب نوع وعده" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="lunch">ناهار</SelectItem>
-                      <SelectItem value="dinner">شام</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button onClick={() => handleAddMenuItem(true)} className="bg-[#F47B20] hover:bg-[#E06A10]">
-                    افزودن غذا به منو
-                  </Button>
-                </div>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>غذاها</TableHead>
-                      <TableHead>عملیات</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {templateMenu
-                      ?.filter((item) => item.day === selectedDay && item.meal_type === selectedMeal_type)
-                      .map((item, index) => (
-                        <TableRow key={index}>
-                          <TableCell>
-                            {item.items.map((menuItem, itemIndex) => (
-                              <div key={itemIndex} className="mb-2">
-                                <span>{menuItem.food?.name}</span>
-                                <br />
-                                <small>
-                                  {menuItem.start_time} - {menuItem.end_time}, ظرفیت: {menuItem.daily_capacity}
-                                </small>
-                              </div>
-                            ))}
-                          </TableCell>
-                          <TableCell>
-                            {item.items.map((menuItem, itemIndex) => (
-                              <div key={itemIndex} className="flex space-x-2 mb-2">
-                                <Button variant="outline" size="sm" onClick={() => handleEditMenuItem(menuItem, true)}>
-                                  <Edit className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                  variant="destructive"
-                                  size="sm"
-                                  onClick={() => handleDeleteMenuItem(menuItem.id, true)}
-                                >
-                                  <Trash className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            ))}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="daily-menu">
-            <Card>
-              <CardHeader>
-                <CardTitle dir="rtl">مدیریت منوی روزانه</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex space-x-4 mb-4">
-                  <DatePicker
-                    value={selectedDate}
-                    onChange={handleDateChange}
-                    calendar={persian}
-                    locale={persian_fa}
-                    calendarPosition="bottom-right"
-                    inputClass="w-[180px] px-3 py-2 rounded-md border border-input bg-background text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    containerClassName="w-[180px]"
-                    placeholder="انتخاب تاریخ"
-                  />
-                  <Select
-                    value={selectedMeal_type}
-                    onValueChange={(value: "lunch" | "dinner") => setSelectedMeal_type(value)}
-                  >
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="انتخاب نوع وعده" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="lunch">ناهار</SelectItem>
-                      <SelectItem value="dinner">شام</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button onClick={() => handleAddMenuItem(false)} className="bg-[#F47B20] hover:bg-[#E06A10]">
-                    افزودن غذا به منو
-                  </Button>
-                  <Button onClick={handleUseTemplateForDaily} className="bg-[#F47B20] hover:bg-[#E06A10]">
-                    استفاده از منوی الگو
-                  </Button>
-                </div>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>غذاها</TableHead>
-                      <TableHead>وضعیت</TableHead>
-                      <TableHead>عملیات</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {dailyMenu?.items.map((item: MenuItemSpec, index) => (
-                      <TableRow key={index}>
-                        <TableCell>
-                          <div key={index} className="mb-2">
-                            <span>{item.food?.name}</span>
-                            <br />
-                            <small>
-                              {item.start_time} - {item.end_time}, ظرفیت: {item.daily_capacity}
-                            </small>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div key={index} className="flex items-center space-x-2 mb-2">
-                            <Switch
-                              checked={item.is_available}
-                              onCheckedChange={(checked) => handleToggleAvailability(item.id, checked)}
-                            />
-                            <span>{item.is_available ? "فعال" : "غیرفعال"}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div key={index} className="flex space-x-2 mb-2">
-                            <Button variant="outline" size="sm" onClick={() => handleEditMenuItem(item, false)}>
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => handleDeleteMenuItem(item.id, false)}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <Card className="backdrop-blur-md bg-white/80 border-0 shadow-md">
+                      <CardHeader>
+                        <CardTitle>غذاهای اخیر</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          {foods.slice(0, 5).map((food) => (
+                            <div
+                              key={food.id}
+                              className="flex items-center gap-3 p-2 rounded-lg hover:bg-orange-50 transition-colors"
                             >
-                              <Trash className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
+                              <div className="relative h-12 w-12 rounded-md overflow-hidden">
+                                <Image
+                                  src={food.image_url || "/placeholder.svg?height=48&width=48"}
+                                  alt={food.name}
+                                  fill
+                                  className="object-cover"
+                                />
+                              </div>
+                              <div className="flex-1">
+                                <h4 className="font-medium">{food.name}</h4>
+                                <p className="text-sm text-gray-500">
+                                  {convertToPersianNumbers(food.price.toLocaleString())} تومان
+                                </p>
+                              </div>
+                              <Badge variant="outline">{food.category_name || "بدون دسته‌بندی"}</Badge>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                      <CardFooter>
+                        <Button
+                          variant="ghost"
+                          className="w-full text-[#f97316] hover:text-orange-700"
+                          onClick={() => setActiveTab("food")}
+                        >
+                          مشاهده همه غذاها
+                        </Button>
+                      </CardFooter>
+                    </Card>
 
-          <TabsContent value="voucher-price">
-            <Card>
-              <CardHeader>
-                <CardTitle dir="rtl">مدیریت قیمت ژتون</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex justify-between items-center">
-                  <span>قیمت فعلی ژتون: {voucherPrice.toLocaleString()} تومان</span>
-                  <Button onClick={handleUpdateVoucherPrice} className="bg-[#F47B20] hover:bg-[#E06A10]">
-                    به‌روزرسانی قیمت
-                  </Button>
+                    <Card className="backdrop-blur-md bg-white/80 border-0 shadow-md">
+                      <CardHeader>
+                        <CardTitle>رزروهای اخیر</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          {reservationLogs.slice(0, 5).map((log) => (
+                            <div
+                              key={log.id}
+                              className="flex items-center gap-3 p-2 rounded-lg hover:bg-orange-50 transition-colors"
+                            >
+                              <div className="relative h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center">
+                                <User className="h-5 w-5 text-[#f97316]" />
+                              </div>
+                              <div className="flex-1">
+                                <h4 className="font-medium">{log.user}</h4>
+                                <p className="text-sm text-gray-500">
+                                  {log.food} - {log.date}
+                                </p>
+                              </div>
+                              <Badge
+                                variant={log.status === "confirmed" ? "default" : "secondary"}
+                                className={log.status === "confirmed" ? "bg-green-500" : ""}
+                              >
+                                {log.status === "confirmed" ? "تایید شده" : "در انتظار"}
+                              </Badge>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                      <CardFooter>
+                        <Button
+                          variant="ghost"
+                          className="w-full text-[#f97316] hover:text-orange-700"
+                          onClick={() => setActiveTab("analytics")}
+                        >
+                          مشاهده همه رزروها
+                        </Button>
+                      </CardFooter>
+                    </Card>
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+              )}
 
-          <TabsContent value="analytics">
-            <Card>
-              <CardHeader>
-                <CardTitle dir="rtl">آمار و گزارشات</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Tabs defaultValue="reservation-logs">
-                  <TabsList>
-                    <TabsTrigger value="reservation-logs">گزارش رزروها</TabsTrigger>
-                    <TabsTrigger value="daily-orders">آمار سفارشات روزانه</TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="reservation-logs">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>شناسه کاربر</TableHead>
-                          <TableHead>نام غذا</TableHead>
-                          <TableHead>تاریخ</TableHead>
-                          <TableHead>وضعیت</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {reservationLogs.map((log) => (
-                          <TableRow key={log.id}>
-                            <TableCell>{log.user}</TableCell>
-                            <TableCell>{log.food}</TableCell>
-                            <TableCell>{log.date}</TableCell>
-                            <TableCell>{log.status}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </TabsContent>
-                  <TabsContent value="daily-orders">
-                    <div className="w-full h-[400px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={dailyOrderCounts}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="date" />
-                          <YAxis />
-                          <RechartsTooltip />
-                          <Legend />
-                          <Bar dataKey="count" fill="#F47B20" name="تعداد سفارشات" />
-                        </BarChart>
-                      </ResponsiveContainer>
+              {/* Food Management Tab */}
+              {activeTab === "food" && (
+                <Card className="backdrop-blur-md bg-white/80 border-0 shadow-md">
+                  <CardHeader>
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <CardTitle>مدیریت غذاها</CardTitle>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <Button onClick={handleAddFood} className="bg-[#f97316] hover:bg-orange-600 btn-hover-effect">
+                          <Plus className="w-4 h-4 ml-2" /> افزودن غذا
+                        </Button>
+                      </div>
                     </div>
-                  </TabsContent>
-                </Tabs>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </main>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>تصویر</TableHead>
+                            <TableHead>نام غذا</TableHead>
+                            <TableHead>دسته‌بندی</TableHead>
+                            <TableHead>توضیحات</TableHead>
+                            <TableHead>قیمت (تومان)</TableHead>
+                            <TableHead>عملیات</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {foods.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                                هیچ غذایی یافت نشد
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            foods.map((food) => (
+                              <TableRow key={food.id} className="hover:bg-orange-50/50 transition-colors">
+                                <TableCell>
+                                  <div className="relative h-12 w-12">
+                                    <Image
+                                      src={food.image_url || "/placeholder.svg?height=48&width=48"}
+                                      alt={food.name}
+                                      fill
+                                      className="object-contain rounded-md"
+                                    />
+                                  </div>
+                                </TableCell>
+                                <TableCell className="font-medium">{food.name}</TableCell>
+                                <TableCell>
+                                  <Badge variant="outline" className="bg-orange-50">
+                                    {food.category_name || "بدون دسته‌بندی"}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="max-w-[200px] truncate">{food.description}</TableCell>
+                                <TableCell>{convertToPersianNumbers(food.price.toLocaleString())}</TableCell>
+                                <TableCell>
+                                  <div className="flex space-x-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleEditFood(food)}
+                                      className="btn-hover-effect"
+                                    >
+                                      <Edit className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                      variant="destructive"
+                                      size="sm"
+                                      onClick={() => handleDeleteFood(food)}
+                                      className="btn-hover-effect"
+                                    >
+                                      <Trash className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Categories Tab */}
+              {activeTab === "categories" && (
+                <Card className="backdrop-blur-md bg-white/80 border-0 shadow-md">
+                  <CardHeader>
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <CardTitle>مدیریت دسته‌بندی‌های غذا</CardTitle>
+                      <Button onClick={handleAddCategory} className="bg-[#f97316] hover:bg-orange-600 btn-hover-effect">
+                        <Plus className="w-4 h-4 ml-2" /> افزودن دسته‌بندی
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>نام دسته‌بندی</TableHead>
+                            <TableHead>توضیحات</TableHead>
+                            <TableHead>تاریخ ایجاد</TableHead>
+                            <TableHead>عملیات</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {categories.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={4} className="text-center py-8 text-gray-500">
+                                هیچ دسته‌بندی یافت نشد
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            categories.map((category) => (
+                              <TableRow key={category.id} className="hover:bg-orange-50/50 transition-colors">
+                                <TableCell className="font-medium">{category.name}</TableCell>
+                                <TableCell>{category.description || "-"}</TableCell>
+                                <TableCell>{new Date(category.created_at).toLocaleDateString("fa-IR")}</TableCell>
+                                <TableCell>
+                                  <div className="flex space-x-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleEditCategory(category)}
+                                      className="btn-hover-effect"
+                                    >
+                                      <Edit className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                      variant="destructive"
+                                      size="sm"
+                                      onClick={() => handleDeleteCategory(category)}
+                                      className="btn-hover-effect"
+                                    >
+                                      <Trash className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Template Menu Tab */}
+              {activeTab === "template-menu" && (
+                <Card className="backdrop-blur-md bg-white/80 border-0 shadow-md">
+                  <CardHeader>
+                    <CardTitle>مدیریت منوی الگو</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-col md:flex-row gap-4 mb-6">
+                      <Select value={selectedDay} onValueChange={setSelectedDay}>
+                        <SelectTrigger className="w-full md:w-[180px] form-input-focus">
+                          <SelectValue placeholder="انتخاب روز هفته" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {[
+                            { en: "Saturday", fa: "شنبه" },
+                            { en: "Sunday", fa: "یکشنبه" },
+                            { en: "Monday", fa: "دوشنبه" },
+                            { en: "Tuesday", fa: "سه‌شنبه" },
+                            { en: "Wednesday", fa: "چهارشنبه" },
+                            { en: "Thursday", fa: "پنج‌شنبه" },
+                            { en: "Friday", fa: "جمعه" },
+                          ].map((day) => (
+                            <SelectItem key={day.en} value={day.en}>
+                              {day.fa}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Select
+                        value={selectedMeal_type}
+                        onValueChange={(value: "lunch" | "dinner") => setSelectedMeal_type(value)}
+                      >
+                        <SelectTrigger className="w-full md:w-[180px] form-input-focus">
+                          <SelectValue placeholder="انتخاب نوع وعده" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="lunch">ناهار</SelectItem>
+                          <SelectItem value="dinner">شام</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        onClick={() => handleAddMenuItem(true)}
+                        className="bg-[#f97316] hover:bg-orange-600 btn-hover-effect"
+                      >
+                        افزودن غذا به منو
+                      </Button>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>غذاها</TableHead>
+                            <TableHead>عملیات</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {templateMenu?.filter(
+                            (item) => item.day === selectedDay && item.meal_type === selectedMeal_type,
+                          ).length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={2} className="text-center py-8 text-gray-500">
+                                هیچ غذایی در منوی الگو برای این روز و وعده یافت نشد
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            templateMenu
+                              ?.filter((item) => item.day === selectedDay && item.meal_type === selectedMeal_type)
+                              .map((item, index) => (
+                                <TableRow key={index}>
+                                  <TableCell>
+                                    {item.items.map((menuItem, itemIndex) => (
+                                      <div
+                                        key={itemIndex}
+                                        className="mb-2 p-2 rounded-lg hover:bg-orange-50/50 transition-colors"
+                                      >
+                                        <span className="font-medium">{menuItem.food?.name}</span>
+                                        <br />
+                                        <small className="text-gray-500">
+                                          {menuItem.start_time} - {menuItem.end_time}, ظرفیت: {menuItem.daily_capacity}
+                                        </small>
+                                      </div>
+                                    ))}
+                                  </TableCell>
+                                  <TableCell>
+                                    {item.items.map((menuItem, itemIndex) => (
+                                      <div key={itemIndex} className="flex space-x-2 mb-2">
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => handleEditMenuItem(menuItem, true)}
+                                          className="btn-hover-effect"
+                                        >
+                                          <Edit className="w-4 h-4" />
+                                        </Button>
+                                        <Button
+                                          variant="destructive"
+                                          size="sm"
+                                          onClick={() => handleDeleteMenuItem(menuItem.id, true)}
+                                          className="btn-hover-effect"
+                                        >
+                                          <Trash className="w-4 h-4" />
+                                        </Button>
+                                      </div>
+                                    ))}
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Daily Menu Tab */}
+              {activeTab === "daily-menu" && (
+                <Card className="backdrop-blur-md bg-white/80 border-0 shadow-md">
+                  <CardHeader>
+                    <CardTitle>مدیریت منوی روزانه</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-col md:flex-row gap-4 mb-6">
+                      <DatePicker
+                        value={selectedDate}
+                        onChange={handleDateChange}
+                        calendar={persian}
+                        locale={persian_fa}
+                        calendarPosition="bottom-right"
+                        inputClass="w-full md:w-[180px] px-3 py-2 rounded-md border border-input bg-background text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 form-input-focus"
+                        containerClassName="w-full md:w-[180px]"
+                        placeholder="انتخاب تاریخ"
+                      />
+                      <Select
+                        value={selectedMeal_type}
+                        onValueChange={(value: "lunch" | "dinner") => setSelectedMeal_type(value)}
+                      >
+                        <SelectTrigger className="w-full md:w-[180px] form-input-focus">
+                          <SelectValue placeholder="انتخاب نوع وعده" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="lunch">ناهار</SelectItem>
+                          <SelectItem value="dinner">شام</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <Button
+                          onClick={() => handleAddMenuItem(false)}
+                          className="bg-[#f97316] hover:bg-orange-600 btn-hover-effect"
+                        >
+                          افزودن غذا به منو
+                        </Button>
+                        <Button
+                          onClick={handleUseTemplateForDaily}
+                          className="bg-[#f97316] hover:bg-orange-600 btn-hover-effect"
+                        >
+                          استفاده از منوی الگو
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>غذاها</TableHead>
+                            <TableHead>وضعیت</TableHead>
+                            <TableHead>عملیات</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {!dailyMenu || dailyMenu.items.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={3} className="text-center py-8 text-gray-500">
+                                هیچ غذایی در منوی روزانه برای این تاریخ و وعده یافت نشد
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            dailyMenu.items.map((item: MenuItemSpec, index) => (
+                              <TableRow key={index} className="hover:bg-orange-50/50 transition-colors">
+                                <TableCell>
+                                  <div className="mb-2 p-2 rounded-lg">
+                                    <span className="font-medium">{item.food?.name}</span>
+                                    <br />
+                                    <small className="text-gray-500">
+                                      {item.start_time} - {item.end_time}, ظرفیت: {item.daily_capacity}
+                                    </small>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex items-center space-x-2 mb-2">
+                                    <Switch
+                                      checked={item.is_available}
+                                      onCheckedChange={(checked) => handleToggleAvailability(item.id, checked)}
+                                    />
+                                    <span className={item.is_available ? "text-green-600" : "text-red-500"}>
+                                      {item.is_available ? "فعال" : "غیرفعال"}
+                                    </span>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex space-x-2 mb-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleEditMenuItem(item, false)}
+                                      className="btn-hover-effect"
+                                    >
+                                      <Edit className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                      variant="destructive"
+                                      size="sm"
+                                      onClick={() => handleDeleteMenuItem(item.id, false)}
+                                      className="btn-hover-effect"
+                                    >
+                                      <Trash className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Voucher Price Tab */}
+              {activeTab === "voucher-price" && (
+                <Card className="backdrop-blur-md bg-white/80 border-0 shadow-md">
+                  <CardHeader>
+                    <CardTitle>مدیریت قیمت ژتون</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-col md:flex-row justify-between items-center p-6 bg-orange-50/50 rounded-xl">
+                      <div className="flex items-center mb-4 md:mb-0">
+                        <div className="p-4 rounded-full bg-orange-100 mr-4">
+                          <DollarSign className="h-8 w-8 text-[#f97316]" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-medium text-gray-700">قیمت فعلی ژتون</h3>
+                          <p className="text-2xl font-bold text-[#f97316]">
+                            {convertToPersianNumbers(voucherPrice.toLocaleString())} تومان
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        onClick={handleUpdateVoucherPrice}
+                        className="bg-[#f97316] hover:bg-orange-600 btn-hover-effect"
+                      >
+                        به‌روزرسانی قیمت
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Analytics Tab */}
+              {activeTab === "analytics" && (
+                <div className="space-y-6">
+                  <Card className="backdrop-blur-md bg-white/80 border-0 shadow-md">
+                    <CardHeader>
+                      <CardTitle>آمار و گزارشات</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <Tabs defaultValue="reservation-logs">
+                        <TabsList className="mb-4">
+                          <TabsTrigger value="reservation-logs">گزارش رزروها</TabsTrigger>
+                          <TabsTrigger value="daily-orders">آمار سفارشات روزانه</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="reservation-logs">
+                          <div className="overflow-x-auto">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>شناسه کاربر</TableHead>
+                                  <TableHead>نام غذا</TableHead>
+                                  <TableHead>تاریخ</TableHead>
+                                  <TableHead>وضعیت</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {reservationLogs.length === 0 ? (
+                                  <TableRow>
+                                    <TableCell colSpan={4} className="text-center py-8 text-gray-500">
+                                      هیچ رزروی یافت نشد
+                                    </TableCell>
+                                  </TableRow>
+                                ) : (
+                                  reservationLogs.map((log) => (
+                                    <TableRow key={log.id} className="hover:bg-orange-50/50 transition-colors">
+                                      <TableCell>{log.user}</TableCell>
+                                      <TableCell>{log.food}</TableCell>
+                                      <TableCell>{log.date}</TableCell>
+                                      <TableCell>
+                                        <Badge
+                                          variant={log.status === "confirmed" ? "default" : "secondary"}
+                                          className={log.status === "confirmed" ? "bg-green-500" : ""}
+                                        >
+                                          {log.status === "confirmed" ? "تایید شده" : "در انتظار"}
+                                        </Badge>
+                                      </TableCell>
+                                    </TableRow>
+                                  ))
+                                )}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        </TabsContent>
+                        <TabsContent value="daily-orders">
+                          <div className="w-full h-[400px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart data={dailyOrderCounts}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="date" />
+                                <YAxis />
+                                <RechartsTooltip />
+                                <Legend />
+                                <Bar dataKey="count" fill="#f97316" name="تعداد سفارشات" />
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </div>
+                        </TabsContent>
+                      </Tabs>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+            </motion.div>
+          </AnimatePresence>
+        </main>
+      </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[425px] backdrop-blur-md bg-white/90 border-0 shadow-xl">
           {dialogContent}
           <DialogFooter>
             <Button variant="outline" onClick={closeDialog}>
               بستن
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
+        <DialogContent className="sm:max-w-[425px] backdrop-blur-md bg-white/90 border-0 shadow-xl">
+          <DialogHeader>
+            <DialogTitle>{currentCategory ? "ویرایش دسته‌بندی" : "افزودن دسته‌بندی جدید"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4" dir="rtl">
+            <div className="space-y-2">
+              <Label htmlFor="name">نام دسته‌بندی</Label>
+              <Input
+                id="name"
+                name="name"
+                value={categoryFormData.name}
+                onChange={handleCategoryInputChange}
+                placeholder="نام دسته‌بندی را وارد کنید"
+                className="form-input-focus"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">توضیحات (اختیاری)</Label>
+              <Textarea
+                id="description"
+                name="description"
+                value={categoryFormData.description || ""}
+                onChange={handleCategoryInputChange}
+                placeholder="توضیحات دسته‌بندی را وارد کنید"
+                rows={3}
+                className="form-input-focus"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCategoryDialogOpen(false)} disabled={isCategorySubmitting}>
+              انصراف
+            </Button>
+            <Button
+              onClick={handleCategorySubmit}
+              className="bg-[#f97316] hover:bg-orange-600 btn-hover-effect"
+              disabled={isCategorySubmitting}
+            >
+              {isCategorySubmitting ? "در حال ذخیره..." : currentCategory ? "به‌روزرسانی" : "افزودن"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={categoryDeleteDialogOpen} onOpenChange={setCategoryDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-[425px] backdrop-blur-md bg-white/90 border-0 shadow-xl">
+          <DialogHeader>
+            <DialogTitle>حذف دسته‌بندی</DialogTitle>
+          </DialogHeader>
+          <div className="py-4" dir="rtl">
+            <p>آیا از حذف دسته‌بندی &quot;{currentCategory?.name}&quot; اطمینان دارید؟</p>
+            <p className="text-sm text-red-500 mt-2">
+              توجه: اگر این دسته‌بندی به غذایی اختصاص داده شده باشد، قابل حذف نخواهد بود.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setCategoryDeleteDialogOpen(false)}
+              disabled={isCategorySubmitting}
+            >
+              انصراف
+            </Button>
+            <Button variant="destructive" onClick={handleCategoryDelete} disabled={isCategorySubmitting}>
+              {isCategorySubmitting ? "در حال حذف..." : "حذف"}
             </Button>
           </DialogFooter>
         </DialogContent>
