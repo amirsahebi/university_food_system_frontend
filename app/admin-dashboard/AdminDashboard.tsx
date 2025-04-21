@@ -36,7 +36,6 @@ import {
   Plus,
   Edit,
   Trash,
-  Search,
   Menu,
   Home,
 } from "lucide-react"
@@ -333,7 +332,7 @@ const TimePicker = ({
 }
 
 // Dashboard Stats Card Component
-const StatCard = ({ icon: Icon, title, value, color }: { icon: any; title: string; value: string; color: string }) => (
+const StatCard = ({ icon: Icon, title, value, color }: { icon: React.ElementType; title: string; value: string; color: string }) => (
   <Card className="backdrop-blur-md bg-white/80 border-0 shadow-md hover:shadow-lg transition-all duration-300 animate-fade-in">
     <CardContent className="p-6">
       <div className="flex items-center justify-between">
@@ -364,7 +363,6 @@ export default function AdminDashboard() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
   const [dailyOrderCounts, setDailyOrderCounts] = useState<DailyOrderCount[]>([])
   const [categories, setCategories] = useState<FoodCategory[]>([])
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false)
   const [categoryDeleteDialogOpen, setCategoryDeleteDialogOpen] = useState(false)
@@ -1331,7 +1329,6 @@ export default function AdminDashboard() {
                       className="justify-start"
                       onClick={() => {
                         setActiveTab("dashboard")
-                        setIsMobileMenuOpen(false)
                       }}
                     >
                       <Home className="ml-2 h-4 w-4" />
@@ -1342,7 +1339,6 @@ export default function AdminDashboard() {
                       className="justify-start"
                       onClick={() => {
                         setActiveTab("food")
-                        setIsMobileMenuOpen(false)
                       }}
                     >
                       <Utensils className="ml-2 h-4 w-4" />
@@ -1353,7 +1349,6 @@ export default function AdminDashboard() {
                       className="justify-start"
                       onClick={() => {
                         setActiveTab("categories")
-                        setIsMobileMenuOpen(false)
                       }}
                     >
                       <Clipboard className="ml-2 h-4 w-4" />
@@ -1364,7 +1359,6 @@ export default function AdminDashboard() {
                       className="justify-start"
                       onClick={() => {
                         setActiveTab("template-menu")
-                        setIsMobileMenuOpen(false)
                       }}
                     >
                       <Calendar className="ml-2 h-4 w-4" />
@@ -1375,7 +1369,6 @@ export default function AdminDashboard() {
                       className="justify-start"
                       onClick={() => {
                         setActiveTab("daily-menu")
-                        setIsMobileMenuOpen(false)
                       }}
                     >
                       <Clipboard className="ml-2 h-4 w-4" />
@@ -1386,7 +1379,6 @@ export default function AdminDashboard() {
                       className="justify-start"
                       onClick={() => {
                         setActiveTab("voucher-price")
-                        setIsMobileMenuOpen(false)
                       }}
                     >
                       <DollarSign className="ml-2 h-4 w-4" />
@@ -1397,7 +1389,6 @@ export default function AdminDashboard() {
                       className="justify-start"
                       onClick={() => {
                         setActiveTab("analytics")
-                        setIsMobileMenuOpen(false)
                       }}
                     >
                       <BarChart2 className="ml-2 h-4 w-4" />
