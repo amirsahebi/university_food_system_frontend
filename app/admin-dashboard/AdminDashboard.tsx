@@ -278,7 +278,6 @@ const TimePicker = ({
           >
             <div className="text-center font-bold mb-4">انتخاب زمان</div>
             <div className="flex justify-between gap-4">
-
               {/* Minutes */}
               <div className="w-1/2">
                 <div className="text-center mb-2 text-sm text-gray-500">دقیقه</div>
@@ -332,7 +331,12 @@ const TimePicker = ({
 }
 
 // Dashboard Stats Card Component
-const StatCard = ({ icon: Icon, title, value, color }: { icon: React.ElementType; title: string; value: string; color: string }) => (
+const StatCard = ({
+  icon: Icon,
+  title,
+  value,
+  color,
+}: { icon: React.ElementType; title: string; value: string; color: string }) => (
   <Card className="backdrop-blur-md bg-white/80 border-0 shadow-md hover:shadow-lg transition-all duration-300 animate-fade-in">
     <CardContent className="p-6">
       <div className="flex items-center justify-between">
@@ -875,19 +879,98 @@ export default function AdminDashboard() {
           dir="rtl"
         >
           <h2 className="text-lg font-bold">افزودن غذا به منو</h2>
-          <Label htmlFor="food">غذا</Label>
-          <Select name="food" required>
-            <SelectTrigger id="food" className="form-input-focus">
-              <SelectValue placeholder="انتخاب غذا" />
-            </SelectTrigger>
-            <SelectContent>
-              {foods.map((food) => (
-                <SelectItem key={food.id} value={food.name}>
-                  {food.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+
+          <div className="space-y-2">
+            <Label htmlFor="food">غذا</Label>
+            <div className="relative">
+              <div className="flex">
+                <Input
+                  id="foodSearch"
+                  type="text"
+                  placeholder="جستجو و انتخاب غذا..."
+                  className="form-input-focus w-full"
+                  onClick={() => {
+                    const foodList = document.getElementById("foodList")
+                    if (foodList) {
+                      foodList.classList.remove("hidden")
+                    }
+                  }}
+                  onChange={(e) => {
+                    const searchValue = e.target.value.toLowerCase()
+                    const foodList = document.getElementById("foodList")
+                    if (foodList) {
+                      foodList.classList.remove("hidden")
+                      const items = foodList.getElementsByTagName("div")
+                      let hasVisibleItems = false
+                      for (let i = 0; i < items.length; i++) {
+                        const foodName = items[i].textContent || ""
+                        if (foodName.toLowerCase().includes(searchValue)) {
+                          items[i].style.display = ""
+                          hasVisibleItems = true
+                        } else {
+                          items[i].style.display = "none"
+                        }
+                      }
+                      // If no items match the search, show a message
+                      const noResults = document.getElementById("noFoodResults")
+                      if (noResults) {
+                        noResults.style.display = hasVisibleItems ? "none" : "block"
+                      }
+                    }
+                  }}
+                  onBlur={() => {
+                    // Delay hiding to allow for click on options
+                    setTimeout(() => {
+                      const foodList = document.getElementById("foodList")
+                      if (foodList) {
+                        foodList.classList.add("hidden")
+                      }
+                    }, 200)
+                  }}
+                />
+              </div>
+              <div
+                id="foodList"
+                className="hidden absolute z-50 w-full max-h-48 overflow-y-auto mt-1 rounded-md border border-gray-200 bg-white shadow-lg scrollbar-thin scrollbar-thumb-orange-200 scrollbar-track-transparent"
+                style={{ scrollbarWidth: "thin", scrollbarColor: "#fed7aa transparent" }}
+              >
+                {foods.map((food) => (
+                  <div
+                    key={food.id}
+                    className="p-2 cursor-pointer hover:bg-orange-100 transition-colors flex items-center gap-2"
+                    onMouseDown={() => {
+                      const hiddenInput = document.getElementById("food") as HTMLInputElement
+                      const searchInput = document.getElementById("foodSearch") as HTMLInputElement
+                      if (hiddenInput && searchInput) {
+                        hiddenInput.value = food.name
+                        searchInput.value = food.name
+                      }
+                      const foodList = document.getElementById("foodList")
+                      if (foodList) {
+                        foodList.classList.add("hidden")
+                      }
+                    }}
+                  >
+                    {food.image_url && (
+                      <div className="relative h-8 w-8 rounded overflow-hidden flex-shrink-0">
+                        <Image
+                          src={food.image_url || "/placeholder.svg?height=32&width=32"}
+                          alt={food.name}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                    )}
+                    <span className="truncate">{food.name}</span>
+                  </div>
+                ))}
+                <div id="noFoodResults" className="p-2 text-gray-500 text-center hidden">
+                  هیچ غذایی یافت نشد
+                </div>
+              </div>
+              <input type="hidden" id="food" name="food" required />
+            </div>
+          </div>
           <Label htmlFor="start_time">زمان شروع</Label>
           <TimePicker
             id="start_time"
@@ -1044,19 +1127,99 @@ export default function AdminDashboard() {
           dir="rtl"
         >
           <h2 className="text-lg font-bold">ویرایش غذای منو</h2>
-          <Label htmlFor="food">غذا</Label>
-          <Select name="food" defaultValue={item.food?.name} required>
-            <SelectTrigger id="food" className="form-input-focus">
-              <SelectValue placeholder="انتخاب غذا" />
-            </SelectTrigger>
-            <SelectContent>
-              {foods.map((food) => (
-                <SelectItem key={food.id} value={food.name}>
-                  {food.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+
+          <div className="space-y-2">
+            <Label htmlFor="food">غذا</Label>
+            <div className="relative">
+              <div className="flex">
+                <Input
+                  id="foodSearch"
+                  type="text"
+                  placeholder="جستجو و انتخاب غذا..."
+                  defaultValue={item.food?.name}
+                  className="form-input-focus w-full"
+                  onClick={() => {
+                    const foodList = document.getElementById("foodList")
+                    if (foodList) {
+                      foodList.classList.remove("hidden")
+                    }
+                  }}
+                  onChange={(e) => {
+                    const searchValue = e.target.value.toLowerCase()
+                    const foodList = document.getElementById("foodList")
+                    if (foodList) {
+                      foodList.classList.remove("hidden")
+                      const items = foodList.getElementsByTagName("div")
+                      let hasVisibleItems = false
+                      for (let i = 0; i < items.length; i++) {
+                        const foodName = items[i].textContent || ""
+                        if (foodName.toLowerCase().includes(searchValue)) {
+                          items[i].style.display = ""
+                          hasVisibleItems = true
+                        } else {
+                          items[i].style.display = "none"
+                        }
+                      }
+                      // If no items match the search, show a message
+                      const noResults = document.getElementById("noFoodResults")
+                      if (noResults) {
+                        noResults.style.display = hasVisibleItems ? "none" : "block"
+                      }
+                    }
+                  }}
+                  onBlur={() => {
+                    // Delay hiding to allow for click on options
+                    setTimeout(() => {
+                      const foodList = document.getElementById("foodList")
+                      if (foodList) {
+                        foodList.classList.add("hidden")
+                      }
+                    }, 200)
+                  }}
+                />
+              </div>
+              <div
+                id="foodList"
+                className="hidden absolute z-50 w-full max-h-48 overflow-y-auto mt-1 rounded-md border border-gray-200 bg-white shadow-lg scrollbar-thin scrollbar-thumb-orange-200 scrollbar-track-transparent"
+                style={{ scrollbarWidth: "thin", scrollbarColor: "#fed7aa transparent" }}
+              >
+                {foods.map((food) => (
+                  <div
+                    key={food.id}
+                    className="p-2 cursor-pointer hover:bg-orange-100 transition-colors flex items-center gap-2"
+                    onMouseDown={() => {
+                      const hiddenInput = document.getElementById("food") as HTMLInputElement
+                      const searchInput = document.getElementById("foodSearch") as HTMLInputElement
+                      if (hiddenInput && searchInput) {
+                        hiddenInput.value = food.name
+                        searchInput.value = food.name
+                      }
+                      const foodList = document.getElementById("foodList")
+                      if (foodList) {
+                        foodList.classList.add("hidden")
+                      }
+                    }}
+                  >
+                    {food.image_url && (
+                      <div className="relative h-8 w-8 rounded overflow-hidden flex-shrink-0">
+                        <Image
+                          src={food.image_url || "/placeholder.svg?height=32&width=32"}
+                          alt={food.name}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                    )}
+                    <span className="truncate">{food.name}</span>
+                  </div>
+                ))}
+                <div id="noFoodResults" className="p-2 text-gray-500 text-center hidden">
+                  هیچ غذایی یافت نشد
+                </div>
+              </div>
+              <input type="hidden" id="food" name="food" defaultValue={item.food?.name} required />
+            </div>
+          </div>
           <Label htmlFor="foodCategory">دسته‌بندی</Label>
           <Select name="foodCategory" defaultValue={item.food.category_id?.toString()}>
             <SelectTrigger className="form-input-focus">
@@ -1244,7 +1407,7 @@ export default function AdminDashboard() {
       localStorage.removeItem("access_token")
       localStorage.removeItem("refresh_token")
       toast.success("با موفقیت از حساب کاربری خارج شدید")
-      router.push("/login")
+      router.push("/")
     } catch (error) {
       console.error("Error logging out:", error)
       toast.error("خطا در خروج از حساب کاربری")
