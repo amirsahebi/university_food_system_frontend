@@ -290,12 +290,9 @@ export default function StudentDashboard() {
         reserved_date: new DateObject(selectedDate).format("YYYY-MM-DD"),
         has_voucher: hasVoucher,
       })
+      console.log('Order response:', orderResponse)
+      console.log('Order response data:', orderResponse.data)
 
-      if (orderResponse.status !== 201) {
-        toast.error("خطا در ثبت سفارش. لطفاً دوباره تلاش کنید")
-        setIsPaymentProcessing(false)
-        return
-      }
 
       // If total price is zero, skip payment request and verification
       if (totalPrice === 0) {
@@ -321,12 +318,24 @@ export default function StudentDashboard() {
         setIsPaymentProcessing(false)
       }
     } catch (error: unknown) {
+      // Type guard for axios error
+      const isAxiosError = (err: unknown): err is { response?: { data?: { message?: string; non_field_errors?: string[] } } } => {
+        return typeof err === 'object' && err !== null && 'response' in err
+      }
+
+      if (isAxiosError(error) && error.response?.data?.non_field_errors?.[0] === "You already have a reservation for this date and meal type.") {
+        toast.error("شما قبلاً سفارشی برای این تاریخ و وعده داشته اید")
+        setIsPaymentProcessing(false)
+        return
+      }
+
       console.error("Error in payment process:", error)
       const errorMessage =
         error instanceof Error
           ? error.message
-          : (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-            "خطا در فرآیند پرداخت. لطفاً دوباره تلاش کنید"
+          : isAxiosError(error) 
+            ? error.response?.data?.message || "خطا در پرداخت"
+            : "خطا در فرآیند پرداخت. لطفاً دوباره تلاش کنید"
       toast.error(errorMessage)
       setIsPaymentProcessing(false)
     }
@@ -468,7 +477,11 @@ export default function StudentDashboard() {
             className={`mt-4 transition-all duration-300 ease-in-out ${activeTab === "menu" ? "animate-slide-right" : ""}`}
           >
             <div className="mb-4">
-              <CategoryFilter onCategoryChange={setSelectedCategory} selectedCategoryId={selectedCategory} />
+              <CategoryFilter 
+                onCategoryChange={setSelectedCategory} 
+                selectedCategoryId={selectedCategory}
+                dailyMenuItems={dailyMenu?.items || []}
+              />
             </div>
 
             <motion.div

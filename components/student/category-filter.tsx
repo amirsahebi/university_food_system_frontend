@@ -3,8 +3,13 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import api from "@/lib/axios"
-import { API_ROUTES, createApiUrl } from "@/lib/api"
+
+interface MenuItem {
+  food: {
+    category_id: number
+    category_name: string
+  }
+}
 
 interface FoodCategory {
   id: number
@@ -14,27 +19,26 @@ interface FoodCategory {
 interface CategoryFilterProps {
   onCategoryChange: (categoryId: number | null) => void
   selectedCategoryId: number | null
+  dailyMenuItems: MenuItem[]
 }
 
-export function CategoryFilter({ onCategoryChange, selectedCategoryId }: CategoryFilterProps) {
+export function CategoryFilter({ onCategoryChange, selectedCategoryId, dailyMenuItems }: CategoryFilterProps) {
   const [categories, setCategories] = useState<FoodCategory[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        setIsLoading(true)
-        const response = await api.get(createApiUrl(API_ROUTES.GET_FOOD_CATEGORIES))
-        setCategories(response.data)
-      } catch (error) {
-        console.error("Error fetching categories:", error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
+    if (!Array.isArray(dailyMenuItems)) return
 
-    fetchCategories()
-  }, [])
+    const uniqueCategories = Array.from(
+      new Set(dailyMenuItems.map((item: MenuItem) => item.food.category_id))
+    ).map((categoryId: number) => ({
+      id: categoryId,
+      name: dailyMenuItems.find((item: MenuItem) => item.food.category_id === categoryId)?.food.category_name || 'نامشخص'
+    }))
+
+    setCategories(uniqueCategories)
+    setIsLoading(false)
+  }, [dailyMenuItems])
 
   if (isLoading) {
     return (
