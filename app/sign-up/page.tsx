@@ -155,7 +155,7 @@ const signUpSchema = z
   .object({
     firstName: z.string().min(2, { message: "نام باید حداقل 2 حرف باشد" }),
     lastName: z.string().min(2, { message: "نام خانوادگی باید حداقل 2 حرف باشد" }),
-    studentNumber: z.string().regex(/^\d{7,10}$/, { message: "شماره دانشجویی باید بین 7 تا 10 رقم باشد" }),
+    studentNumber: z.string().regex(/^\d{7,12}$/, { message: "شماره دانشجویی باید بین 7 تا 10 رقم باشد" }),
     phoneNumber: z.string().regex(/^09\d{9}$/, { message: "شماره تلفن باید 11 رقم و با 09 شروع شود" }),
     verificationCode: z.string(),
     password: z.string().min(8, { message: "رمز عبور باید حداقل 8 کاراکتر باشد" }),
