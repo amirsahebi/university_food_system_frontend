@@ -289,15 +289,15 @@ export default function ReceiverDashboard() {
 
   // Update the printReservationSlip function to enhance the logo in the receipt
   const printReservationSlip = useCallback((order: Reservation) => {
-    // Create a new window for printing
-    const printWindow = window.open("", "_blank", "width=600,height=800")
+    // Create a new window for printing with thermal paper dimensions (97x58mm)
+    const printWindow = window.open("", "_blank", "width=380,height=225")
 
     if (!printWindow) {
       toast.error("خطا در باز کردن پنجره چاپ")
       return
     }
 
-    // Generate HTML for the reservation slip
+    // Generate HTML for the reservation slip with thermal paper styling
     const slipHtml = `
   <html>
     <head>
@@ -307,10 +307,48 @@ export default function ReceiverDashboard() {
           font-family: Arial, sans-serif; 
           direction: rtl; 
           text-align: right; 
-          max-width: 500px; 
-          margin: 0 auto; 
-          padding: 20px; 
-          line-height: 1.6; 
+          width: 270px;  /* 97mm = ~270px at 96dpi */
+          margin: 10px;  /* Small margin for thermal paper */
+          padding: 0;
+          line-height: 1.2;
+          font-size: 12px;
+          page-break-inside: avoid;
+        }
+        
+        .slip-header { 
+          text-align: center;
+          margin-bottom: 5px;
+        }
+        
+        .slip-details { 
+          margin: 0;
+          padding: 0;
+        }
+        
+        .slip-details div { 
+          margin-bottom: 3px;
+        }
+        
+        .slip-footer { 
+          margin-top: 10px;
+          text-align: center;
+          font-size: 10px;
+        }
+        
+        .logo {
+          max-width: 90px;
+          margin: 0 auto 5px;
+          display: block;
+        }
+        
+        .delivery-code {
+          font-size: 14px;
+          font-weight: bold;
+          text-align: center;
+          margin: 10px 0;
+          padding: 5px;
+          border: 1px dashed #000;
+          letter-spacing: 2px;
         }
         .slip-header { 
           background-color: #f4f4f4; 
