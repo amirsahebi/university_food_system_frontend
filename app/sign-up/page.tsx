@@ -64,7 +64,7 @@ const SuccessModal = ({ isOpen, onClose, studentName }: SuccessModalProps) => {
               <div className="flex justify-center mb-4">
                 <div className="relative h-16 w-16">
                   <Image
-                    src="/restaurant-logo.svg"
+                    src="/images/javanfoods_logo.png"
                     alt="رستوران جوان"
                     fill
                     className="object-contain drop-shadow-md"
@@ -844,7 +844,7 @@ export default function SignUp() {
         isOpen={showSuccessModal}
         onClose={() => {
           setShowSuccessModal(false)
-          router.push("/login")
+          router.push("/")
         }}
         studentName={`${watch("firstName")} ${watch("lastName")}`}
       />
