@@ -147,9 +147,9 @@ export default function ReceiverDashboard() {
         }
         
         // If start times are equal, compare reservation numbers
-        // Handle undefined values by treating them as empty strings
-        const reservationNumberA = a.reservation_number || ''
-        const reservationNumberB = b.reservation_number || ''
+        // Handle undefined, null, or non-string values
+        const reservationNumberA = String(a.reservation_number || '')
+        const reservationNumberB = String(b.reservation_number || '')
         return reservationNumberA.localeCompare(reservationNumberB)
       })
       
