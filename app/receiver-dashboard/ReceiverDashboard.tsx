@@ -290,7 +290,7 @@ export default function ReceiverDashboard() {
   // Update the printReservationSlip function to enhance the logo in the receipt
   const printReservationSlip = useCallback((order: Reservation) => {
     // Create a new window for printing with thermal paper dimensions (97x58mm)
-    const printWindow = window.open("", "_blank", "width=380,height=225")
+    const printWindow = window.open("", "_blank", "width=600,height=800")
 
     if (!printWindow) {
       toast.error("خطا در باز کردن پنجره چاپ")
@@ -307,11 +307,11 @@ export default function ReceiverDashboard() {
           font-family: Arial, sans-serif; 
           direction: rtl; 
           text-align: right; 
-          width: 270px;  /* 97mm = ~270px at 96dpi */
-          margin: 10px;  /* Small margin for thermal paper */
+          width: 170px;  /* 57mm = ~170px at 96dpi */
+          margin: 5px;   /* Smaller margin for thermal paper */
           padding: 0;
-          line-height: 1.2;
-          font-size: 12px;
+          line-height: 1.1;
+          font-size: 10px;  /* Smaller font size for 57mm width */
           page-break-inside: avoid;
         }
         
