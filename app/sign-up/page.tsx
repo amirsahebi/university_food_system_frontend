@@ -219,7 +219,7 @@ export default function SignUp() {
 
       // Set a timer to redirect to login page after 4 seconds
       redirectTimerRef.current = setTimeout(() => {
-        router.push("/login")
+        router.push("/")
       }, 4000)
     } catch (error) {
       console.error(error)
