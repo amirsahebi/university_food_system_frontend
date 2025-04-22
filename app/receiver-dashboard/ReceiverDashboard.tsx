@@ -72,7 +72,7 @@ interface Reservation {
   status: "waiting" | "preparing" | "ready_to_pickup" | "picked_up"
   qr_code: string
   delivery_code: string
-  reservation_number: string
+  reservation_number: string;
   created_at: string
   updated_at: string | null
 }
@@ -147,7 +147,10 @@ export default function ReceiverDashboard() {
         }
         
         // If start times are equal, compare reservation numbers
-        return a.reservation_number.localeCompare(b.reservation_number)
+        // Handle undefined values by treating them as empty strings
+        const reservationNumberA = a.reservation_number || ''
+        const reservationNumberB = b.reservation_number || ''
+        return reservationNumberA.localeCompare(reservationNumberB)
       })
       
       setWaitingOrders(allOrders.filter((order: Reservation) => order.status === "waiting"))
