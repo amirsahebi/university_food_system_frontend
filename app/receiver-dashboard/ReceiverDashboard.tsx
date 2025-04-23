@@ -307,7 +307,7 @@ export default function ReceiverDashboard() {
           font-family: Arial, sans-serif; 
           direction: rtl; 
           text-align: right; 
-          width: 140px;  /* 57mm = ~170px at 96dpi */
+          width: 130px;  /* 57mm = ~170px at 96dpi */
           margin: 0;   /* Smaller margin for thermal paper */
           padding: 0;
           line-height: 1.1;
@@ -342,7 +342,7 @@ export default function ReceiverDashboard() {
         }
         
         .delivery-code {
-          font-size: 14px;
+          font-size: 12px;
           font-weight: bold;
           text-align: center;
           margin: 10px 0;
@@ -369,7 +369,7 @@ export default function ReceiverDashboard() {
           color: #666; 
         }
         .delivery-code {
-          font-size: 16px;
+          font-size: 12px;
           font-weight: bold;
           text-align: center;
           margin: 20px 0;
