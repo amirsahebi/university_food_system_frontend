@@ -305,7 +305,7 @@ export default function ReceiverDashboard() {
       <style>
         @page {
           margin: 0;
-          size: 58mm;
+          size: 50mm;
         }
         body { 
           font-family: Arial, sans-serif; 
@@ -315,29 +315,30 @@ export default function ReceiverDashboard() {
           margin: 0;
           padding: 0;
           line-height: 1.2;
-          font-size: 12px;
+          font-size: 10px;
           box-sizing: border-box;
         }
         .header {
           text-align: center;
           margin: 0;
-          padding: 5px 0;
-          font-size: 14px;
+          padding: 3px 0;
+          font-size: 12px;
         }
         .content {
           margin: 0;
-          padding: 0 5px;
+          padding: 0;
         }
         .item {
-          margin: 2px 0;
+          margin: 1px 0;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
+          font-size: 9px;
         }
         .barcode {
           width: 100%;
-          height: 40px;
-          margin: 5px 0;
+          height: 35px;
+          margin: 3px 0;
         }
       </style>
     </head>
