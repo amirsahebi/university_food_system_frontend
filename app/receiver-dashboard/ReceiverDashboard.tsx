@@ -307,7 +307,7 @@ export default function ReceiverDashboard() {
           font-family: Arial, sans-serif; 
           direction: rtl; 
           text-align: right; 
-          width: 170px;  /* 57mm = ~170px at 96dpi */
+          width: 160px;  /* 57mm = ~170px at 96dpi */
           margin: 5px;   /* Smaller margin for thermal paper */
           padding: 0;
           line-height: 1.1;
