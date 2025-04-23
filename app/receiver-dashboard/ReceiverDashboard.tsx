@@ -303,30 +303,22 @@ export default function ReceiverDashboard() {
     <head>
       <title>رسید رزرو غذا</title>
       <style>
-        @page {
-          margin: 0;
-          size: 60mm;
-        }
         body { 
           font-family: Arial, sans-serif; 
           direction: rtl; 
           text-align: right; 
-          width: 100%;
-          margin: 0;
-          padding: 0;
-          line-height: 1.2;
-          font-size: 12px;
-          box-sizing: border-box;
+          width: 160px;  
+          margin: 0;    
+          padding: 5px; 
+          font-size: 12px; 
         }
         .header {
           text-align: center;
-          margin: 0;
-          padding: 5px 0;
-          font-size: 14px;
+          margin-bottom: 5px;
+          font-size: 14px; 
         }
         .content {
-          margin: 0;
-          padding: 0 5px;
+          line-height: 1.2; 
         }
         .item {
           margin: 2px 0;
@@ -336,6 +328,7 @@ export default function ReceiverDashboard() {
         }
         .barcode {
           width: 100%;
+          max-width: 100%;
           height: 40px;
           margin: 5px 0;
         }
