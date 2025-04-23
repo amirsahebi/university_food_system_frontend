@@ -336,9 +336,10 @@ export default function ReceiverDashboard() {
         }
         
         .logo {
-          max-width: 140px;
+          max-width: 110px;
           margin: 0 auto 5px;
           display: block;
+          filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
         }
         
         .delivery-code {
@@ -346,9 +347,11 @@ export default function ReceiverDashboard() {
           font-weight: bold;
           text-align: center;
           margin: 10px 0;
-          padding: 5px;
-          border: 1px dashed #000;
-          letter-spacing: 2px;
+          padding: 10px;
+          background-color: #FFF8F2;
+          border: 2px dashed #F47B20;
+          border-radius: 10px;
+          letter-spacing: 5px;
         }
         .slip-header { 
           background-color: #f4f4f4; 
@@ -372,16 +375,16 @@ export default function ReceiverDashboard() {
           font-size: 7px;
           font-weight: bold;
           text-align: center;
-          margin: 20px 0;
-          padding: 15px;
+          margin: 10px 0;
+          padding: 10px;
           background-color: #FFF8F2;
           border: 2px dashed #F47B20;
           border-radius: 10px;
           letter-spacing: 5px;
         }
         .logo {
-          max-width: 140px;
-          margin: 0 auto 10px;
+          max-width: 110px;
+          margin: 0 auto 5px;
           display: block;
           filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
         }
