@@ -307,8 +307,8 @@ export default function ReceiverDashboard() {
           font-family: Arial, sans-serif; 
           direction: rtl; 
           text-align: right; 
-          width: 155px;  /* 57mm = ~170px at 96dpi */
-          margin: 0;   /* Smaller margin for thermal paper */
+          width: 145px;  /* 57mm = ~170px at 96dpi */
+          margin: 5px;   /* Smaller margin for thermal paper */
           padding: 0;
           line-height: 1.1;
           font-size: 10px;  /* Smaller font size for 57mm width */
@@ -369,7 +369,7 @@ export default function ReceiverDashboard() {
           color: #666; 
         }
         .delivery-code {
-          font-size: 24px;
+          font-size: 18px;
           font-weight: bold;
           text-align: center;
           margin: 20px 0;
