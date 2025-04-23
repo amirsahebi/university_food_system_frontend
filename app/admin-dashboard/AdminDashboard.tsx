@@ -132,204 +132,6 @@ interface CategoryFormData {
   description: string | null
 }
 
-// Add utility functions for number conversion
-const convertToEnglishNumbers = (input: string): string => {
-  if (!input) return ""
-  const persianNumbers = ["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"]
-  let result = input.toString()
-
-  for (let i = 0; i < 10; i++) {
-    const persianRegex = new RegExp(persianNumbers[i], "g")
-    result = result.replace(persianRegex, i.toString())
-  }
-
-  return result
-}
-
-const convertToPersianNumbers = (input: string | number): string => {
-  if (input === undefined || input === null) return ""
-  const persianNumbers = ["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"]
-  let result = input.toString()
-
-  for (let i = 0; i < 10; i++) {
-    const englishRegex = new RegExp(i.toString(), "g")
-    result = result.replace(englishRegex, persianNumbers[i])
-  }
-
-  return result
-}
-
-// Replace the PersianNumberInput component with this improved version
-const PersianNumberInput = ({
-  value,
-  onChange,
-  placeholder,
-  className,
-  min,
-  max,
-  id,
-  name,
-  required,
-}: {
-  value: number | string
-  onChange: (value: string) => void
-  placeholder?: string
-  className?: string
-  min?: number
-  max?: number
-  id?: string
-  name?: string
-  required?: boolean
-}) => {
-  const [displayValue, setDisplayValue] = useState(convertToPersianNumbers(value))
-
-  useEffect(() => {
-    setDisplayValue(convertToPersianNumbers(value))
-  }, [value])
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value
-
-    // Remove any non-numeric characters and ensure it's an integer
-    const persianOrEnglishDigits = newValue.replace(/[^\d۰-۹]/g, "")
-    setDisplayValue(persianOrEnglishDigits)
-
-    // Convert to English numbers for the onChange handler
-    const englishValue = convertToEnglishNumbers(persianOrEnglishDigits)
-    onChange(englishValue)
-  }
-
-  return (
-    <Input
-      id={id}
-      name={name}
-      type="text"
-      value={displayValue}
-      onChange={handleChange}
-      placeholder={placeholder}
-      className={className}
-      min={min}
-      max={max}
-      required={required}
-      inputMode="numeric"
-    />
-  )
-}
-
-// Replace the TimePicker component with this standard implementation
-const TimePicker = ({
-  value,
-  onChange,
-  className,
-  id,
-  name,
-  required,
-}: {
-  value: string
-  onChange: (value: string) => void
-  className?: string
-  id?: string
-  name?: string
-  required?: boolean
-}) => {
-  const [isOpen, setIsOpen] = useState(false)
-  const [selectedHour, setSelectedHour] = useState<number>(value ? Number.parseInt(value.split(":")[0]) : 12)
-  const [selectedMinute, setSelectedMinute] = useState<number>(value ? Number.parseInt(value.split(":")[1]) : 0)
-
-  useEffect(() => {
-    if (value) {
-      const [hour, minute] = value.split(":")
-      setSelectedHour(Number.parseInt(hour))
-      setSelectedMinute(Number.parseInt(minute))
-    }
-  }, [value])
-
-  const formatTimeDisplay = () => {
-    return `${selectedHour.toString().padStart(2, "0")}:${selectedMinute.toString().padStart(2, "0")}`
-  }
-
-  const handleHourChange = (hour: number) => {
-    setSelectedHour(hour)
-    onChange(`${hour.toString().padStart(2, "0")}:${selectedMinute.toString().padStart(2, "0")}`)
-  }
-
-  const handleMinuteChange = (minute: number) => {
-    setSelectedMinute(minute)
-    onChange(`${selectedHour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`)
-  }
-
-  return (
-    <div className="relative">
-      <Input
-        id={id}
-        name={name}
-        type="text"
-        value={convertToPersianNumbers(formatTimeDisplay())}
-        onClick={() => setIsOpen(true)}
-        readOnly
-        className={className}
-        required={required}
-      />
-      {isOpen && (
-        <div className="fixed inset-0 z-50" onClick={() => setIsOpen(false)}>
-          <div
-            className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg shadow-lg p-4 w-72 max-w-full"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="text-center font-bold mb-4">انتخاب زمان</div>
-            <div className="flex justify-between gap-4">
-              {/* Minutes */}
-              <div className="w-1/2">
-                <div className="text-center mb-2 text-sm text-gray-500">دقیقه</div>
-                <div className="border rounded-md h-48 overflow-y-auto">
-                  {Array.from(
-                    { length: 60 },
-                    (_, i) =>
-                      i % 5 === 0 && (
-                        <div
-                          key={`minute-${i}`}
-                          className={`px-4 py-2 cursor-pointer hover:bg-orange-100 text-center ${
-                            selectedMinute === i ? "bg-orange-500 text-white" : ""
-                          }`}
-                          onClick={() => handleMinuteChange(i)}
-                        >
-                          {convertToPersianNumbers(i.toString().padStart(2, "0"))}
-                        </div>
-                      ),
-                  )}
-                </div>
-              </div>
-
-              {/* Hours */}
-              <div className="w-1/2">
-                <div className="text-center mb-2 text-sm text-gray-500">ساعت</div>
-                <div className="border rounded-md h-48 overflow-y-auto">
-                  {Array.from({ length: 24 }, (_, i) => (
-                    <div
-                      key={`hour-${i}`}
-                      className={`px-4 py-2 cursor-pointer hover:bg-orange-100 text-center ${
-                        selectedHour === i ? "bg-orange-500 text-white" : ""
-                      }`}
-                      onClick={() => handleHourChange(i)}
-                    >
-                      {convertToPersianNumbers(i.toString().padStart(2, "0"))}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-end mt-4">
-              <Button size="sm" className="bg-[#f97316] hover:bg-orange-600" onClick={() => setIsOpen(false)}>
-                تایید
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
 // Dashboard Stats Card Component
 const StatCard = ({
   icon: Icon,
@@ -601,18 +403,7 @@ export default function AdminDashboard() {
         </div>
         <div className="space-y-2">
           <Label htmlFor="foodPrice">قیمت (تومان)</Label>
-          <PersianNumberInput
-            id="foodPrice"
-            placeholder="قیمت را وارد کنید"
-            value=""
-            onChange={(value) => {
-              const priceInput = document.getElementById("foodPrice") as HTMLInputElement
-              if (priceInput) {
-                priceInput.value = value
-              }
-            }}
-            className="form-input-focus"
-          />
+          <Input id="foodPrice" type="number" placeholder="قیمت را وارد کنید" className="form-input-focus" />
         </div>
         <div className="space-y-2">
           <Label htmlFor="foodImage">تصویر غذا</Label>
@@ -694,15 +485,10 @@ export default function AdminDashboard() {
             </div>
           </div>
           <Label htmlFor="foodPrice">قیمت (تومان)</Label>
-          <PersianNumberInput
+          <Input
             id="foodPrice"
-            value={food.price}
-            onChange={(value) => {
-              const priceInput = document.getElementById("foodPrice") as HTMLInputElement
-              if (priceInput) {
-                priceInput.value = value
-              }
-            }}
+            type="number"
+            defaultValue={food.price}
             className="form-input-focus"
           />
           <Label htmlFor="foodImage">تصویر غذا</Label>
@@ -972,74 +758,44 @@ export default function AdminDashboard() {
             </div>
           </div>
           <Label htmlFor="start_time">زمان شروع</Label>
-          <TimePicker
+          <Input
             id="start_time"
             name="start_time"
-            value=""
-            onChange={(value) => {
-              const timeInput = document.getElementById("start_time") as HTMLInputElement
-              if (timeInput) {
-                timeInput.value = value
-              }
-            }}
-            className="form-input-focus"
+            type="time"
             required
+            className="form-input-focus"
           />
           <Label htmlFor="end_time">زمان پایان</Label>
-          <TimePicker
+          <Input
             id="end_time"
             name="end_time"
-            value=""
-            onChange={(value) => {
-              const timeInput = document.getElementById("end_time") as HTMLInputElement
-              if (timeInput) {
-                timeInput.value = value
-              }
-            }}
-            className="form-input-focus"
+            type="time"
             required
+            className="form-input-focus"
           />
           <Label htmlFor="time_slot_count">تعداد بازه‌های زمانی</Label>
-          <PersianNumberInput
+          <Input
             id="time_slot_count"
             name="time_slot_count"
-            value=""
-            onChange={(value) => {
-              const input = document.getElementById("time_slot_count") as HTMLInputElement
-              if (input) {
-                input.value = value
-              }
-            }}
+            type="number"
             min={1}
             required
             className="form-input-focus"
           />
           <Label htmlFor="time_slot_capacity">ظرفیت هر بازه زمانی</Label>
-          <PersianNumberInput
+          <Input
             id="time_slot_capacity"
             name="time_slot_capacity"
-            value=""
-            onChange={(value) => {
-              const input = document.getElementById("time_slot_capacity") as HTMLInputElement
-              if (input) {
-                input.value = value
-              }
-            }}
+            type="number"
             min={1}
             required
             className="form-input-focus"
           />
           <Label htmlFor="daily_capacity">ظرفیت روزانه</Label>
-          <PersianNumberInput
+          <Input
             id="daily_capacity"
             name="daily_capacity"
-            value=""
-            onChange={(value) => {
-              const input = document.getElementById("daily_capacity") as HTMLInputElement
-              if (input) {
-                input.value = value
-              }
-            }}
+            type="number"
             min={1}
             required
             className="form-input-focus"
@@ -1052,28 +808,6 @@ export default function AdminDashboard() {
     },
     [selectedDay, selectedMeal_type, selectedDate, foods, openDialog, closeDialog, fetchTemplateMenu, fetchDailyMenu],
   )
-
-  const handleUseTemplateForDaily = useCallback(async () => {
-    if (!selectedDate || !selectedMeal_type) {
-      toast.error("لطفاً تاریخ و نوع وعده را انتخاب کنید")
-      return
-    }
-
-    const dayOfWeek = new DateObject(selectedDate).format("dddd")
-
-    try {
-      await api.post(createApiUrl(API_ROUTES.USE_TEMPLATE_FOR_DAILY), {
-        date: new DateObject(selectedDate).format("YYYY-MM-DD"),
-        meal_type: selectedMeal_type,
-        day: dayOfWeek,
-      })
-      await fetchDailyMenu()
-      toast.success("منوی الگو با موفقیت به منوی روزانه اضافه شد")
-    } catch (error) {
-      console.error("Error using template for daily menu:", error)
-      toast.error("خطا در استفاده از منوی الگو برای منوی روزانه")
-    }
-  }, [selectedDate, selectedMeal_type, fetchDailyMenu])
 
   const handleEditMenuItem = useCallback(
     (item: MenuItemSpec, isTemplate: boolean) => {
@@ -1151,7 +885,7 @@ export default function AdminDashboard() {
                       foodList.classList.remove("hidden")
                       const items = foodList.getElementsByTagName("div")
                       let hasVisibleItems = false
-                      for (let i = 0; i < items.length; i++) {
+                      for (let i = 0; i <items.length; i++) {
                         const foodName = items[i].textContent || ""
                         if (foodName.toLowerCase().includes(searchValue)) {
                           items[i].style.display = ""
@@ -1234,74 +968,49 @@ export default function AdminDashboard() {
             </SelectContent>
           </Select>
           <Label htmlFor="start_time">زمان شروع</Label>
-          <TimePicker
+          <Input
             id="start_time"
             name="start_time"
-            value={item.start_time}
-            onChange={(value) => {
-              const timeInput = document.getElementById("start_time") as HTMLInputElement
-              if (timeInput) {
-                timeInput.value = value
-              }
-            }}
-            className="form-input-focus"
+            type="time"
+            defaultValue={item.start_time}
             required
+            className="form-input-focus"
           />
           <Label htmlFor="end_time">زمان پایان</Label>
-          <TimePicker
+          <Input
             id="end_time"
             name="end_time"
-            value={item.end_time}
-            onChange={(value) => {
-              const timeInput = document.getElementById("end_time") as HTMLInputElement
-              if (timeInput) {
-                timeInput.value = value
-              }
-            }}
-            className="form-input-focus"
+            type="time"
+            defaultValue={item.end_time}
             required
+            className="form-input-focus"
           />
           <Label htmlFor="time_slot_count">تعداد بازه‌های زمانی</Label>
-          <PersianNumberInput
+          <Input
             id="time_slot_count"
             name="time_slot_count"
-            value={item.time_slot_count}
-            onChange={(value) => {
-              const input = document.getElementById("time_slot_count") as HTMLInputElement
-              if (input) {
-                input.value = value
-              }
-            }}
+            type="number"
+            defaultValue={item.time_slot_count}
             min={1}
             required
             className="form-input-focus"
           />
           <Label htmlFor="time_slot_capacity">ظرفیت هر بازه زمانی</Label>
-          <PersianNumberInput
+          <Input
             id="time_slot_capacity"
             name="time_slot_capacity"
-            value={item.time_slot_capacity}
-            onChange={(value) => {
-              const input = document.getElementById("time_slot_capacity") as HTMLInputElement
-              if (input) {
-                input.value = value
-              }
-            }}
+            type="number"
+            defaultValue={item.time_slot_capacity}
             min={1}
             required
             className="form-input-focus"
           />
           <Label htmlFor="daily_capacity">ظرفیت روزانه</Label>
-          <PersianNumberInput
+          <Input
             id="daily_capacity"
             name="daily_capacity"
-            value={item.daily_capacity}
-            onChange={(value) => {
-              const input = document.getElementById("daily_capacity") as HTMLInputElement
-              if (input) {
-                input.value = value
-              }
-            }}
+            type="number"
+            defaultValue={item.daily_capacity}
             min={1}
             required
             className="form-input-focus"
@@ -1340,15 +1049,10 @@ export default function AdminDashboard() {
       <div className="space-y-4" dir="rtl">
         <h2 className="text-lg font-bold">به‌روزرسانی قیمت ژتون</h2>
         <Label htmlFor="voucherPrice">قیمت جدید ژتون (تومان)</Label>
-        <PersianNumberInput
+        <Input
           id="voucherPrice"
-          value={voucherPrice}
-          onChange={(value) => {
-            const priceInput = document.getElementById("voucherPrice") as HTMLInputElement
-            if (priceInput) {
-              priceInput.value = value
-            }
-          }}
+          type="number"
+          defaultValue={voucherPrice}
           className="form-input-focus"
         />
         <Button
@@ -1413,6 +1117,28 @@ export default function AdminDashboard() {
       toast.error("خطا در خروج از حساب کاربری")
     }
   }, [router])
+
+  const handleUseTemplateForDaily = useCallback(async () => {
+    if (!selectedDate || !selectedMeal_type) {
+      toast.error("لطفاً تاریخ و نوع وعده را انتخاب کنید")
+      return
+    }
+
+    const dayOfWeek = new DateObject(selectedDate).format("dddd")
+
+    try {
+      await api.post(createApiUrl(API_ROUTES.USE_TEMPLATE_FOR_DAILY), {
+        date: new DateObject(selectedDate).format("YYYY-MM-DD"),
+        meal_type: selectedMeal_type,
+        day: dayOfWeek,
+      })
+      await fetchDailyMenu()
+      toast.success("منوی الگو با موفقیت به منوی روزانه اضافه شد")
+    } catch (error) {
+      console.error("Error using template for daily menu:", error)
+      toast.error("خطا در استفاده از منوی الگو برای منوی روزانه")
+    }
+  }, [selectedDate, selectedMeal_type, fetchDailyMenu])
 
   return (
     <div className="min-h-screen relative overflow-hidden bg-pattern bg-pattern-animate rtl">
@@ -1760,7 +1486,7 @@ export default function AdminDashboard() {
                               <div className="flex-1">
                                 <h4 className="font-medium">{food.name}</h4>
                                 <p className="text-sm text-gray-500">
-                                  {convertToPersianNumbers(food.price.toLocaleString())} تومان
+                                  {food.price.toLocaleString()} تومان
                                 </p>
                               </div>
                               <Badge variant="outline">{food.category_name || "بدون دسته‌بندی"}</Badge>
@@ -1829,11 +1555,9 @@ export default function AdminDashboard() {
                   <CardHeader>
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                       <CardTitle>مدیریت غذاها</CardTitle>
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <Button onClick={handleAddFood} className="bg-[#f97316] hover:bg-orange-600 btn-hover-effect">
-                          <Plus className="w-4 h-4 ml-2" /> افزودن غذا
-                        </Button>
-                      </div>
+                      <Button onClick={handleAddFood} className="bg-[#f97316] hover:bg-orange-600 btn-hover-effect">
+                        <Plus className="w-4 h-4 ml-2" /> افزودن غذا
+                      </Button>
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -1876,7 +1600,7 @@ export default function AdminDashboard() {
                                   </Badge>
                                 </TableCell>
                                 <TableCell className="max-w-[200px] truncate">{food.description}</TableCell>
-                                <TableCell>{convertToPersianNumbers(food.price.toLocaleString())}</TableCell>
+                                <TableCell>{food.price.toLocaleString()}</TableCell>
                                 <TableCell>
                                   <div className="flex space-x-2">
                                     <Button
@@ -2216,7 +1940,7 @@ export default function AdminDashboard() {
                         <div>
                           <h3 className="text-lg font-medium text-gray-700">قیمت فعلی ژتون</h3>
                           <p className="text-2xl font-bold text-[#f97316]">
-                            {convertToPersianNumbers(voucherPrice.toLocaleString())} تومان
+                            {voucherPrice.toLocaleString()} تومان
                           </p>
                         </div>
                       </div>

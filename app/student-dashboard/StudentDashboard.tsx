@@ -84,7 +84,7 @@ interface Reservation {
   reserved_date: string
   has_voucher: boolean
   price: number
-  status: "waiting" | "preparing" | "ready_to_pickup" | "picked_up" | "pending_payment"
+  status: "waiting" | "preparing" | "ready_to_pickup" | "picked_up" | "pending_payment" | "cancelled"
   delivery_code: string
   reservation_number: string
   payment_status?: "pending" | "paid" | "failed"
@@ -360,6 +360,24 @@ export default function StudentDashboard() {
     }
   }
 
+  const handleCancelReservation = async (reservation: Reservation) => {
+    try {
+      const confirmed = window.confirm('آیا مطمئن هستید که می‌خواهید این رزرو را لغو کنید؟');
+      if (!confirmed) return;
+
+      // Use the function to get the URL with the ID
+      const url = API_ROUTES.CANCEL_RESERVATION(reservation.id.toString());
+      await api.delete(createApiUrl(url));
+      
+      // Refresh reservations
+      fetchReservations();
+      toast.success('رزرو با موفقیت لغو شد');
+    } catch (error) {
+      console.error('Error canceling reservation:', error);
+      toast.error('خطا در لغو رزرو');
+    }
+  }
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
     setIsCopied(true)
@@ -567,18 +585,22 @@ export default function StudentDashboard() {
               className="space-y-4"
             >
               {[...reservations]
-  .sort((a, b) => {
-    // First compare dates
-    const dateComparison = new Date(b.reserved_date).getTime() - new Date(a.reserved_date).getTime()
-    
-    // If dates are the same, compare start times
-    if (dateComparison === 0) {
-      return b.time_slot.start_time.localeCompare(a.time_slot.start_time)
-    }
-    
-    return dateComparison
-  })
-  .map((reservation) => (
+                .sort((a, b) => {
+                  // First compare dates (newest first)
+                  const dateComparison = new Date(b.reserved_date).getTime() - new Date(a.reserved_date).getTime();
+                  if (dateComparison !== 0) return dateComparison;
+
+                  // If dates are equal, compare meal types (reverse alphabetical)
+                  const mealComparison = b.food.name.localeCompare(a.food.name);
+                  if (mealComparison !== 0) return mealComparison;
+
+                  // If dates and meals are equal, compare reservation numbers (reverse order)
+                  // Convert to string to handle undefined/null values
+                  const aNum = String(a.reservation_number || '');
+                  const bNum = String(b.reservation_number || '');
+                  return bNum.localeCompare(aNum);
+                })
+                .map((reservation) => (
                 <Card
                   key={reservation.reservation_number}
                   className="bg-white rounded-2xl shadow-[0_0_10px_rgba(0,0,0,0.1)] transition-all duration-300 ease-in-out hover:shadow-[0_0_15px_rgba(0,0,0,0.2)] border border-gray-300"
@@ -595,14 +617,18 @@ export default function StudentDashboard() {
                                 ? "outline"
                                 : reservation.status === "pending_payment"
                                   ? "destructive"
-                                  : "destructive"
+                                  : reservation.status === "cancelled"
+                                    ? "destructive"
+                                    : "destructive"
                         }
                         className={`text-lg px-3 py-1 ${
                           reservation.status === "ready_to_pickup"
                             ? "bg-[#F47B20]"
                             : reservation.status === "picked_up"
                               ? "bg-[#5CB85C]"
-                              : ""
+                              : reservation.status === "cancelled"
+                                ? "bg-red-500"
+                                : ""
                         }`}
                       >
                         {reservation.status === "waiting"
@@ -613,7 +639,9 @@ export default function StudentDashboard() {
                               ? "آماده تحویل"
                               : reservation.status === "pending_payment"
                                 ? "در انتظار پرداخت"
-                                : "تحویل داده شده"}
+                                : reservation.status === "cancelled"
+                                  ? "لغو شده"
+                                  : "تحویل داده شده"}
                       </Badge>
                       <h3 className="font-bold text-xl">سفارش #{reservation.reservation_number}</h3>
                     </div>
@@ -656,7 +684,7 @@ export default function StudentDashboard() {
                         </Button>
                       </div>
                     )}
-                    {reservation.status !== "pending_payment" && (
+                    {reservation.status !== "pending_payment" && reservation.status !== "cancelled" && (
                       <div className="mt-4">
                         <div className="bg-gradient-to-r from-orange-100 to-orange-200 p-4 rounded-xl shadow-inner">
                           <div className="bg-white rounded-lg p-4 shadow-md text-center">

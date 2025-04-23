@@ -1,4 +1,4 @@
-export const API_BASE_URL = '/api';
+export const API_BASE_URL = 'http://localhost:8000/api';
 
 export const API_ROUTES = {
   // Auth
@@ -62,9 +62,8 @@ export const API_ROUTES = {
   GET_READY_TO_PICKUP_ORDERS: '/orders/ready-to-pickup/',
   GET_PICKED_UP_ORDERS: '/orders/picked-up/',
   VERIFY_DELIVERY_CODE: '/orders/delivery-code/',
-
+  CANCEL_RESERVATION: (id: string) => `/orders/${id}/cancel/`,
 
 };
 
 export const createApiUrl = (route: string): string => `${API_BASE_URL}${route}`;
-

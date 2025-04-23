@@ -23,6 +23,7 @@ function PaymentVerifyContent() {
       const response = await api.get(createApiUrl(API_ROUTES.PAYMENT_VERIFY), {
         params: { Authority: authority, Status: "OK" },
       })
+      console.log(response.data)
 
       if (response.status === 200) {
         // Set success state and payment details
@@ -37,6 +38,10 @@ function PaymentVerifyContent() {
         setTimeout(() => {
           router.push("/student-dashboard")
         }, 5000)
+      } else {
+        // Handle failed verification
+        setStatus("error")
+        setMessage("پرداخت ناموفق بود")
       }
     } catch (error) {
       console.error("Error verifying payment:", error)
@@ -55,12 +60,7 @@ function PaymentVerifyContent() {
       return
     }
 
-    if (statusParam !== "OK") {
-      setStatus("error")
-      setMessage("پرداخت توسط کاربر لغو شد")
-      return
-    }
-
+    // Always verify payment status with backend, regardless of statusParam
     verifyPayment(authority)
   }, [searchParams, verifyPayment])
 
@@ -81,13 +81,6 @@ function PaymentVerifyContent() {
               <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
               {paymentDetails && (
                 <div className="mt-4 p-4 bg-[#E8DED5] rounded-lg">
-                  <p className="mb-2 font-semibold">
-                    مبلغ:{" "}
-                    {new Intl.NumberFormat("fa-IR", { useGrouping: true })
-                      .format(paymentDetails.amount)
-                      .replace(/٬/g, ",")}{" "}
-                    تومان
-                  </p>
                   <p className="font-semibold">کد پیگیری: {paymentDetails.ref_id}</p>
                 </div>
               )}
