@@ -360,24 +360,6 @@ export default function StudentDashboard() {
     }
   }
 
-  const handleCancelReservation = async (reservation: Reservation) => {
-    try {
-      const confirmed = window.confirm('آیا مطمئن هستید که می‌خواهید این رزرو را لغو کنید؟');
-      if (!confirmed) return;
-
-      // Use the function to get the URL with the ID
-      const url = API_ROUTES.CANCEL_RESERVATION(reservation.id.toString());
-      await api.delete(createApiUrl(url));
-      
-      // Refresh reservations
-      fetchReservations();
-      toast.success('رزرو با موفقیت لغو شد');
-    } catch (error) {
-      console.error('Error canceling reservation:', error);
-      toast.error('خطا در لغو رزرو');
-    }
-  }
-
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
     setIsCopied(true)
