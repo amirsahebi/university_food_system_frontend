@@ -391,7 +391,7 @@ export default function ReceiverDashboard() {
       <div class="slip-header">
         <img src="/images/javanfoods_logo.png" alt="جوان" class="logo">
         <h1 style="color: #F47B20;">رسید رزرو غذا</h1>
-        <p>سیستم رزرواسیون غذای دانشگاه</p>
+        <p>سیستم رزرواسیون غذای جوان</p>
       </div>
       <div class="slip-details">
         <div><strong>شماره رزرو:</strong> ${order.reservation_number}</div>
@@ -401,13 +401,9 @@ export default function ReceiverDashboard() {
         ${order.food.category_name ? `<div><strong>دسته‌بندی:</strong> ${order.food.category_name}</div>` : ""}
         <div><strong>تاریخ رزرو:</strong> ${order.reserved_date}</div>
         <div><strong>زمان سرو:</strong> ${order.time_slot.start_time} - ${order.time_slot.end_time}</div>
-        <div><strong>نوع وعده:</strong> ${order.meal_type === "lunch" ? "ناهار" : "شام"}</div>
+        <div><strong>فیش دارد:</strong> ${order.has_voucher ? "بله" : "نه"}</div>
         <div><strong>قیمت:</strong> ${Number(order.price).toLocaleString()} تومان</div>
         <div class="delivery-code">کد تحویل: ${order.delivery_code || order.id.toString().padStart(6, "0")}</div>
-      </div>
-      <div class="slip-footer">
-        <p>تاریخ چاپ: ${new Date().toLocaleDateString("fa-IR")}</p>
-        <p>سیستم مدیریت رزرو غذای دانشگاه</p>
       </div>
     </body>
   </html>
