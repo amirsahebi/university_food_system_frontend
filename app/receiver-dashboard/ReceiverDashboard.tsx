@@ -307,11 +307,11 @@ export default function ReceiverDashboard() {
           font-family: Arial, sans-serif; 
           direction: rtl; 
           text-align: right; 
-          width: 110px;  /* 50mm = ~110px at 96dpi */
-          margin: 0;   /* Smaller margin for thermal paper */
+          width: 160px;  /* 57mm = ~170px at 96dpi */
+          margin: 5px;   /* Smaller margin for thermal paper */
           padding: 0;
           line-height: 1.1;
-          font-size: 7px;  /* Adjusted font size for 50mm width */
+          font-size: 10px;  /* Smaller font size for 57mm width */
           page-break-inside: avoid;
         }
         
@@ -336,22 +336,19 @@ export default function ReceiverDashboard() {
         }
         
         .logo {
-          max-width: 110px;
+          max-width: 120px;
           margin: 0 auto 5px;
           display: block;
-          filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
         }
         
         .delivery-code {
-          font-size: 7px;
+          font-size: 14px;
           font-weight: bold;
           text-align: center;
           margin: 10px 0;
-          padding: 10px;
-          background-color: #FFF8F2;
-          border: 2px dashed #F47B20;
-          border-radius: 10px;
-          letter-spacing: 5px;
+          padding: 5px;
+          border: 1px dashed #000;
+          letter-spacing: 2px;
         }
         .slip-header { 
           background-color: #f4f4f4; 
@@ -372,19 +369,19 @@ export default function ReceiverDashboard() {
           color: #666; 
         }
         .delivery-code {
-          font-size: 7px;
+          font-size: 14px;
           font-weight: bold;
           text-align: center;
-          margin: 10px 0;
-          padding: 10px;
+          margin: 20px 0;
+          padding: 15px;
           background-color: #FFF8F2;
           border: 2px dashed #F47B20;
           border-radius: 10px;
           letter-spacing: 5px;
         }
         .logo {
-          max-width: 110px;
-          margin: 0 auto 5px;
+          max-width: 120px;
+          margin: 0 auto 10px;
           display: block;
           filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
         }
