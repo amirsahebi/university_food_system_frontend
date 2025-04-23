@@ -303,111 +303,61 @@ export default function ReceiverDashboard() {
     <head>
       <title>رسید رزرو غذا</title>
       <style>
+        @page {
+          margin: 0;
+          size: 58mm;
+        }
         body { 
           font-family: Arial, sans-serif; 
           direction: rtl; 
           text-align: right; 
-          width: 160px;  /* 57mm = ~170px at 96dpi */
-          margin: 5px;   /* Smaller margin for thermal paper */
-          padding: 0;
-          line-height: 1.1;
-          font-size: 10px;  /* Smaller font size for 57mm width */
-          page-break-inside: avoid;
-        }
-        
-        .slip-header { 
-          text-align: center;
-          margin-bottom: 5px;
-        }
-        
-        .slip-details { 
+          width: 100%;
           margin: 0;
           padding: 0;
+          line-height: 1.2;
+          font-size: 12px;
+          box-sizing: border-box;
         }
-        
-        .slip-details div { 
-          margin-bottom: 3px;
-        }
-        
-        .slip-footer { 
-          margin-top: 10px;
+        .header {
           text-align: center;
-          font-size: 10px;
-        }
-        
-        .logo {
-          max-width: 90px;
-          margin: 0 auto 5px;
-          display: block;
-        }
-        
-        .delivery-code {
+          margin: 0;
+          padding: 5px 0;
           font-size: 14px;
-          font-weight: bold;
-          text-align: center;
-          margin: 10px 0;
-          padding: 5px;
-          border: 1px dashed #000;
-          letter-spacing: 2px;
         }
-        .slip-header { 
-          background-color: #f4f4f4; 
-          padding: 10px; 
-          text-align: center; 
-          border-bottom: 2px solid #F47B20; 
+        .content {
+          margin: 0;
+          padding: 0 5px;
         }
-        .slip-details { 
-          margin-top: 20px; 
+        .item {
+          margin: 2px 0;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
-        .slip-details div { 
-          margin-bottom: 10px; 
-        }
-        .slip-footer { 
-          margin-top: 30px; 
-          text-align: center; 
-          font-size: 0.8em; 
-          color: #666; 
-        }
-        .delivery-code {
-          font-size: 24px;
-          font-weight: bold;
-          text-align: center;
-          margin: 20px 0;
-          padding: 15px;
-          background-color: #FFF8F2;
-          border: 2px dashed #F47B20;
-          border-radius: 10px;
-          letter-spacing: 5px;
-        }
-        .logo {
-          max-width: 120px;
-          margin: 0 auto 10px;
-          display: block;
-          filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+        .barcode {
+          width: 100%;
+          height: 40px;
+          margin: 5px 0;
         }
       </style>
     </head>
     <body>
-      <div class="slip-header">
-        <img src="/images/javanfoods_logo.png" alt="جوان" class="logo">
-        <h1 style="color: #F47B20;">رسید رزرو غذا</h1>
-        <p>سیستم رزرواسیون غذای دانشگاه</p>
+      <div class="header">
+        <h2>جوان فود</h2>
+        <p>رسید رزرو غذا</p>
       </div>
-      <div class="slip-details">
-        <div><strong>شماره رزرو:</strong> ${order.reservation_number}</div>
-        <div><strong>نام دانشجو:</strong> ${order.student.first_name} ${order.student.last_name}</div>
-        <div><strong>شماره تماس:</strong> ${order.student.phone_number}</div>
-        <div><strong>غذا:</strong> ${order.food.name}</div>
-        ${order.food.category_name ? `<div><strong>دسته‌بندی:</strong> ${order.food.category_name}</div>` : ""}
-        <div><strong>تاریخ رزرو:</strong> ${order.reserved_date}</div>
-        <div><strong>زمان سرو:</strong> ${order.time_slot.start_time} - ${order.time_slot.end_time}</div>
-        <div><strong>نوع وعده:</strong> ${order.meal_type === "lunch" ? "ناهار" : "شام"}</div>
-        <div><strong>قیمت:</strong> ${Number(order.price).toLocaleString()} تومان</div>
-        <div class="delivery-code">کد تحویل: ${order.delivery_code || order.id.toString().padStart(6, "0")}</div>
-      </div>
-      <div class="slip-footer">
-        <p>تاریخ چاپ: ${new Date().toLocaleDateString("fa-IR")}</p>
-        <p>سیستم مدیریت رزرو غذای دانشگاه</p>
+      <div class="content">
+        <div class="item">نام: ${order.student.first_name} ${order.student.last_name}</div>
+        <div class="item">شماره تماس: ${order.student.phone_number}</div>
+        <div class="item">نام غذا: ${order.food.name}</div>
+        <div class="item">زمان: ${order.time_slot.start_time} - ${order.time_slot.end_time}</div>
+        <div class="item">تاریخ رزرو: ${order.reserved_date}</div>
+        <div class="item">شماره رزرو: ${order.reservation_number}</div>
+        <div class="item">کد تحویل: ${order.delivery_code}</div>
+        <div class="item">مبلغ: ${order.price} تومان</div>
+        <div class="barcode">
+          <img src="${order.qr_code}" alt="QR Code" />
+        </div>
       </div>
     </body>
   </html>
