@@ -311,7 +311,7 @@ export default function ReceiverDashboard() {
           margin: 0;   /* Smaller margin for thermal paper */
           padding: 0;
           line-height: 1.1;
-          font-size: 9px;  /* Adjusted font size for 50mm width */
+          font-size: 7px;  /* Adjusted font size for 50mm width */
           page-break-inside: avoid;
         }
         
@@ -342,7 +342,7 @@ export default function ReceiverDashboard() {
         }
         
         .delivery-code {
-          font-size: 12px;
+          font-size: 7px;
           font-weight: bold;
           text-align: center;
           margin: 10px 0;
@@ -369,7 +369,7 @@ export default function ReceiverDashboard() {
           color: #666; 
         }
         .delivery-code {
-          font-size: 12px;
+          font-size: 7px;
           font-weight: bold;
           text-align: center;
           margin: 20px 0;
