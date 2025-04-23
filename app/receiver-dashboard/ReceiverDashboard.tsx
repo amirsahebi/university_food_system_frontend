@@ -307,11 +307,11 @@ export default function ReceiverDashboard() {
           font-family: Arial, sans-serif; 
           direction: rtl; 
           text-align: right; 
-          width: 130px;  /* 57mm = ~170px at 96dpi */
+          width: 110px;  /* 50mm = ~110px at 96dpi */
           margin: 0;   /* Smaller margin for thermal paper */
           padding: 0;
           line-height: 1.1;
-          font-size: 10px;  /* Smaller font size for 57mm width */
+          font-size: 9px;  /* Adjusted font size for 50mm width */
           page-break-inside: avoid;
         }
         
