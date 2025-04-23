@@ -316,13 +316,14 @@ export default function ReceiverDashboard() {
         }
         
         .slip-header { 
-          text-align: center;
-          margin-bottom: 5px;
+          background-color: #f4f4f4; 
+          padding: 5px;  
+          text-align: center; 
+          border-bottom: 2px solid #F47B20;
         }
         
         .slip-details { 
-          margin: 0;
-          padding: 0;
+          margin-top: 15px;  
         }
         
         .slip-details div { 
@@ -337,8 +338,9 @@ export default function ReceiverDashboard() {
         
         .logo {
           max-width: 120px;
-          margin: 0 auto 5px;
+          margin: 0 auto 5px;  
           display: block;
+          filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
         }
         
         .delivery-code {
@@ -352,18 +354,18 @@ export default function ReceiverDashboard() {
         }
         .slip-header { 
           background-color: #f4f4f4; 
-          padding: 10px; 
+          padding: 5px;  
           text-align: center; 
-          border-bottom: 2px solid #F47B20; 
+          border-bottom: 2px solid #F47B20;
         }
         .slip-details { 
-          margin-top: 20px; 
+          margin-top: 15px;  
         }
         .slip-details div { 
-          margin-bottom: 10px; 
+          margin-bottom: 10px;  
         }
         .slip-footer { 
-          margin-top: 30px; 
+          margin-top: 30px;  
           text-align: center; 
           font-size: 0.8em; 
           color: #666; 
@@ -381,7 +383,7 @@ export default function ReceiverDashboard() {
         }
         .logo {
           max-width: 120px;
-          margin: 0 auto 10px;
+          margin: 0 auto 5px;  
           display: block;
           filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
         }
