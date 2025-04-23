@@ -307,8 +307,8 @@ export default function ReceiverDashboard() {
           font-family: Arial, sans-serif; 
           direction: rtl; 
           text-align: right; 
-          width: 145px;  /* 57mm = ~170px at 96dpi */
-          margin: 5px;   /* Smaller margin for thermal paper */
+          width: 140px;  /* 57mm = ~170px at 96dpi */
+          margin: 0;   /* Smaller margin for thermal paper */
           padding: 0;
           line-height: 1.1;
           font-size: 10px;  /* Smaller font size for 57mm width */
@@ -336,7 +336,7 @@ export default function ReceiverDashboard() {
         }
         
         .logo {
-          max-width: 90px;
+          max-width: 140px;
           margin: 0 auto 5px;
           display: block;
         }
@@ -369,7 +369,7 @@ export default function ReceiverDashboard() {
           color: #666; 
         }
         .delivery-code {
-          font-size: 18px;
+          font-size: 16px;
           font-weight: bold;
           text-align: center;
           margin: 20px 0;
@@ -380,7 +380,7 @@ export default function ReceiverDashboard() {
           letter-spacing: 5px;
         }
         .logo {
-          max-width: 120px;
+          max-width: 140px;
           margin: 0 auto 10px;
           display: block;
           filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
