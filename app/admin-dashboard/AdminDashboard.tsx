@@ -291,7 +291,7 @@ export default function AdminDashboard() {
       console.error("Error fetching foods:", error)
       toast.error("خطا در دریافت لیست غذاها")
     }
-  }, [selectedDay, selectedMeal_type])
+  }, [])
 
   const fetchTemplateMenu = useCallback(async () => {
     try {
@@ -309,7 +309,7 @@ export default function AdminDashboard() {
       console.error("Error fetching template menu:", error)
       setTemplateMenu(null)
     }
-  }, [selectedDay, selectedMeal_type, fetchFoods])
+  }, [selectedDay, selectedMeal_type])
 
   const fetchDailyMenu = useCallback(async () => {
     if (!selectedDate || !selectedMeal_type) {
