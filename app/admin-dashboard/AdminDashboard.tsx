@@ -1273,6 +1273,26 @@ export default function AdminDashboard() {
     return `${convertToPersianNumbers(persianDateStr)} - ${persianHours}:${persianMinutes}`
   }
 
+  const getStatusColor = (status: string) => {
+    const statusColors = {
+      'waiting': 'bg-yellow-500',
+      'preparing': 'bg-blue-500',
+      'ready_to_pickup': 'bg-green-500',
+      'picked_up': 'bg-green-600',
+    }
+    return statusColors[status as keyof typeof statusColors] || 'bg-gray-500'
+  }
+
+  const getStatusText = (status: string) => {
+    const statusTexts = {
+      'waiting': 'در انتظار',
+      'preparing': 'در حال آماده‌سازی',
+      'ready_to_pickup': 'آماده تحویل',
+      'picked_up': 'تحویل داده شده',
+    }
+    return statusTexts[status as keyof typeof statusTexts] || 'وضعیت ناشناخته'
+  }
+
   return (
     <div className="min-h-screen relative overflow-hidden bg-pattern bg-pattern-animate rtl">
       <div className="absolute inset-0">
@@ -1650,10 +1670,10 @@ export default function AdminDashboard() {
                                 </p>
                               </div>
                               <Badge
-                                variant={log.status === "confirmed" ? "default" : "secondary"}
-                                className={log.status === "confirmed" ? "bg-green-500" : ""}
+                                variant="outline"
+                                className={getStatusColor(log.status)}
                               >
-                                {log.status === "confirmed" ? "تایید شده" : "در انتظار"}
+                                {getStatusText(log.status)}
                               </Badge>
                             </div>
                           ))}
@@ -2107,10 +2127,10 @@ export default function AdminDashboard() {
                                       <TableCell>{formatPersianDateTime(log.created_at)}</TableCell>
                                       <TableCell>
                                         <Badge
-                                          variant={log.status === "confirmed" ? "default" : "secondary"}
-                                          className={log.status === "confirmed" ? "bg-green-500" : ""}
+                                          variant="outline"
+                                          className={getStatusColor(log.status)}
                                         >
-                                          {log.status === "confirmed" ? "تایید شده" : "در انتظار"}
+                                          {getStatusText(log.status)}
                                         </Badge>
                                       </TableCell>
                                     </TableRow>
@@ -2199,7 +2219,7 @@ export default function AdminDashboard() {
           <div className="py-4" dir="rtl">
             <p>آیا از حذف دسته‌بندی &quot;{currentCategory?.name}&quot; اطمینان دارید؟</p>
             <p className="text-sm text-red-500 mt-2">
-              توجه: اگر این دسته‌بندی به غذایی اختصاص داده شده باشد، قابل حذف نخواهد بود.
+              توجه: اگر این دسته‌بندی به یک یا چند غذا اختصاص داده شده باشد، قابل حذف نخواهد بود.
             </p>
           </div>
           <DialogFooter>
