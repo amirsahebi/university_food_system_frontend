@@ -55,7 +55,10 @@ export function CategoryFilter({ onCategoryChange, selectedCategoryId, dailyMenu
   }
 
   return (
-    <ScrollArea className="w-full whitespace-nowrap">
+    <ScrollArea 
+      className="w-full whitespace-nowrap touch-pan-x"
+      type="auto"
+    >
       <div className="flex space-x-2 rtl:space-x-reverse p-1">
         <Button
           variant={selectedCategoryId === null ? "default" : "outline"}
