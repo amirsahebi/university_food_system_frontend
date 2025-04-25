@@ -103,6 +103,7 @@ interface ReservationLog {
   student: string
   food: string
   created_at: string
+  reserved_date: string
   status: string
 }
 
@@ -346,7 +347,7 @@ export default function AdminDashboard() {
 
       // Calculate today's reservations
       const today = new Date().toISOString().split("T")[0]
-      const todayCount = response.data.filter((log: ReservationLog) => log.created_at && log.created_at.includes(today)).length
+      const todayCount = response.data.filter((log: ReservationLog) => log.reserved_date && log.reserved_date.includes(today)).length
       setTodayReservations(todayCount)
     } catch (error) {
       console.error("Error fetching reservation logs:", error)
