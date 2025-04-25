@@ -1,243 +1,155 @@
 "use client"
 
-import type React from "react"
-
-import { useState, useEffect, useCallback } from "react"
-import { AxiosError } from "axios"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Textarea } from "@/components/ui/textarea"
-import { Edit, Plus, Trash } from "lucide-react"
-import { toast } from "react-hot-toast"
-import api from "@/lib/axios"
-import { API_ROUTES, createApiUrl } from "@/lib/api"
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
+import { ChevronLeft, ChevronRight } from "lucide-react"
+
+interface MenuItem {
+  food: {
+    category_id: number
+    category_name: string
+  }
+}
 
 interface FoodCategory {
   id: number
   name: string
-  description: string | null
-  created_at: string
-  updated_at: string
 }
 
-interface CategoryFormData {
-  name: string
-  description: string | null
+interface CategoryFilterProps {
+  onCategoryChange: (categoryId: number | null) => void
+  selectedCategoryId: number | null
+  dailyMenuItems: MenuItem[]
 }
 
-export function CategoryManagement() {
+export function CategoryFilter({ onCategoryChange, selectedCategoryId, dailyMenuItems }: CategoryFilterProps) {
   const [categories, setCategories] = useState<FoodCategory[]>([])
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [currentCategory, setCurrentCategory] = useState<FoodCategory | null>(null)
-  const [formData, setFormData] = useState<CategoryFormData>({
-    name: "",
-    description: "",
-  })
-  const [isSubmitting, setIsSubmitting] = useState(false)
-
-  const fetchCategories = useCallback(async () => {
-    try {
-      const response = await api.get(createApiUrl(API_ROUTES.GET_FOOD_CATEGORIES))
-      setCategories(response.data)
-    } catch (error) {
-      console.error("Error fetching categories:", error)
-      toast.error("خطا در دریافت دسته‌بندی‌ها")
-    }
-  }, [])
+  const [isLoading, setIsLoading] = useState(true)
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(false)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    fetchCategories()
-  }, [fetchCategories])
+    if (!Array.isArray(dailyMenuItems)) return
 
-  const handleAddCategory = () => {
-    setCurrentCategory(null)
-    setFormData({ name: "", description: "" })
-    setIsDialogOpen(true)
-  }
+    const uniqueCategories = Array.from(new Set(dailyMenuItems.map((item: MenuItem) => item.food.category_id))).map(
+      (categoryId: number) => ({
+        id: categoryId,
+        name:
+          dailyMenuItems.find((item: MenuItem) => item.food.category_id === categoryId)?.food.category_name || "نامشخص",
+      }),
+    )
 
-  const handleEditCategory = (category: FoodCategory) => {
-    setCurrentCategory(category)
-    setFormData({
-      name: category.name,
-      description: category.description,
-    })
-    setIsDialogOpen(true)
-  }
+    setCategories(uniqueCategories)
+    setIsLoading(false)
+  }, [dailyMenuItems])
 
-  const handleDeleteCategory = (category: FoodCategory) => {
-    setCurrentCategory(category)
-    setIsDeleteDialogOpen(true)
-  }
+  useEffect(() => {
+    const checkScroll = () => {
+      if (!scrollContainerRef.current) return
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
-  }
+      const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current
 
-  const handleSubmit = async () => {
-    if (!formData.name.trim()) {
-      toast.error("لطفاً نام دسته‌بندی را وارد کنید")
-      return
+      setCanScrollLeft(scrollLeft > 0)
+      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10)
     }
 
-    setIsSubmitting(true)
+    const scrollContainer = scrollContainerRef.current
+    if (scrollContainer) {
+      scrollContainer.addEventListener("scroll", checkScroll)
+      // Initial check
+      checkScroll()
 
-    try {
-      if (currentCategory) {
-        // Update existing category
-        await api.put(createApiUrl(API_ROUTES.UPDATE_FOOD_CATEGORY(currentCategory.id.toString())), formData)
-        toast.success("دسته‌بندی با موفقیت به‌روزرسانی شد")
-      } else {
-        // Create new category
-        await api.post(createApiUrl(API_ROUTES.ADD_FOOD_CATEGORY), formData)
-        toast.success("دسته‌بندی جدید با موفقیت ایجاد شد")
-      }
+      return () => scrollContainer.removeEventListener("scroll", checkScroll)
+    }
+  }, [categories])
 
-      setIsDialogOpen(false)
-      fetchCategories()
-    } catch (error) {
-      console.error("Error saving category:", error)
-      toast.error(currentCategory ? "خطا در به‌روزرسانی دسته‌بندی" : "خطا در ایجاد دسته‌بندی")
-    } finally {
-      setIsSubmitting(false)
+  const scrollLeft = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollBy({ left: -200, behavior: "smooth" })
     }
   }
 
-  const handleDelete = async () => {
-    if (!currentCategory) return
-
-    setIsSubmitting(true)
-
-    try {
-      await api.delete(createApiUrl(API_ROUTES.DELETE_FOOD_CATEGORY(currentCategory.id.toString())))
-      toast.success("دسته‌بندی با موفقیت حذف شد")
-      setIsDeleteDialogOpen(false)
-      fetchCategories()
-    } catch (error: unknown) {
-      const isAxiosError = error instanceof AxiosError;
-      console.error("Error deleting category:", error)
-      if (isAxiosError && error.response?.status === 400) {
-        toast.error("این دسته‌بندی به یک یا چند غذا اختصاص داده شده است و قابل حذف نیست")
-      } else {
-        toast.error("خطا در حذف دسته‌بندی")
-      }
-    } finally {
-      setIsSubmitting(false)
+  const scrollRight = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollBy({ left: 200, behavior: "smooth" })
     }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex overflow-x-auto py-2 px-1 space-x-2 rtl:space-x-reverse">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="h-8 w-24 bg-gray-200 animate-pulse rounded-full"></div>
+        ))}
+      </div>
+    )
+  }
+
+  if (categories.length === 0) {
+    return null
   }
 
   return (
-    <>
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold">مدیریت دسته‌بندی‌های غذا</h2>
-        <Button onClick={handleAddCategory} className="bg-[#F47B20] hover:bg-[#E06A10]">
-          <Plus className="w-4 h-4 ml-2" /> افزودن دسته‌بندی
-        </Button>
-      </div>
+    <div className="relative w-full">
+      <ScrollArea className="w-full">
+        <div
+          className="flex space-x-2 rtl:space-x-reverse p-1 px-2 whitespace-nowrap overflow-x-auto"
+          ref={scrollContainerRef}
+        >
+          <Button
+            variant={selectedCategoryId === null ? "default" : "outline"}
+            size="sm"
+            className={`rounded-full ${
+              selectedCategoryId === null ? "bg-[#F47B20] text-white" : "bg-[#F4EDE7] text-gray-700"
+            }`}
+            onClick={() => onCategoryChange(null)}
+          >
+            همه
+          </Button>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>نام دسته‌بندی</TableHead>
-            <TableHead>توضیحات</TableHead>
-            <TableHead>تاریخ ایجاد</TableHead>
-            <TableHead>عملیات</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
           {categories.map((category) => (
-            <TableRow key={category.id}>
-              <TableCell className="font-medium">{category.name}</TableCell>
-              <TableCell>{category.description || "-"}</TableCell>
-              <TableCell>{new Date(category.created_at).toLocaleDateString("fa-IR")}</TableCell>
-              <TableCell>
-                <div className="flex space-x-2">
-                  <Button variant="outline" size="sm" onClick={() => handleEditCategory(category)}>
-                    <Edit className="w-4 h-4" />
-                  </Button>
-                  <Button variant="destructive" size="sm" onClick={() => handleDeleteCategory(category)}>
-                    <Trash className="w-4 h-4" />
-                  </Button>
-                </div>
-              </TableCell>
-            </TableRow>
+            <Button
+              key={category.id}
+              variant={selectedCategoryId === category.id ? "default" : "outline"}
+              size="sm"
+              className={`rounded-full ${
+                selectedCategoryId === category.id ? "bg-[#F47B20] text-white" : "bg-[#F4EDE7] text-gray-700"
+              }`}
+              onClick={() => onCategoryChange(category.id)}
+            >
+              {category.name}
+            </Button>
           ))}
-          {categories.length === 0 && (
-            <TableRow>
-              <TableCell colSpan={4} className="text-center py-4">
-                هیچ دسته‌بندی یافت نشد
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
+        </div>
+        <ScrollBar orientation="horizontal" />
+      </ScrollArea>
 
-      {/* Add/Edit Category Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>{currentCategory ? "ویرایش دسته‌بندی" : "افزودن دسته‌بندی جدید"}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4" dir="rtl">
-            <div className="space-y-2">
-              <Label htmlFor="name">نام دسته‌بندی</Label>
-              <Input
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                placeholder="نام دسته‌بندی را وارد کنید"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="description">توضیحات (اختیاری)</Label>
-              <Textarea
-                id="description"
-                name="description"
-                value={formData.description || ""}
-                onChange={handleInputChange}
-                placeholder="توضیحات دسته‌بندی را وارد کنید"
-                rows={3}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isSubmitting}>
-              انصراف
-            </Button>
-            <Button onClick={handleSubmit} className="bg-[#F47B20] hover:bg-[#E06A10]" disabled={isSubmitting}>
-              {isSubmitting ? "در حال ذخیره..." : currentCategory ? "به‌روزرسانی" : "افزودن"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <div className="absolute left-0 top-0 h-full w-12 bg-gradient-to-r pointer-events-none" />
+      <div className="absolute right-0 top-0 h-full w-12 bg-gradient-to-l pointer-events-none" />
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>حذف دسته‌بندی</DialogTitle>
-          </DialogHeader>
-          <div className="py-4" dir="rtl">
-            <p>آیا از حذف دسته‌بندی &quot;{currentCategory?.name}&quot; اطمینان دارید؟</p>
-            <p className="text-sm text-red-500 mt-2">
-              توجه: اگر این دسته‌بندی به غذایی اختصاص داده شده باشد، قابل حذف نخواهد بود.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} disabled={isSubmitting}>
-              انصراف
-            </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={isSubmitting}>
-              {isSubmitting ? "در حال حذف..." : "حذف"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+      {canScrollLeft && (
+        <Button
+          size="icon"
+          variant="outline"
+          className="absolute left-1 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full opacity-80 shadow-md hidden md:flex"
+          onClick={scrollLeft}
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+      )}
+
+      {canScrollRight && (
+        <Button
+          size="icon"
+          variant="outline"
+          className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full opacity-80 shadow-md hidden md:flex"
+          onClick={scrollRight}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      )}
+    </div>
   )
 }
