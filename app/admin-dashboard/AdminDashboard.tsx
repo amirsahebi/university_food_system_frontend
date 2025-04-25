@@ -108,7 +108,7 @@ interface ReservationLog {
 }
 
 interface DailyOrderCount {
-  date: string
+  reserved_date: string
   order_count: number
   picked_up_count: number
 }
@@ -201,7 +201,7 @@ export default function AdminDashboard() {
       dates.push(date.toLocaleDateString('fa-IR'))
       
       const dailyData = dailyOrderCounts.find((d: DailyOrderCount) => 
-        new Date(d.date).toLocaleDateString('fa-IR') === date.toLocaleDateString('fa-IR'))
+        new Date(d.reserved_date).toLocaleDateString('fa-IR') === date.toLocaleDateString('fa-IR'))
       
       totalOrders.push(dailyData?.order_count || 0)
       pickedUpOrders.push(dailyData?.picked_up_count || 0)
