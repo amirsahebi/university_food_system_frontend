@@ -41,16 +41,8 @@ import {
 } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { toast, Toaster } from "react-hot-toast"
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts"
+import { Line } from 'react-chartjs-2'
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip as ChartTooltip, Legend } from 'chart.js'
 import api from "@/lib/axios"
 import { API_ROUTES, createApiUrl } from "@/lib/api"
 import DatePicker from "react-multi-date-picker"
@@ -108,15 +100,16 @@ interface DailyMenuItem {
 
 interface ReservationLog {
   id: string
-  user: string
+  student: string
   food: string
-  date: string
+  created_at: string
   status: string
 }
 
 interface DailyOrderCount {
   date: string
-  count: number
+  order_count: number
+  picked_up_count: number
 }
 
 interface FoodCategory {
@@ -154,13 +147,23 @@ const StatCard = ({
   </Card>
 )
 
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  ChartTooltip,
+  Legend
+)
+
 export default function AdminDashboard() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("dashboard")
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [dialogContent, setDialogContent] = useState<React.ReactNode | null>(null)
   const [foods, setFoods] = useState<Food[]>([])
-  const [templateMenu, setTemplateMenu] = useState<TemplateMenuItem[] | null>([])
+  const [templateMenu, setTemplateMenu] = useState<TemplateMenuItem | null>(null)
   const [dailyMenu, setDailyMenu] = useState<DailyMenuItem | null>(null)
   const [voucherPrice, setVoucherPrice] = useState(0)
   const [reservationLogs, setReservationLogs] = useState<ReservationLog[]>([])
@@ -185,6 +188,100 @@ export default function AdminDashboard() {
   const [totalReservations, setTotalReservations] = useState(0)
   const [todayReservations, setTodayReservations] = useState(0)
 
+  const getPast7DaysOrderData = () => {
+    const now = new Date()
+    const dates = []
+    const totalOrders = []
+    const pickedUpOrders = []
+
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(now)
+      date.setDate(now.getDate() - i)
+      dates.push(date.toLocaleDateString('fa-IR'))
+      
+      const dailyData = dailyOrderCounts.find((d: DailyOrderCount) => 
+        new Date(d.date).toLocaleDateString('fa-IR') === date.toLocaleDateString('fa-IR'))
+      
+      totalOrders.push(dailyData?.order_count || 0)
+      pickedUpOrders.push(dailyData?.picked_up_count || 0)
+    }
+
+    return {
+      labels: dates,
+      datasets: [
+        {
+          label: 'تعداد سفارشات کل',
+          data: totalOrders,
+          fill: false,
+          borderColor: '#f97316',
+          tension: 0.4,
+          pointRadius: 5,
+          pointHoverRadius: 8,
+          pointBackgroundColor: '#f97316',
+          pointBorderColor: '#f97316',
+          pointHoverBackgroundColor: '#f97316',
+          pointHoverBorderColor: '#f97316',
+        },
+        {
+          label: 'تعداد سفارشات تحویل شده',
+          data: pickedUpOrders,
+          fill: false,
+          borderColor: '#10B981',
+          tension: 0.4,
+          pointRadius: 5,
+          pointHoverRadius: 8,
+          pointBackgroundColor: '#10B981',
+          pointBorderColor: '#10B981',
+          pointHoverBackgroundColor: '#10B981',
+          pointHoverBorderColor: '#10B981',
+          borderDash: [5, 5], // Dashed line for picked up orders
+        },
+      ],
+    }
+  }
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'top' as const,
+        labels: {
+          color: '#4B5563',
+          boxWidth: 20,
+        },
+      },
+      title: {
+        display: true,
+        text: 'تعداد سفارشات و تحویل‌ها در 7 روز گذشته',
+        color: '#4B5563',
+      },
+    },
+    scales: {
+      x: {
+        grid: {
+          color: '#E5E7EB',
+        },
+        ticks: {
+          color: '#4B5563',
+        },
+      },
+      y: {
+        beginAtZero: true,
+        grid: {
+          color: '#E5E7EB',
+        },
+        ticks: {
+          color: '#4B5563',
+        },
+      },
+    },
+    interaction: {
+      intersect: false,
+      mode: 'index' as const,
+    },
+  }
+
   const fetchFoods = useCallback(async () => {
     try {
       const response = await api.get(createApiUrl(API_ROUTES.GET_FOODS))
@@ -194,17 +291,25 @@ export default function AdminDashboard() {
       console.error("Error fetching foods:", error)
       toast.error("خطا در دریافت لیست غذاها")
     }
-  }, [])
+  }, [selectedDay, selectedMeal_type])
 
   const fetchTemplateMenu = useCallback(async () => {
     try {
-      const response = await api.get(createApiUrl(API_ROUTES.GET_TEMPLATE_MENU))
+      if (!selectedDay || !selectedMeal_type) {
+        return
+      }
+      const response = await api.get(createApiUrl(API_ROUTES.GET_TEMPLATE_MENU), {
+        params: {
+          day: selectedDay,
+          meal_type: selectedMeal_type,
+        },
+      })
       setTemplateMenu(response.data)
     } catch (error) {
       console.error("Error fetching template menu:", error)
       setTemplateMenu(null)
     }
-  }, [])
+  }, [selectedDay, selectedMeal_type, fetchFoods])
 
   const fetchDailyMenu = useCallback(async () => {
     if (!selectedDate || !selectedMeal_type) {
@@ -241,7 +346,7 @@ export default function AdminDashboard() {
 
       // Calculate today's reservations
       const today = new Date().toISOString().split("T")[0]
-      const todayCount = response.data.filter((log: ReservationLog) => log.date && log.date.includes(today)).length
+      const todayCount = response.data.filter((log: ReservationLog) => log.created_at && log.created_at.includes(today)).length
       setTodayReservations(todayCount)
     } catch (error) {
       console.error("Error fetching reservation logs:", error)
@@ -252,6 +357,7 @@ export default function AdminDashboard() {
   const fetchDailyOrderCounts = useCallback(async () => {
     try {
       const response = await api.get(createApiUrl(API_ROUTES.GET_DAILY_ORDER_COUNTS))
+      console.log(response.data)
       setDailyOrderCounts(response.data)
     } catch (error) {
       console.error("Error fetching daily order counts:", error)
@@ -1140,6 +1246,32 @@ export default function AdminDashboard() {
     }
   }, [selectedDate, selectedMeal_type, fetchDailyMenu])
 
+  const convertToPersianNumbers = (str: string) => {
+    const persianNumbers = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']
+    return str.replace(/[0-9]/g, (match) => {
+      return persianNumbers[parseInt(match)]
+    })
+  }
+
+  const formatPersianDateTime = (isoDate: string) => {
+    const date = new Date(isoDate)
+    const persianDate = new DateObject(date)
+      .setCalendar(persian)
+      .setLocale(persian_fa)
+    
+    // Format date in Persian
+    const persianDateStr = persianDate.format('YYYY/MM/DD')
+    // Format time in 24-hour format
+    const hours = date.getHours().toString().padStart(2, '0')
+    const minutes = date.getMinutes().toString().padStart(2, '0')
+    
+    // Convert numbers to Persian
+    const persianHours = convertToPersianNumbers(hours)
+    const persianMinutes = convertToPersianNumbers(minutes)
+    
+    return `${convertToPersianNumbers(persianDateStr)} - ${persianHours}:${persianMinutes}`
+  }
+
   return (
     <div className="min-h-screen relative overflow-hidden bg-pattern bg-pattern-animate rtl">
       <div className="absolute inset-0">
@@ -1449,16 +1581,7 @@ export default function AdminDashboard() {
                     </CardHeader>
                     <CardContent>
                       <div className="w-full h-[300px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={dailyOrderCounts}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="date" />
-                            <YAxis />
-                            <RechartsTooltip />
-                            <Legend />
-                            <Bar dataKey="count" fill="#f97316" name="تعداد سفارشات" />
-                          </BarChart>
-                        </ResponsiveContainer>
+                        <Line data={getPast7DaysOrderData()} options={chartOptions} />
                       </div>
                     </CardContent>
                   </Card>
@@ -1520,9 +1643,9 @@ export default function AdminDashboard() {
                                 <User className="h-5 w-5 text-[#f97316]" />
                               </div>
                               <div className="flex-1">
-                                <h4 className="font-medium">{log.user}</h4>
+                                <h4 className="font-medium">{log.student}</h4>
                                 <p className="text-sm text-gray-500">
-                                  {log.food} - {log.date}
+                                  {log.food} - {formatPersianDateTime(log.created_at)}
                                 </p>
                               </div>
                               <Badge
@@ -1752,57 +1875,46 @@ export default function AdminDashboard() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {templateMenu?.filter(
-                            (item) => item.day === selectedDay && item.meal_type === selectedMeal_type,
-                          ).length === 0 ? (
+                          {!templateMenu || templateMenu.items.length === 0 ? (
                             <TableRow>
                               <TableCell colSpan={2} className="text-center py-8 text-gray-500">
                                 هیچ غذایی در منوی الگو برای این روز و وعده یافت نشد
                               </TableCell>
                             </TableRow>
                           ) : (
-                            templateMenu
-                              ?.filter((item) => item.day === selectedDay && item.meal_type === selectedMeal_type)
-                              .map((item, index) => (
-                                <TableRow key={index}>
-                                  <TableCell>
-                                    {item.items.map((menuItem, itemIndex) => (
-                                      <div
-                                        key={itemIndex}
-                                        className="mb-2 p-2 rounded-lg hover:bg-orange-50/50 transition-colors"
-                                      >
-                                        <span className="font-medium">{menuItem.food?.name}</span>
-                                        <br />
-                                        <small className="text-gray-500">
-                                          {menuItem.start_time} - {menuItem.end_time}, ظرفیت: {menuItem.daily_capacity}
-                                        </small>
-                                      </div>
-                                    ))}
-                                  </TableCell>
-                                  <TableCell>
-                                    {item.items.map((menuItem, itemIndex) => (
-                                      <div key={itemIndex} className="flex space-x-2 mb-2">
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          onClick={() => handleEditMenuItem(menuItem, true)}
-                                          className="btn-hover-effect"
-                                        >
-                                          <Edit className="w-4 h-4" />
-                                        </Button>
-                                        <Button
-                                          variant="destructive"
-                                          size="sm"
-                                          onClick={() => handleDeleteMenuItem(menuItem.id, true)}
-                                          className="btn-hover-effect"
-                                        >
-                                          <Trash className="w-4 h-4" />
-                                        </Button>
-                                      </div>
-                                    ))}
-                                  </TableCell>
-                                </TableRow>
-                              ))
+                            templateMenu.items.map((item: MenuItemSpec, index) => (
+                              <TableRow key={index} className="hover:bg-orange-50/50 transition-colors">
+                                <TableCell>
+                                  <div className="mb-2 p-2 rounded-lg">
+                                    <span className="font-medium">{item.food?.name}</span>
+                                    <br />
+                                    <small className="text-gray-500">
+                                      {item.start_time} - {item.end_time}, ظرفیت: {item.daily_capacity}
+                                    </small>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex space-x-2 mb-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleEditMenuItem(item, true)}
+                                      className="btn-hover-effect"
+                                    >
+                                      <Edit className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                      variant="destructive"
+                                      size="sm"
+                                      onClick={() => handleDeleteMenuItem(item.id, true)}
+                                      className="btn-hover-effect"
+                                    >
+                                      <Trash className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))
                           )}
                         </TableBody>
                       </Table>
@@ -1975,7 +2087,7 @@ export default function AdminDashboard() {
                                 <TableRow>
                                   <TableHead>شناسه کاربر</TableHead>
                                   <TableHead>نام غذا</TableHead>
-                                  <TableHead>تاریخ</TableHead>
+                                  <TableHead>تاریخ و زمان رزرو</TableHead>
                                   <TableHead>وضعیت</TableHead>
                                 </TableRow>
                               </TableHeader>
@@ -1989,9 +2101,9 @@ export default function AdminDashboard() {
                                 ) : (
                                   reservationLogs.map((log) => (
                                     <TableRow key={log.id} className="hover:bg-orange-50/50 transition-colors">
-                                      <TableCell>{log.user}</TableCell>
+                                      <TableCell>{log.student}</TableCell>
                                       <TableCell>{log.food}</TableCell>
-                                      <TableCell>{log.date}</TableCell>
+                                      <TableCell>{formatPersianDateTime(log.created_at)}</TableCell>
                                       <TableCell>
                                         <Badge
                                           variant={log.status === "confirmed" ? "default" : "secondary"}
@@ -2009,16 +2121,7 @@ export default function AdminDashboard() {
                         </TabsContent>
                         <TabsContent value="daily-orders">
                           <div className="w-full h-[400px]">
-                            <ResponsiveContainer width="100%" height="100%">
-                              <BarChart data={dailyOrderCounts}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="date" />
-                                <YAxis />
-                                <RechartsTooltip />
-                                <Legend />
-                                <Bar dataKey="count" fill="#f97316" name="تعداد سفارشات" />
-                              </BarChart>
-                            </ResponsiveContainer>
+                            <Line data={getPast7DaysOrderData()} options={chartOptions} />
                           </div>
                         </TabsContent>
                       </Tabs>
