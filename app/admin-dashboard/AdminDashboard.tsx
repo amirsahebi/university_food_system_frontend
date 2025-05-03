@@ -1279,6 +1279,7 @@ export default function AdminDashboard() {
       'preparing': 'bg-blue-500',
       'ready_to_pickup': 'bg-green-500',
       'picked_up': 'bg-green-600',
+      'not_picked_up': 'bg-red-500'
     }
     return statusColors[status as keyof typeof statusColors] || 'bg-gray-500'
   }
@@ -1289,6 +1290,7 @@ export default function AdminDashboard() {
       'preparing': 'در حال آماده‌سازی',
       'ready_to_pickup': 'آماده تحویل',
       'picked_up': 'تحویل داده شده',
+      'not_picked_up': 'تحویل گرفته نشده'
     }
     return statusTexts[status as keyof typeof statusTexts] || 'وضعیت ناشناخته'
   }

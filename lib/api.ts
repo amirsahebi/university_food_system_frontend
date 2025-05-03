@@ -1,4 +1,4 @@
-export const API_BASE_URL = '/api';
+export const API_BASE_URL = 'http://localhost:8000/api';
 
 export const API_ROUTES = {
   // Auth
@@ -58,6 +58,7 @@ export const API_ROUTES = {
   PLACE_ORDER: '/orders/place/',
   GET_PENDING_ORDERS: '/orders/pending/',
   DELIVER_ORDER: (id: string) => `/orders/${id}/deliver/`,
+  NOT_PICKED_UP_ORDER: (id: string) => `/orders/${id}/not-picked-up/`,
   GET_STUDENT_ORDERS: '/orders/student/',
   GET_READY_TO_PICKUP_ORDERS: '/orders/ready-to-pickup/',
   GET_PICKED_UP_ORDERS: '/orders/picked-up/',

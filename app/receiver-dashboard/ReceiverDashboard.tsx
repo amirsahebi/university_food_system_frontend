@@ -69,7 +69,7 @@ interface Reservation {
   has_voucher: boolean
   meal_type: "lunch" | "dinner"
   price: string | number
-  status: "waiting" | "preparing" | "ready_to_pickup" | "picked_up"
+  status: "waiting" | "preparing" | "ready_to_pickup" | "picked_up" | "not_picked_up"
   qr_code: string
   delivery_code: string
   reservation_number: string;
@@ -110,6 +110,7 @@ export default function ReceiverDashboard() {
   const [preparingOrders, setPreparingOrders] = useState<Reservation[]>([])
   const [readyToPickupOrders, setReadyToPickupOrders] = useState<Reservation[]>([])
   const [pickedUpOrders, setPickedUpOrders] = useState<Reservation[]>([])
+  const [notPickedUpOrders, setNotPickedUpOrders] = useState<Reservation[]>([])
 
   const currentHour = getIranCurrentHour()
   const defaultMeal = currentHour < 17 ? "lunch" : "dinner"
@@ -156,12 +157,8 @@ export default function ReceiverDashboard() {
       setWaitingOrders(allOrders.filter((order: Reservation) => order.status === "waiting"))
       setPreparingOrders(allOrders.filter((order: Reservation) => order.status === "preparing"))
       setReadyToPickupOrders(allOrders.filter((order: Reservation) => order.status === "ready_to_pickup"))
-
-      // Fetch picked up orders separately
-      const pickedUpResponse = await api.get(createApiUrl(API_ROUTES.GET_PICKED_UP_ORDERS), {
-        params: { reserved_date: formattedDate, meal_type: selectedMeal },
-      })
-      setPickedUpOrders(pickedUpResponse.data)
+      setPickedUpOrders(allOrders.filter((order: Reservation) => order.status === "picked_up"))
+      setNotPickedUpOrders(allOrders.filter((order: Reservation) => order.status === "not_picked_up"))
     } catch (error) {
       console.error("Error fetching orders:", error)
       toast.error("خطا در دریافت سفارش‌ها")
@@ -174,7 +171,7 @@ export default function ReceiverDashboard() {
 
   const handleUpdateStatus = async (
     reservationId: number,
-    newStatus: "waiting" | "preparing" | "ready_to_pickup" | "picked_up",
+    newStatus: "waiting" | "preparing" | "ready_to_pickup" | "picked_up" | "not_picked_up",
   ) => {
     try {
       const apiStatus = {
@@ -182,6 +179,7 @@ export default function ReceiverDashboard() {
         preparing: "preparing",
         ready_to_pickup: "ready_to_pickup",
         picked_up: "picked_up",
+        not_picked_up: "not_picked_up",
       }[newStatus]
 
       await api.patch(createApiUrl(API_ROUTES.UPDATE_ORDER_STATUS(String(reservationId))), { status: apiStatus })
@@ -191,7 +189,8 @@ export default function ReceiverDashboard() {
         ...(waitingOrders.find((o) => o.id === reservationId) ||
           preparingOrders.find((o) => o.id === reservationId) ||
           readyToPickupOrders.find((o) => o.id === reservationId) ||
-          pickedUpOrders.find((o) => o.id === reservationId)),
+          pickedUpOrders.find((o) => o.id === reservationId) ||
+          notPickedUpOrders.find((o) => o.id === reservationId)),
         status: newStatus,
       } as Reservation
 
@@ -205,6 +204,9 @@ export default function ReceiverDashboard() {
       } else if (newStatus === "picked_up") {
         setReadyToPickupOrders(readyToPickupOrders.filter((order) => order.id !== reservationId))
         setPickedUpOrders([...pickedUpOrders, updatedOrder])
+      } else if (newStatus === "not_picked_up") {
+        setReadyToPickupOrders(readyToPickupOrders.filter((order) => order.id !== reservationId))
+        setNotPickedUpOrders([...notPickedUpOrders, updatedOrder])
       }
 
       toast.success(`وضعیت رزرو ${updatedOrder.reservation_number} به ${getStatusTitle(newStatus)} تغییر کرد`)
@@ -242,25 +244,47 @@ export default function ReceiverDashboard() {
     }
   }, [deliveryCode, selectedDate, selectedMeal])
 
-  const handleDeliverOrder = async () => {
-    if (currentReservation) {
+  const handleDeliverOrder = async (status: "picked_up" | "not_picked_up" = "picked_up", orderData?: Reservation) => {
+    const order = orderData || currentReservation;
+    
+    if (order) {
       try {
-        const response = await api.patch(createApiUrl(API_ROUTES.DELIVER_ORDER(currentReservation.id.toString())))
+        let response;
+        
+        if (status === "picked_up") {
+          response = await api.patch(createApiUrl(API_ROUTES.DELIVER_ORDER(order.id.toString())));
+        } else {
+          // Use separate API endpoint for "not picked up" status
+          response = await api.patch(createApiUrl(API_ROUTES.NOT_PICKED_UP_ORDER(order.id.toString())));
+        }
         
         // More flexible response handling
-        const updatedOrder = response.data || response || currentReservation
+        const updatedOrder = response.data || response || order
         
         // Update orders
-        setReadyToPickupOrders(readyToPickupOrders.filter((order) => order.id !== currentReservation.id))
-        setPickedUpOrders((prevOrders) => {
-          // Check if the order is already in picked up orders to avoid duplicates
-          const isAlreadyInPickedUp = prevOrders.some((order) => order.id === updatedOrder.id)
-          return isAlreadyInPickedUp ? prevOrders : [...prevOrders, updatedOrder]
-        })
+        setReadyToPickupOrders(readyToPickupOrders.filter((o) => o.id !== order.id))
         
-        setCurrentReservation(null)
-        setIsReservationDialogOpen(false)
-        toast.success(`سفارش ${currentReservation.reservation_number} با موفقیت تحویل داده شد`)
+        if (status === "picked_up") {
+          setPickedUpOrders((prevOrders) => {
+            // Check if the order is already in picked up orders to avoid duplicates
+            const isAlreadyInPickedUp = prevOrders.some((o) => o.id === updatedOrder.id)
+            return isAlreadyInPickedUp ? prevOrders : [...prevOrders, updatedOrder]
+          })
+          toast.success(`سفارش ${order.reservation_number} با موفقیت تحویل داده شد`)
+        } else {
+          setNotPickedUpOrders((prevOrders) => {
+            // Check if the order is already in not picked up orders to avoid duplicates
+            const isAlreadyInNotPickedUp = prevOrders.some((o) => o.id === updatedOrder.id)
+            return isAlreadyInNotPickedUp ? prevOrders : [...prevOrders, updatedOrder]
+          })
+          toast.success(`سفارش ${order.reservation_number} به عنوان تحویل گرفته نشده ثبت شد`)
+        }
+        
+        // Only close the modal and clear current reservation if we're in the modal flow
+        if (!orderData) {
+          setCurrentReservation(null)
+          setIsReservationDialogOpen(false)
+        }
       } catch (error) {
         console.error("Error delivering order:", error)
         if (error instanceof Error) {
@@ -422,33 +446,29 @@ export default function ReceiverDashboard() {
   }, [])
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case "waiting":
-        return "bg-yellow-500"
-      case "preparing":
-        return "bg-blue-500"
-      case "ready_to_pickup":
-        return "bg-green-500"
-      case "picked_up":
-        return "bg-gray-500"
-      default:
-        return "bg-gray-500"
+    const colorMap: Record<string, string> = {
+      waiting: "bg-yellow-500",
+      preparing: "bg-blue-500",
+      ready_to_pickup: "bg-[#F47B20]",
+      picked_up: "bg-[#5CB85C]",
+      not_picked_up: "bg-red-500",
+      pending_payment: "bg-purple-500",
+      cancelled: "bg-red-500",
     }
+    return colorMap[status] || "bg-gray-500"
   }
 
-  const getStatusTitle = (status: Reservation["status"]) => {
-    switch (status) {
-      case "waiting":
-        return "در انتظار"
-      case "preparing":
-        return "در حال آماده‌سازی"
-      case "ready_to_pickup":
-        return "آماده تحویل"
-      case "picked_up":
-        return "تحویل داده شده"
-      default:
-        return ""
+  const getStatusTitle = (status: string) => {
+    const statusMap: Record<string, string> = {
+      waiting: "در انتظار",
+      preparing: "در حال آماده‌سازی",
+      ready_to_pickup: "آماده تحویل",
+      picked_up: "تحویل داده شده",
+      not_picked_up: "تحویل گرفته نشده",
+      pending_payment: "در انتظار پرداخت",
+      cancelled: "لغو شده",
     }
+    return statusMap[status] || status
   }
 
   const copyToClipboard = (text: string) => {
@@ -509,7 +529,7 @@ export default function ReceiverDashboard() {
             <p className="text-xl text-gray-600">مدیریت، آماده‌سازی و تحویل سفارش‌ها</p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8" dir="rtl">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-8" dir="rtl">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">در انتظار</CardTitle>
@@ -535,7 +555,7 @@ export default function ReceiverDashboard() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">آماده تحویل</CardTitle>
-                <CheckCircle className="h-4 w-4 text-[#5CB85C]" />
+                <Package className="h-4 w-4 text-[#F47B20]" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
@@ -546,11 +566,22 @@ export default function ReceiverDashboard() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">تحویل داده شده</CardTitle>
-                <CheckCircle className="h-4 w-4 text-gray-500" />
+                <CheckCircle className="h-4 w-4 text-[#5CB85C]" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
                   {new Intl.NumberFormat("fa-IR", { useGrouping: false }).format(pickedUpOrders.length)}
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">تحویل گرفته نشده</CardTitle>
+                <X className="h-4 w-4 text-red-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {new Intl.NumberFormat("fa-IR", { useGrouping: false }).format(notPickedUpOrders.length)}
                 </div>
               </CardContent>
             </Card>
@@ -770,20 +801,26 @@ export default function ReceiverDashboard() {
                       { title: "آماده تحویل", icon: Package, color: "text-[#5CB85C]" },
                       { title: "تحویل داده شده", icon: CheckCircle, color: "text-gray-400" },
                     ].map((step, index) => {
-                      const currentStatusIndex = ["waiting", "preparing", "ready_to_pickup", "picked_up"].indexOf(
+                      const currentStatusIndex = ["waiting", "preparing", "ready_to_pickup", "picked_up", "not_picked_up"].indexOf(
                         currentReservation.status,
                       )
+                      // For not_picked_up we show the same visual step as picked_up (last step)
+                      const displayIndex = currentReservation.status === "not_picked_up" ? 3 : currentStatusIndex;
                       return (
                         <div key={index} className="flex flex-col items-center">
                           <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: index * 0.2 }}>
                             <step.icon
-                              className={`w-6 h-6 sm:w-8 sm:h-8 ${index <= currentStatusIndex ? step.color : "text-gray-300"}`}
+                              className={`w-6 h-6 sm:w-8 sm:h-8 ${index <= displayIndex ? 
+                                currentReservation.status === "not_picked_up" && index === 3 ? "text-red-500" : step.color 
+                                : "text-gray-300"}`}
                             />
                           </motion.div>
                           <span className="text-xs sm:text-sm mt-1">{step.title}</span>
                           {index < 3 && (
                             <div
-                              className={`h-1 w-8 sm:w-16 ${index < currentStatusIndex ? "bg-[#5CB85C]" : "bg-gray-300"} mx-1 sm:mx-2`}
+                              className={`h-1 w-8 sm:w-16 ${index < displayIndex ? 
+                                currentReservation.status === "not_picked_up" ? "bg-red-500" : "bg-[#5CB85C]" 
+                                : "bg-gray-300"} mx-1 sm:mx-2`}
                             />
                           )}
                         </div>
@@ -792,23 +829,31 @@ export default function ReceiverDashboard() {
                   </div>
                 </div>
 
-                <div className="mt-4 sm:mt-6">
-                  <Button
-                    onClick={handleDeliverOrder}
-                    className="w-full bg-[#F47B20] hover:bg-[#E06A10] text-white"
-                    disabled={currentReservation.status !== "ready_to_pickup"}
-                    variant={currentReservation.status === "ready_to_pickup" ? "default" : "secondary"}
-                  >
-                    <Package className="w-4 h-4 ml-2" />
-                    {currentReservation.status === "ready_to_pickup"
-                      ? "تحویل سفارش"
-                      : getStatusTitle(currentReservation.status)}
-                  </Button>
+                <div className="mt-4 sm:mt-6" dir="rtl">
+                  {currentReservation.status === "ready_to_pickup" ? (
+                    <Button
+                      onClick={() => handleDeliverOrder("picked_up")}
+                      className="w-full bg-[#5CB85C] hover:bg-[#4CA84C] text-white"
+                    >
+                      <CheckCircle className="w-4 h-4 ml-2" />
+                      تحویل داده شد
+                    </Button>
+                  ) : (
+                    <Button
+                      disabled
+                      variant="secondary"
+                      className="w-full"
+                    >
+                      <Package className="w-4 h-4 ml-2" />
+                      {getStatusTitle(currentReservation.status)}
+                    </Button>
+                  )}
                 </div>
               </motion.div>
             </div>
           )}
 
+          {/* Waiting Orders Tab */}
           <Tabs defaultValue="waiting" className="w-full">
             <TabsList
               className="flex justify-between bg-gradient-to-r from-orange-100 to-orange-200 p-1 rounded-xl mb-4 shadow-md"
@@ -843,6 +888,14 @@ export default function ReceiverDashboard() {
               >
                 <CheckCircle className="w-4 h-4 ml-2" />
                 تحویل داده شده
+              </TabsTrigger>
+              <TabsTrigger
+                value="not_picked_up"
+                className="flex-1 rounded-lg py-2 text-sm font-medium transition-all data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-400 data-[state=active]:to-red-500 data-[state=active]:text-white data-[state=active]:shadow-lg"
+                dir="rtl"
+              >
+                <X className="w-4 h-4 ml-2" />
+                تحویل گرفته نشده
               </TabsTrigger>
             </TabsList>
 
@@ -1076,16 +1129,23 @@ export default function ReceiverDashboard() {
                             .replace(/٬/g, ",")}
                           <span className="text-xs sm:text-sm mr-1">تومان</span>
                         </p>
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2">
                           <Button
                             onClick={() => {
                               setCurrentReservation(order)
                               setIsReservationDialogOpen(true)
                             }}
-                            className="bg-[#F47B20] hover:bg-[#E06A10]"
+                            className="bg-[#5CB85C] hover:bg-[#4CAE4C]"
                           >
-                            <Package className="w-4 h-4 ml-2" />
+                            <CheckCircle className="w-4 h-4 ml-2" />
                             تحویل سفارش
+                          </Button>
+                          <Button
+                            onClick={() => handleDeliverOrder("not_picked_up", order)}
+                            className="bg-red-500 hover:bg-red-600 text-white"
+                          >
+                            <X className="w-4 h-4 ml-2" />
+                            تحویل گرفته نشده
                           </Button>
                           <Button
                             variant="outline"
@@ -1167,6 +1227,87 @@ export default function ReceiverDashboard() {
                   {pickedUpOrders.length === 0 && (
                     <div className="text-center py-8">
                       <p className="text-gray-500">هیچ سفارش تحویل داده شده‌ای وجود ندارد</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Not Picked Up Orders Tab */}
+            <TabsContent value="not_picked_up">
+              <Card className="border border-gray-300" dir="rtl">
+                <CardHeader>
+                  <CardTitle className="text-2xl text-red-500 flex items-center">
+                    <X className="w-6 h-6 ml-2" />
+                    رزروهای تحویل گرفته نشده
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {filterReservationsBySearch(notPickedUpOrders).map((order) => (
+                    <motion.div
+                      key={order.reservation_number}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="bg-white rounded-lg shadow-[0_0_10px_rgba(0,0,0,0.1)] transition-all duration-300 ease-in-out hover:shadow-[0_0_15px_rgba(0,0,0,0.2)] p-4 mb-4 border border-gray-100 flex justify-between items-center"
+                    >
+                      <div className="flex flex-col">
+                        <h3 className="font-bold text-xl">
+                          رزرو{" "}
+                          {new Intl.NumberFormat("fa-IR", { useGrouping: false }).format(
+                            Number(order.reservation_number),
+                          )}
+                          #
+                        </h3>
+                        <Badge className="bg-red-500 text-white px-2 py-1">
+                          {getStatusTitle(order.status)}
+                        </Badge>
+                      </div>
+                      <div className="mb-2 flex justify-between items-start">
+                        <div>
+                          <p className="text-gray-600 mb-1">
+                            دانشجو: {order.student.first_name} {order.student.last_name}
+                          </p>
+                          <p className="text-gray-600 mb-2">
+                            تاریخ رزرو: {new Intl.DateTimeFormat("fa-IR").format(new Date(order.reserved_date))}
+                          </p>
+                          <p className="text-gray-600 mb-4">
+                            زمان تحویل:{" "}
+                            {order.time_slot.start_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])} -{" "}
+                            {order.time_slot.end_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])}
+                          </p>
+                          {order.food.category_name && (
+                            <p className="text-gray-600 mb-2">دسته‌بندی: {order.food.category_name}</p>
+                          )}
+                        </div>
+                        <div className="bg-[#F47B20]/10 text-[#F47B20] text-sm font-medium px-3 py-1 rounded-full">
+                          {order.food.name}
+                        </div>
+                      </div>
+                      <div className="flex justify-between items-center gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedOrder(order)
+                            setIsOrderDetailsDialogOpen(true)
+                          }}
+                          className="border-gray-300"
+                        >
+                          <Eye className="w-4 h-4 ml-2" />
+                          مشاهده جزئیات
+                        </Button>
+                      </div>
+                    </motion.div>
+                  ))}
+                  {notPickedUpOrders.length > 0 && filterReservationsBySearch(notPickedUpOrders).length === 0 && (
+                    <div className="text-center py-8">
+                      <p className="text-gray-500">هیچ سفارشی با این شماره رزرو یافت نشد</p>
+                    </div>
+                  )}
+                  {notPickedUpOrders.length === 0 && (
+                    <div className="text-center py-16">
+                      <X className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+                      <p className="text-gray-500">هیچ سفارش تحویل گرفته نشده‌ای وجود ندارد</p>
                     </div>
                   )}
                 </CardContent>

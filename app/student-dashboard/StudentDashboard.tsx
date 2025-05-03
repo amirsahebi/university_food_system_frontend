@@ -84,7 +84,7 @@ interface Reservation {
   reserved_date: string
   has_voucher: boolean
   price: number
-  status: "waiting" | "preparing" | "ready_to_pickup" | "picked_up" | "pending_payment" | "cancelled"
+  status: "waiting" | "preparing" | "ready_to_pickup" | "picked_up" | "not_picked_up" | "pending_payment" | "cancelled"
   delivery_code: string
   reservation_number: string
   payment_status?: "pending" | "paid" | "failed"
@@ -360,6 +360,17 @@ export default function StudentDashboard() {
     }
   }
 
+  const handleCancelReservation = async (reservationId: number) => {
+    try {
+      await api.delete(createApiUrl(API_ROUTES.CANCEL_RESERVATION(String(reservationId))))
+      toast.success("سفارش با موفقیت لغو شد")
+      fetchReservations()
+    } catch (error) {
+      console.error("Error cancelling reservation:", error)
+      toast.error("خطا در لغو سفارش")
+    }
+  }
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
     setIsCopied(true)
@@ -516,7 +527,7 @@ export default function StudentDashboard() {
                           )}
                         </div>
                         <div className="flex flex-col items-end flex-grow ">
-                          <h3 className="font-semibold text-lg mb-1 mr-1">{item.food.name}</h3>
+                          <h3 className="font-semibold text-[1rem] mb-1 mr-1" dir="rtl">{item.food.name}</h3>
                           {item.food.category_name && (
                             <span className="text-xs bg-[#F47B20]/10 text-[#F47B20] px-2 py-1 rounded-full mb-2">
                               {item.food.category_name}
@@ -584,7 +595,7 @@ export default function StudentDashboard() {
                 })
                 .map((reservation) => (
                 <Card
-                  key={reservation.reservation_number}
+                  key={reservation.id}
                   className="bg-white rounded-2xl shadow-[0_0_10px_rgba(0,0,0,0.1)] transition-all duration-300 ease-in-out hover:shadow-[0_0_15px_rgba(0,0,0,0.2)] border border-gray-300"
                 >
                   <CardContent className="p-4">
@@ -599,18 +610,22 @@ export default function StudentDashboard() {
                                 ? "outline"
                                 : reservation.status === "pending_payment"
                                   ? "destructive"
-                                  : reservation.status === "cancelled"
+                                  : reservation.status === "not_picked_up"
                                     ? "destructive"
-                                    : "destructive"
+                                    : reservation.status === "cancelled"
+                                      ? "destructive"
+                                      : "destructive"
                         }
                         className={`text-lg px-3 py-1 ${
                           reservation.status === "ready_to_pickup"
                             ? "bg-[#F47B20]"
                             : reservation.status === "picked_up"
                               ? "bg-[#5CB85C]"
-                              : reservation.status === "cancelled"
+                              : reservation.status === "not_picked_up"
                                 ? "bg-red-500"
-                                : ""
+                                : reservation.status === "cancelled"
+                                  ? "bg-red-500"
+                                  : ""
                         }`}
                       >
                         {reservation.status === "waiting"
@@ -621,9 +636,11 @@ export default function StudentDashboard() {
                               ? "آماده تحویل"
                               : reservation.status === "pending_payment"
                                 ? "در انتظار پرداخت"
-                                : reservation.status === "cancelled"
-                                  ? "لغو شده"
-                                  : "تحویل داده شده"}
+                                : reservation.status === "not_picked_up"
+                                  ? "تحویل گرفته نشده"
+                                  : reservation.status === "cancelled"
+                                    ? "لغو شده"
+                                    : "تحویل داده شده"}
                       </Badge>
                       <h3 className="font-bold text-xl">سفارش #{reservation.reservation_number}</h3>
                     </div>
@@ -656,13 +673,21 @@ export default function StudentDashboard() {
                       </div>
                     </div>
                     {reservation.status === "pending_payment" && (
-                      <div className="mt-4">
+                      <div className="mt-4 space-y-4">
                         <Button
                           onClick={() => handlePaymentForOrder(reservation)}
                           className="w-full bg-[#F47B20] hover:bg-[#E06A10] text-white transition-colors duration-200"
                         >
                           پرداخت سفارش
                           <ChevronRight className="ml-2 h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          onClick={() => handleCancelReservation(reservation.id)}
+                          className="w-full hover:bg-red-600 transition-colors duration-200"
+                        >
+                          لغو سفارش
+                          <X className="ml-2 h-4 w-4" />
                         </Button>
                       </div>
                     )}
