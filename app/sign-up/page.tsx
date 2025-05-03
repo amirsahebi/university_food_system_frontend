@@ -369,9 +369,15 @@ export default function SignUp() {
       setIsCodeError(false)
       resetField("verificationCode")
       setDisplayPhoneNumber(convertToPersianNumbers(phoneNumber)) // Update displayed phone number
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error sending verification code:", error)
-      toast.error("خطا در ارسال کد تایید")
+      // Check if it's a rate limit error (429)
+      if (error.response && error.response.status === 429) {
+        toast.error("تعداد درخواست‌های شما بیش از حد مجاز است. لطفا کمی بعد تلاش کنید")
+        setValidationError("تعداد درخواست‌های شما بیش از حد مجاز است. لطفا کمی بعد تلاش کنید")
+      } else {
+        toast.error("خطا در ارسال کد تایید")
+      }
     } finally {
       setIsVerifying(false)
     }
@@ -430,9 +436,15 @@ export default function SignUp() {
       setIsCodeVerified(false)
       setIsCodeError(false)
       resetField("verificationCode")
-    } catch (error) {
+    } catch (error: any) {
       console.error(error)
-      toast.error("خطا در ارسال مجدد کد تایید")
+      // Check if it's a rate limit error (429)
+      if (error.response && error.response.status === 429) {
+        toast.error("تعداد درخواست‌های شما بیش از حد مجاز است. لطفا کمی بعد تلاش کنید")
+        setValidationError("تعداد درخواست‌های شما بیش از حد مجاز است. لطفا کمی بعد تلاش کنید")
+      } else {
+        toast.error("خطا در ارسال مجدد کد تایید")
+      }
     }
   }
 
