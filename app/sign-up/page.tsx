@@ -369,10 +369,12 @@ export default function SignUp() {
       setIsCodeError(false)
       resetField("verificationCode")
       setDisplayPhoneNumber(convertToPersianNumbers(phoneNumber)) // Update displayed phone number
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error sending verification code:", error)
       // Check if it's a rate limit error (429)
-      if (error.response && error.response.status === 429) {
+      if (error && typeof error === 'object' && 'response' in error && 
+          error.response && typeof error.response === 'object' && 'status' in error.response && 
+          error.response.status === 429) {
         toast.error("تعداد درخواست‌های شما بیش از حد مجاز است. لطفا کمی بعد تلاش کنید")
         setValidationError("تعداد درخواست‌های شما بیش از حد مجاز است. لطفا کمی بعد تلاش کنید")
       } else {
@@ -411,7 +413,7 @@ export default function SignUp() {
           resetField("verificationCode")
         }, 600)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error verifying code:", error)
       setIsCodeVerified(false)
       setIsCodeError(true)
@@ -436,10 +438,12 @@ export default function SignUp() {
       setIsCodeVerified(false)
       setIsCodeError(false)
       resetField("verificationCode")
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(error)
       // Check if it's a rate limit error (429)
-      if (error.response && error.response.status === 429) {
+      if (error && typeof error === 'object' && 'response' in error && 
+          error.response && typeof error.response === 'object' && 'status' in error.response && 
+          error.response.status === 429) {
         toast.error("تعداد درخواست‌های شما بیش از حد مجاز است. لطفا کمی بعد تلاش کنید")
         setValidationError("تعداد درخواست‌های شما بیش از حد مجاز است. لطفا کمی بعد تلاش کنید")
       } else {
