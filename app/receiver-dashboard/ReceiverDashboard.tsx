@@ -139,6 +139,15 @@ export default function ReceiverDashboard() {
 
       // Separate orders by status and sort
       const allOrders = chefResponse.data.sort((a: Reservation, b: Reservation) => {
+        // First check if time_slot exists for both orders
+        if (!a.time_slot || !b.time_slot) {
+          return 0; // Keep original order if time_slot is missing
+        }
+        
+        if (!a.time_slot.start_time || !b.time_slot.start_time) {
+          return 0; // Keep original order if start_time is missing
+        }
+        
         // First, compare start times
         const startTimeA = new Date(`1970-01-01T${a.time_slot.start_time}`).getTime()
         const startTimeB = new Date(`1970-01-01T${b.time_slot.start_time}`).getTime()
@@ -426,7 +435,7 @@ export default function ReceiverDashboard() {
         <div><strong>غذا:</strong> ${order.food.name}</div>
         ${order.food.category_name ? `<div><strong>دسته‌بندی:</strong> ${order.food.category_name}</div>` : ""}
         <div><strong>تاریخ رزرو:</strong> ${order.reserved_date}</div>
-        <div><strong>زمان سرو:</strong> ${order.time_slot.start_time} - ${order.time_slot.end_time}</div>
+        <div><strong>زمان سرو:</strong> ${order.time_slot && order.time_slot.start_time ? order.time_slot.start_time : ''} ${(order.time_slot && order.time_slot.start_time && order.time_slot.end_time) ? '- ' + order.time_slot.end_time : ''}</div>
         <div><strong>فیش دارد:</strong> ${order.has_voucher ? "بله" : "نه"}</div>
         <div><strong>قیمت:</strong> ${Number(order.price).toLocaleString()} تومان</div>
         <div class="delivery-code">کد تحویل: ${order.delivery_code || order.id.toString().padStart(6, "0")}</div>
@@ -740,25 +749,24 @@ export default function ReceiverDashboard() {
                         {currentReservation.student.first_name} {currentReservation.student.last_name}
                       </span>
                       <span className="font-bold text-sm sm:text-base">:نام دانشجو</span>
-                      <UserCheck className="w-4 h-4 sm:w-5 sm:h-5 text-[#F47B20] ml-2" />
+                      <UserCheck className="w-4 h-4 ml-2" />
                     </div>
                     <div className="flex items-center justify-end space-x-2">
                       <span className="text-sm sm:text-base">{currentReservation.food.name}</span>
                       <span className="font-bold text-sm sm:text-base">:غذا</span>
-                      <Utensils className="w-4 h-4 sm:w-5 sm:h-5 text-[#F47B20] ml-2" />
+                      <Utensils className="w-4 h-4 ml-2" />
                     </div>
                     <div className="flex items-center justify-end space-x-2">
                       <span className="text-sm sm:text-base">
-                        {currentReservation.time_slot.start_time
-                          .slice(0, 5)
-                          .replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])}{" "}
-                        -{" "}
-                        {currentReservation.time_slot.end_time
-                          .slice(0, 5)
-                          .replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])}
+                        {currentReservation.time_slot && currentReservation.time_slot.start_time
+                          ? currentReservation.time_slot.start_time
+                          : ''}{" "}
+                        {currentReservation.time_slot && currentReservation.time_slot.start_time && currentReservation.time_slot.end_time
+                          ? '- ' + currentReservation.time_slot.end_time
+                          : ''}
                       </span>
                       <span className="font-bold text-sm sm:text-base">:زمان تحویل</span>
-                      <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-[#F47B20] ml-2" />
+                      <Clock className="w-4 h-4 ml-2" />
                     </div>
                   </div>
 
@@ -768,7 +776,7 @@ export default function ReceiverDashboard() {
                         {new Intl.DateTimeFormat("fa-IR").format(new Date(currentReservation.reserved_date))}
                       </span>
                       <span className="font-bold text-sm sm:text-base">:تاریخ رزرو</span>
-                      <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-[#F47B20] ml-2" />
+                      <Calendar className="w-4 h-4 ml-2" />
                     </div>
                     <div className="flex items-center justify-end space-x-2">
                       <span className="text-sm sm:text-base" dir="rtl">
@@ -778,13 +786,13 @@ export default function ReceiverDashboard() {
                         <span className="text-xs sm:text-sm mr-1">تومان</span>
                       </span>
                       <span className="font-bold text-sm sm:text-base">:قیمت</span>
-                      <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-[#F47B20] ml-2" />
+                      <DollarSign className="w-4 h-4 ml-2" />
                     </div>
                     <div className="flex items-center justify-end space-x-2">
                       {currentReservation.has_voucher ? (
-                        <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-[#5CB85C] ml-2" />
+                        <CheckCircle className="w-4 h-4 ml-2" />
                       ) : (
-                        <X className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 ml-2" />
+                        <X className="w-4 h-4 ml-2" />
                       )}
                       <span className="text-sm sm:text-base">{currentReservation.has_voucher ? "بله" : "خیر"}</span>
                       <span className="font-bold text-sm sm:text-base">:کوپن</span>
@@ -939,8 +947,9 @@ export default function ReceiverDashboard() {
                           </p>
                           <p className="text-gray-600 mb-4">
                             زمان تحویل:{" "}
-                            {order.time_slot.start_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])} -{" "}
-                            {order.time_slot.end_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])}
+                            {order.time_slot && order.time_slot.start_time
+                              ? order.time_slot.start_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)]) + ' - ' + order.time_slot.end_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])
+                              : ''}
                           </p>
                           {order.food.category_name && (
                             <p className="text-gray-600 mb-2">دسته‌بندی: {order.food.category_name}</p>
@@ -1029,8 +1038,9 @@ export default function ReceiverDashboard() {
                           </p>
                           <p className="text-gray-600 mb-4">
                             زمان تحویل:{" "}
-                            {order.time_slot.start_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])} -{" "}
-                            {order.time_slot.end_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])}
+                            {order.time_slot && order.time_slot.start_time
+                              ? order.time_slot.start_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)]) + ' - ' + order.time_slot.end_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])
+                              : ''}
                           </p>
                           {order.food.category_name && (
                             <p className="text-gray-600 mb-2">دسته‌بندی: {order.food.category_name}</p>
@@ -1119,8 +1129,9 @@ export default function ReceiverDashboard() {
                       <p className="text-gray-600 mb-2">غذا: {order.food.name}</p>
                       <p className="text-gray-600 mb-2">
                         زمان تحویل:{" "}
-                        {order.time_slot.start_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])} -{" "}
-                        {order.time_slot.end_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])}
+                        {order.time_slot && order.time_slot.start_time
+                          ? order.time_slot.start_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)]) + ' - ' + order.time_slot.end_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])
+                          : ''}
                       </p>
                       <div className="flex justify-between items-center mt-4">
                         <p className="font-bold text-lg">
@@ -1208,8 +1219,9 @@ export default function ReceiverDashboard() {
                       <p className="text-gray-600 mb-2">غذا: {order.food.name}</p>
                       <p className="text-gray-600 mb-2">
                         زمان تحویل:{" "}
-                        {order.time_slot.start_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])} -{" "}
-                        {order.time_slot.end_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])}
+                        {order.time_slot && order.time_slot.start_time
+                          ? order.time_slot.start_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)]) + ' - ' + order.time_slot.end_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])
+                          : ''}
                       </p>
                       <p className="font-bold text-lg">
                         {new Intl.NumberFormat("fa-IR", { useGrouping: true })
@@ -1273,8 +1285,9 @@ export default function ReceiverDashboard() {
                           </p>
                           <p className="text-gray-600 mb-4">
                             زمان تحویل:{" "}
-                            {order.time_slot.start_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])} -{" "}
-                            {order.time_slot.end_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])}
+                            {order.time_slot && order.time_slot.start_time
+                              ? order.time_slot.start_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)]) + ' - ' + order.time_slot.end_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])
+                              : ''}
                           </p>
                           {order.food.category_name && (
                             <p className="text-gray-600 mb-2">دسته‌بندی: {order.food.category_name}</p>
@@ -1353,8 +1366,9 @@ export default function ReceiverDashboard() {
             <div className="grid grid-cols-4 items-center gap-4">
               <span className="font-bold">زمان تحویل:</span>
               <span className="col-span-3">
-                {selectedOrder?.time_slot?.start_time?.slice(0, 5)?.replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])} -{" "}
-                {selectedOrder?.time_slot?.end_time?.slice(0, 5)?.replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])}
+                {selectedOrder?.time_slot && selectedOrder?.time_slot.start_time
+                  ? selectedOrder.time_slot.start_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)]) + ' - ' + selectedOrder.time_slot.end_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])
+                  : ''}
               </span>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
