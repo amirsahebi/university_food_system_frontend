@@ -665,8 +665,12 @@ export default function StudentDashboard() {
                         </div>
                       <div className="flex justify-between items-center mt-2">
                         <span className="text-gray-600">
-                          {reservation.time_slot.start_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])}{" "}
-                          - {reservation.time_slot.end_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])}
+                          {reservation.time_slot && reservation.time_slot.start_time 
+                            ? reservation.time_slot.start_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])
+                            : ""}
+                          {reservation.time_slot && reservation.time_slot.start_time && reservation.time_slot.end_time 
+                            ? " - " + reservation.time_slot.end_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])
+                            : ""}
                         </span>
                         <span className="font-bold">:زمان تحویل</span>
                       </div>
@@ -767,21 +771,24 @@ export default function StudentDashboard() {
             لطفاً زمان تحویل مورد نظر خود را برای {selectedFood?.food.name} انتخاب کنید.
           </p>
           <div className="grid grid-cols-2 gap-4 mb-6">
-            {selectedFood?.time_slots.map((slot) => (
-              <Button
-                key={slot.id}
-                variant={selectedTimeSlot === slot.id ? "default" : "outline"}
-                onClick={() => handleTimeSelect(slot.id)}
-                className={`transition-all duration-200 ${
-                  selectedTimeSlot === slot.id
-                    ? "bg-[#F47B20] text-white hover:bg-[#E06A10]"
-                    : "text-black hover:bg-[#F4EDE7]"
-                }`}
-              >
-                {slot.start_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])} -{" "}
-                {slot.end_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])}
-              </Button>
-            ))}
+            {selectedFood?.time_slots
+              ?.filter(slot => slot !== null)
+              .map((slot) => (
+                <Button
+                  key={slot.id}
+                  variant={selectedTimeSlot === slot.id ? "default" : "outline"}
+                  onClick={() => handleTimeSelect(slot.id)}
+                  className={`transition-all duration-200 ${
+                    selectedTimeSlot === slot.id
+                      ? "bg-[#F47B20] text-white hover:bg-[#E06A10]"
+                      : "text-black hover:bg-[#F4EDE7]"
+                  }`}
+                >
+                  {slot.start_time && slot.start_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])}
+                  {slot.start_time && slot.end_time ? " - " : ""}
+                  {slot.end_time && slot.end_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])}
+                </Button>
+              ))}
           </div>
           <div className="flex items-center justify-between mb-4">
             <Switch id="voucher" checked={hasVoucher} onCheckedChange={handleVoucherToggle} />
