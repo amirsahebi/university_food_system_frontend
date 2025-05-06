@@ -218,8 +218,11 @@ export default function StudentDashboard() {
   }
 
   const handleFoodSelect = (item: MenuItem) => {
+    // First filter out any null time slots
+    const validTimeSlots = item.time_slots.filter(slot => slot !== null);
+
     // Sort time slots by start time
-    const sortedTimeSlots = [...item.time_slots].sort((a, b) => {
+    const sortedTimeSlots = [...validTimeSlots].sort((a, b) => {
       // Convert start times to Date objects for accurate comparison
       const startTimeA = new Date(`1970-01-01T${a.start_time}`);
       const startTimeB = new Date(`1970-01-01T${b.start_time}`);
