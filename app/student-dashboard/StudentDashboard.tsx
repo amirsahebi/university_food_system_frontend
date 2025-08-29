@@ -178,26 +178,32 @@ export default function StudentDashboard() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [extraVoucherSelected, setExtraVoucherSelected] = useState(false)
   
-  // Trust score helper functions
-  const getTrustScoreStatus = (score: number) => {
-    if (score > 5) return "عالی";
-    if (score > 0) return "خوب";
-    if (score === 0) return "خنثی";
-    return "محدود";
-  };
+  // (Removed unused trust score helper functions)
 
-  const getTrustScoreStatusClass = (score: number) => {
-    if (score > 5) return "bg-green-100 text-green-700";
-    if (score > 0) return "bg-green-50 text-green-600";
-    if (score === 0) return "bg-yellow-100 text-yellow-700";
-    return "bg-red-100 text-red-700";
-  };
-
-  const getTrustScoreValueClass = (score: number) => {
-    if (score > 0) return "text-green-600";
-    if (score === 0) return "text-yellow-600";
-    return "text-red-600";
-  };
+  const fetchUserProfile = useCallback(async () => {
+    try {
+      const userResponse = await api.get(createApiUrl(API_ROUTES.ME))
+      
+      try {
+        // Fetch trust score data
+        const trustScoreResponse = await api.get(createApiUrl(API_ROUTES.GET_TRUST_SCORE))
+        const trustData = trustScoreResponse.data;
+        
+        setUserProfile({
+          ...userResponse.data,
+          trust_score: trustData.trust_score,
+          trust_score_recovery_days: trustData.recovery_info?.estimated_days || null,
+          trust_score_data: trustData
+        })
+      } catch (trustError) {
+        console.error("Error fetching trust score", trustError)
+        setUserProfile(userResponse.data)
+      }
+    } catch (error) {
+      console.error("Error fetching user profile", error)
+      toast.error("خطا در دریافت اطلاعات کاربر")
+    }
+  }, [])
 
   const fetchDailyMenu = useCallback(async () => {
     try {
@@ -220,7 +226,7 @@ export default function StudentDashboard() {
     fetchReservations()
     fetchVoucherPrice()
     fetchUserProfile()
-  }, [fetchDailyMenu])
+  }, [fetchDailyMenu, fetchUserProfile])
 
   // Add effect to refresh orders when returning from payment verification
   useEffect(() => {
@@ -264,30 +270,7 @@ export default function StudentDashboard() {
     }
   }
 
-  const fetchUserProfile = useCallback(async () => {
-    try {
-      const userResponse = await api.get(createApiUrl(API_ROUTES.ME))
-      
-      try {
-        // Fetch trust score data
-        const trustScoreResponse = await api.get(createApiUrl(API_ROUTES.GET_TRUST_SCORE))
-        const trustData = trustScoreResponse.data;
-        
-        setUserProfile({
-          ...userResponse.data,
-          trust_score: trustData.trust_score,
-          trust_score_recovery_days: trustData.recovery_info?.estimated_days || null,
-          trust_score_data: trustData
-        })
-      } catch (trustError) {
-        console.error("Error fetching trust score", trustError)
-        setUserProfile(userResponse.data)
-      }
-    } catch (error) {
-      console.error("Error fetching user profile", error)
-      toast.error("خطا در دریافت اطلاعات کاربر")
-    }
-  }, [])
+  
 
   const handleFoodSelect = (item: MenuItem) => {
     // First filter out any null time slots

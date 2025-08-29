@@ -56,7 +56,6 @@ import {
 } from "chart.js"
 import api from "@/lib/axios"
 import { API_ROUTES, createApiUrl } from "@/lib/api"
-import axios from "axios"
 import DatePicker from "react-multi-date-picker"
 import persian from "react-date-object/calendars/persian"
 import persian_fa from "react-date-object/locales/persian_fa"
@@ -173,6 +172,8 @@ interface PaymentResponse {
   results: Payment[];
 }
 
+type PaymentFilterStatus = 'all' | 'pending' | 'paid' | 'failed' | 'refunded'
+
 interface Student {
   id: number
   name: string
@@ -212,7 +213,6 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, C
 export default function AdminDashboard() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("dashboard")
-  const [isLoading, setIsLoading] = useState(false)
   
   // Payment states
   const [payments, setPayments] = useState<Payment[]>([])
@@ -222,14 +222,14 @@ export default function AdminDashboard() {
     pageSize: 10,
     total: 0,
     search: '',
-    status: 'all' as 'all' | 'pending' | 'paid' | 'failed' | 'refunded'
+    status: 'all' as PaymentFilterStatus
   })
   const [dialogContent, setDialogContent] = useState<React.ReactNode | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [inquiryResult, setInquiryResult] = useState<{
     status: string;
     message: string;
-    payment: any;
+    payment: Payment | null;
     reversed: boolean;
   } | null>(null)
   const [isInquiryModalOpen, setIsInquiryModalOpen] = useState(false)
@@ -311,14 +311,18 @@ export default function AdminDashboard() {
       )
       
       const { status, message, payment, reversed } = response.data
-      setInquiryResult({ status, message, payment, reversed })
+      setInquiryResult({ status, message, payment: payment as Payment | null, reversed })
       setIsInquiryModalOpen(true)
       
       // Refresh the payments list
       await fetchPayments(pagination.page, pagination.search, pagination.status)
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error inquiring payment:', error)
-      const errorMessage = error.response?.data?.message || 'خطا در استعلام وضعیت پرداخت'
+      let errorMessage = 'خطا در استعلام وضعیت پرداخت'
+      if (typeof error === 'object' && error !== null && 'response' in error) {
+        const err = error as AxiosError<{ message?: string }>
+        errorMessage = err.response?.data?.message || errorMessage
+      }
       toast.error(errorMessage)
     } finally {
       setPaymentLoading(false)
@@ -338,7 +342,7 @@ export default function AdminDashboard() {
   }
 
   // Payment functions
-  const fetchPayments = async (page = 1, search = '', status = 'all') => {
+  const fetchPayments = useCallback(async (page = 1, search = '', status: PaymentFilterStatus = 'all') => {
     try {
       setPaymentLoading(true)
       const response = await api.get<PaymentResponse>(
@@ -359,7 +363,7 @@ export default function AdminDashboard() {
         page,
         total: response.data.count,
         search,
-        status: status as any
+        status
       }))
     } catch (error) {
       console.error('Error fetching payments:', error)
@@ -367,7 +371,7 @@ export default function AdminDashboard() {
     } finally {
       setPaymentLoading(false)
     }
-  }
+  }, [pagination.pageSize])
 
 
 
@@ -376,7 +380,7 @@ export default function AdminDashboard() {
     if (activeTab === 'payments') {
       fetchPayments(1, pagination.search, pagination.status)
     }
-  }, [activeTab])
+  }, [activeTab, fetchPayments, pagination.search, pagination.status])
 
   const getPast7DaysOrderData = () => {
     const now = new Date()
@@ -657,7 +661,7 @@ export default function AdminDashboard() {
     setIsTrustScoreSubmitting(true)
 
     try {
-      const response = await api.post(createApiUrl(API_ROUTES.RECOVER_TRUST_SCORE), trustScoreFormData)
+      await api.post(createApiUrl(API_ROUTES.RECOVER_TRUST_SCORE), trustScoreFormData)
       toast.success(`امتیاز اعتبار کاربر با موفقیت ${trustScoreFormData.points} واحد افزایش یافت`)
       setTrustScoreDialogOpen(false)
       setTrustScoreFormData({
@@ -2708,12 +2712,12 @@ export default function AdminDashboard() {
                               <div className="flex items-center gap-2">
                                 <Select
                                   value={pagination.status}
-                                  onValueChange={(value) => {
+                                  onValueChange={(value: PaymentFilterStatus) => {
                                     setPagination(prev => ({
                                       ...prev,
-                                      status: value as any
+                                      status: value
                                     }))
-                                    fetchPayments(1, pagination.search, value as any)
+                                    fetchPayments(1, pagination.search, value)
                                   }}
                                 >
                                   <SelectTrigger className="w-[180px]">

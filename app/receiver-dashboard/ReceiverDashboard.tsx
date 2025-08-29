@@ -100,7 +100,7 @@ export default function ReceiverDashboard() {
   const [isVerifying, setIsVerifying] = useState(false)
   const [currentReservation, setCurrentReservation] = useState<Reservation | null>(null)
   const [isReservationDialogOpen, setIsReservationDialogOpen] = useState(false)
-  const [selectedOrder, setSelectedOrder] = useState<Reservation | null>(null)
+  const [selectedOrder] = useState<Reservation | null>(null)
   const [isOrderDetailsDialogOpen, setIsOrderDetailsDialogOpen] = useState(false)
   const [isCopied, setIsCopied] = useState(false)
   // Add a new state for the search term
