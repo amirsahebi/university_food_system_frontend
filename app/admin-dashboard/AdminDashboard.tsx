@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useCallback, useEffect } from "react"
+import { useState, useCallback, useEffect, useMemo } from "react"
 import { format as formatGregorian } from "date-fns"
 import { motion, AnimatePresence } from "framer-motion"
 import Link from "next/link"
@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Switch } from "@/components/ui/switch"
 import {
   Utensils,
@@ -38,13 +38,25 @@ import {
   Trash,
   Menu,
   Home,
+  Search,
 } from "lucide-react"
+import { ShieldCheck } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { toast, Toaster } from "react-hot-toast"
-import { Line } from 'react-chartjs-2'
-import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip as ChartTooltip, Legend } from 'chart.js'
+import { Line } from "react-chartjs-2"
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip as ChartTooltip,
+  Legend,
+} from "chart.js"
 import api from "@/lib/axios"
 import { API_ROUTES, createApiUrl } from "@/lib/api"
+import axios from "axios"
 import DatePicker from "react-multi-date-picker"
 import persian from "react-date-object/calendars/persian"
 import persian_fa from "react-date-object/locales/persian_fa"
@@ -66,6 +78,7 @@ interface Food {
   category_name?: string | null
   created_at?: string
   updated_at?: string
+  supports_extra_voucher?: boolean
 }
 
 interface MenuItemSpec {
@@ -77,6 +90,7 @@ interface MenuItemSpec {
     image_url: string | null
     category_id?: number | null
     category_name?: string | null
+    supports_extra_voucher?: boolean // Add this property to the food object
   }
   start_time: string
   end_time: string
@@ -126,6 +140,51 @@ interface CategoryFormData {
   description: string | null
 }
 
+interface TrustScoreRecoveryFormData {
+  user_id: number
+  points: number
+  reason: string
+}
+
+// Payment Interfaces
+interface PaymentUser {
+  id: number;
+  phone_number: string;
+  email: string;
+  full_name: string;
+}
+
+interface Payment {
+  id: string;
+  user: PaymentUser;
+  amount: number;
+  authority: string;
+  ref_id: string | null;
+  status: 'pending' | 'paid' | 'failed' | 'refunded';
+  created_at: string;
+  updated_at: string;
+  error_message?: string;
+}
+
+interface PaymentResponse {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: Payment[];
+}
+
+interface Student {
+  id: number
+  name: string
+  student_id: string
+  email: string
+  phone: string
+  department: string
+  trust_score: number
+  status: "active" | "inactive"
+  created_at: string
+}
+
 // Dashboard Stats Card Component
 const StatCard = ({
   icon: Icon,
@@ -148,21 +207,32 @@ const StatCard = ({
   </Card>
 )
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  ChartTooltip,
-  Legend
-)
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, ChartTooltip, Legend)
 
 export default function AdminDashboard() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("dashboard")
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  
+  // Payment states
+  const [payments, setPayments] = useState<Payment[]>([])
+  const [paymentLoading, setPaymentLoading] = useState(false)
+  const [pagination, setPagination] = useState({
+    page: 1,
+    pageSize: 10,
+    total: 0,
+    search: '',
+    status: 'all' as 'all' | 'pending' | 'paid' | 'failed' | 'refunded'
+  })
   const [dialogContent, setDialogContent] = useState<React.ReactNode | null>(null)
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [inquiryResult, setInquiryResult] = useState<{
+    status: string;
+    message: string;
+    payment: any;
+    reversed: boolean;
+  } | null>(null)
+  const [isInquiryModalOpen, setIsInquiryModalOpen] = useState(false)
   const [foods, setFoods] = useState<Food[]>([])
   const [templateMenu, setTemplateMenu] = useState<TemplateMenuItem | null>(null)
   const [dailyMenu, setDailyMenu] = useState<DailyMenuItem | null>(null)
@@ -183,11 +253,130 @@ export default function AdminDashboard() {
   })
   const [isCategorySubmitting, setIsCategorySubmitting] = useState(false)
 
+  // Trust Score Recovery state
+  const [trustScoreDialogOpen, setTrustScoreDialogOpen] = useState(false)
+  const [isTrustScoreSubmitting, setIsTrustScoreSubmitting] = useState(false)
+  const [trustScoreFormData, setTrustScoreFormData] = useState<TrustScoreRecoveryFormData>({
+    user_id: 0,
+    points: 1,
+    reason: "",
+  })
+  const [recoverConfirmOpen, setRecoverConfirmOpen] = useState(false)
+  const [recoverTarget, setRecoverTarget] = useState<Student | null>(null)
+
+  // Student Management state
+  const [students, setStudents] = useState<Student[]>([])
+  const [studentDialogOpen, setStudentDialogOpen] = useState(false)
+  const [studentDeleteDialogOpen, setStudentDeleteDialogOpen] = useState(false)
+  const [currentStudent, setCurrentStudent] = useState<Student | null>(null)
+  const [isStudentSubmitting, setIsStudentSubmitting] = useState(false)
+  const [studentSearch, setStudentSearch] = useState("")
+  const [studentFormData, setStudentFormData] = useState({
+    name: "",
+    student_id: "",
+    email: "",
+    phone: "",
+    department: "",
+    status: "active" as "active" | "inactive",
+  })
+
+  const filteredStudents = useMemo(() => {
+    if (!studentSearch.trim()) return students
+    const q = studentSearch.trim().toLowerCase()
+    return students.filter((s) => {
+      const name = (s.name || "").toLowerCase()
+      const sid = (s.student_id || "").toLowerCase()
+      const phone = (s.phone || "").toLowerCase()
+      return name.includes(q) || sid.includes(q) || phone.includes(q)
+    })
+  }, [students, studentSearch])
+
   // Dashboard stats
   const [totalFoods, setTotalFoods] = useState(0)
   const [totalCategories, setTotalCategories] = useState(0)
   const [totalReservations, setTotalReservations] = useState(0)
   const [todayReservations, setTodayReservations] = useState(0)
+
+  // Payment inquiry function
+  const inquirePayment = async (authority: string) => {
+    try {
+      setPaymentLoading(true)
+      const response = await api.get(
+        createApiUrl(API_ROUTES.INQUIRE_PAYMENT(authority)),
+        {
+          params: {
+            check_reversal: true
+          }
+        }
+      )
+      
+      const { status, message, payment, reversed } = response.data
+      setInquiryResult({ status, message, payment, reversed })
+      setIsInquiryModalOpen(true)
+      
+      // Refresh the payments list
+      await fetchPayments(pagination.page, pagination.search, pagination.status)
+    } catch (error: any) {
+      console.error('Error inquiring payment:', error)
+      const errorMessage = error.response?.data?.message || 'خطا در استعلام وضعیت پرداخت'
+      toast.error(errorMessage)
+    } finally {
+      setPaymentLoading(false)
+    }
+  }
+
+  // Format status for display
+  const formatStatus = (status: string) => {
+    switch (status) {
+      case 'PAID': return 'پرداخت شده';
+      case 'VERIFIED': return 'تایید شده';
+      case 'IN_BANK': return 'در حال پرداخت';
+      case 'FAILED': return 'ناموفق';
+      case 'REVERSED': return 'برگشت خورده';
+      default: return status;
+    }
+  }
+
+  // Payment functions
+  const fetchPayments = async (page = 1, search = '', status = 'all') => {
+    try {
+      setPaymentLoading(true)
+      const response = await api.get<PaymentResponse>(
+        createApiUrl(API_ROUTES.GET_ALL_PAYMENTS),
+        {
+          params: {
+            page,
+            page_size: pagination.pageSize,
+            search,
+            status: status === 'all' ? undefined : status
+          }
+        }
+      )
+      
+      setPayments(response.data.results)
+      setPagination(prev => ({
+        ...prev,
+        page,
+        total: response.data.count,
+        search,
+        status: status as any
+      }))
+    } catch (error) {
+      console.error('Error fetching payments:', error)
+      toast.error('خطا در دریافت لیست پرداخت‌ها')
+    } finally {
+      setPaymentLoading(false)
+    }
+  }
+
+
+
+  // Load payments when tab changes
+  useEffect(() => {
+    if (activeTab === 'payments') {
+      fetchPayments(1, pagination.search, pagination.status)
+    }
+  }, [activeTab])
 
   const getPast7DaysOrderData = () => {
     const now = new Date()
@@ -198,11 +387,13 @@ export default function AdminDashboard() {
     for (let i = 6; i >= 0; i--) {
       const date = new Date(now)
       date.setDate(now.getDate() - i)
-      dates.push(date.toLocaleDateString('fa-IR'))
-      
-      const dailyData = dailyOrderCounts.find((d: DailyOrderCount) => 
-        new Date(d.reserved_date).toLocaleDateString('fa-IR') === date.toLocaleDateString('fa-IR'))
-      
+      dates.push(date.toLocaleDateString("fa-IR"))
+
+      const dailyData = dailyOrderCounts.find(
+        (d: DailyOrderCount) =>
+          new Date(d.reserved_date).toLocaleDateString("fa-IR") === date.toLocaleDateString("fa-IR"),
+      )
+
       totalOrders.push(dailyData?.order_count || 0)
       pickedUpOrders.push(dailyData?.picked_up_count || 0)
     }
@@ -211,30 +402,30 @@ export default function AdminDashboard() {
       labels: dates,
       datasets: [
         {
-          label: 'تعداد سفارشات کل',
+          label: "تعداد سفارشات کل",
           data: totalOrders,
           fill: false,
-          borderColor: '#f97316',
+          borderColor: "#f97316",
           tension: 0.4,
           pointRadius: 5,
           pointHoverRadius: 8,
-          pointBackgroundColor: '#f97316',
-          pointBorderColor: '#f97316',
-          pointHoverBackgroundColor: '#f97316',
-          pointHoverBorderColor: '#f97316',
+          pointBackgroundColor: "#f97316",
+          pointBorderColor: "#f97316",
+          pointHoverBackgroundColor: "#f97316",
+          pointHoverBorderColor: "#f97316",
         },
         {
-          label: 'تعداد سفارشات تحویل شده',
+          label: "تعداد سفارشات تحویل شده",
           data: pickedUpOrders,
           fill: false,
-          borderColor: '#10B981',
+          borderColor: "#10B981",
           tension: 0.4,
           pointRadius: 5,
           pointHoverRadius: 8,
-          pointBackgroundColor: '#10B981',
-          pointBorderColor: '#10B981',
-          pointHoverBackgroundColor: '#10B981',
-          pointHoverBorderColor: '#10B981',
+          pointBackgroundColor: "#10B981",
+          pointBorderColor: "#10B981",
+          pointHoverBackgroundColor: "#10B981",
+          pointHoverBorderColor: "#10B981",
           borderDash: [5, 5], // Dashed line for picked up orders
         },
       ],
@@ -246,40 +437,40 @@ export default function AdminDashboard() {
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        position: 'top' as const,
+        position: "top" as const,
         labels: {
-          color: '#4B5563',
+          color: "#4B5563",
           boxWidth: 20,
         },
       },
       title: {
         display: true,
-        text: 'تعداد سفارشات و تحویل‌ها در 7 روز گذشته',
-        color: '#4B5563',
+        text: "تعداد سفارشات و تحویل‌ها در 7 روز گذشته",
+        color: "#4B5563",
       },
     },
     scales: {
       x: {
         grid: {
-          color: '#E5E7EB',
+          color: "#E5E7EB",
         },
         ticks: {
-          color: '#4B5563',
+          color: "#4B5563",
         },
       },
       y: {
         beginAtZero: true,
         grid: {
-          color: '#E5E7EB',
+          color: "#E5E7EB",
         },
         ticks: {
-          color: '#4B5563',
+          color: "#4B5563",
         },
       },
     },
     interaction: {
       intersect: false,
-      mode: 'index' as const,
+      mode: "index" as const,
     },
   }
 
@@ -347,7 +538,9 @@ export default function AdminDashboard() {
 
       // Calculate today's reservations
       const today = new Date().toISOString().split("T")[0]
-      const todayCount = response.data.filter((log: ReservationLog) => log.reserved_date && log.reserved_date.includes(today)).length
+      const todayCount = response.data.filter(
+        (log: ReservationLog) => log.reserved_date && log.reserved_date.includes(today),
+      ).length
       setTodayReservations(todayCount)
     } catch (error) {
       console.error("Error fetching reservation logs:", error)
@@ -377,6 +570,16 @@ export default function AdminDashboard() {
     }
   }, [])
 
+  const fetchStudents = useCallback(async () => {
+    try {
+      const response = await api.get(createApiUrl(API_ROUTES.GET_STUDENTS))
+      setStudents(response.data)
+    } catch (error) {
+      console.error("Error fetching students:", error)
+      toast.error("خطا در دریافت لیست دانشجویان")
+    }
+  }, [])
+
   useEffect(() => {
     fetchFoods()
     fetchTemplateMenu()
@@ -385,6 +588,7 @@ export default function AdminDashboard() {
     fetchReservationLogs()
     fetchDailyOrderCounts()
     fetchCategories()
+    fetchStudents()
   }, [
     fetchFoods,
     fetchTemplateMenu,
@@ -393,6 +597,7 @@ export default function AdminDashboard() {
     fetchReservationLogs,
     fetchDailyOrderCounts,
     fetchCategories,
+    fetchStudents,
   ])
 
   const openDialog = useCallback((content: React.ReactNode) => {
@@ -425,10 +630,163 @@ export default function AdminDashboard() {
     setCategoryDeleteDialogOpen(true)
   }, [])
 
-  const handleCategoryInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleCategoryInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
-    setCategoryFormData((prev) => ({ ...prev, [name]: value }))
+    setCategoryFormData({ ...categoryFormData, [name]: value })
+  }
+
+  const handleTrustScoreInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target
+    setTrustScoreFormData({
+      ...trustScoreFormData,
+      [name]: name === "points" || name === "user_id" ? Number.parseInt(value) || 0 : value,
+    })
+  }
+
+  const handleTrustScoreSubmit = useCallback(async () => {
+    if (!trustScoreFormData.user_id || trustScoreFormData.user_id <= 0) {
+      toast.error("لطفاً شناسه کاربر را به درستی وارد کنید")
+      return
+    }
+
+    if (trustScoreFormData.points <= 0) {
+      toast.error("تعداد امتیاز باید بیشتر از صفر باشد")
+      return
+    }
+
+    setIsTrustScoreSubmitting(true)
+
+    try {
+      const response = await api.post(createApiUrl(API_ROUTES.RECOVER_TRUST_SCORE), trustScoreFormData)
+      toast.success(`امتیاز اعتبار کاربر با موفقیت ${trustScoreFormData.points} واحد افزایش یافت`)
+      setTrustScoreDialogOpen(false)
+      setTrustScoreFormData({
+        user_id: 0,
+        points: 1,
+        reason: "",
+      })
+      // Refresh students list to show updated trust score
+      await fetchStudents()
+    } catch (error) {
+      console.error("Error recovering trust score:", error)
+      const axiosError = error as AxiosError
+      let errorMessage = "خطا در بازیابی امتیاز اعتبار"
+
+      if (axiosError.response?.status === 404) {
+        errorMessage = "کاربر با این شناسه یافت نشد"
+      }
+
+      toast.error(errorMessage)
+    } finally {
+      setIsTrustScoreSubmitting(false)
+    }
+  }, [trustScoreFormData, fetchStudents])
+
+  const handleRecoverTrustScore = useCallback((student: Student) => {
+    if (!student?.id) return
+    if (student.trust_score >= 0) return
+    setRecoverTarget(student)
+    setRecoverConfirmOpen(true)
   }, [])
+
+  const confirmRecoverTrustScore = useCallback(async () => {
+    if (!recoverTarget?.id) return
+    setIsTrustScoreSubmitting(true)
+    try {
+      await api.post(createApiUrl(API_ROUTES.RECOVER_TRUST_SCORE), { student_id: recoverTarget.id })
+      toast.success("امتیاز اعتبار دانشجو با موفقیت بازیابی شد")
+      setRecoverConfirmOpen(false)
+      setRecoverTarget(null)
+      await fetchStudents()
+    } catch (error) {
+      console.error("Error recovering trust score:", error)
+      toast.error("خطا در بازیابی امتیاز اعتبار")
+    } finally {
+      setIsTrustScoreSubmitting(false)
+    }
+  }, [recoverTarget, fetchStudents])
+
+
+  const handleAddStudent = useCallback(() => {
+    setCurrentStudent(null)
+    setStudentFormData({
+      name: "",
+      student_id: "",
+      email: "",
+      phone: "",
+      department: "",
+      status: "active",
+    })
+    setStudentDialogOpen(true)
+  }, [])
+
+  const handleEditStudent = useCallback((student: Student) => {
+    setCurrentStudent(student)
+    setStudentFormData({
+      name: student.name,
+      student_id: student.student_id,
+      email: student.email,
+      phone: student.phone || "",
+      department: student.department || "",
+      status: student.status,
+    })
+    setStudentDialogOpen(true)
+  }, [])
+
+  const handleDeleteStudent = useCallback((student: Student) => {
+    setCurrentStudent(student)
+    setStudentDeleteDialogOpen(true)
+  }, [])
+
+  const handleStudentInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target
+    setStudentFormData({ ...studentFormData, [name]: value })
+  }
+
+  const handleStudentSubmit = useCallback(async () => {
+    if (!studentFormData.name || !studentFormData.student_id) {
+      toast.error("لطفاً نام و شماره دانشجویی را وارد کنید")
+      return
+    }
+
+    setIsStudentSubmitting(true)
+
+    try {
+      if (currentStudent) {
+        await api.put(createApiUrl(API_ROUTES.UPDATE_STUDENT(currentStudent.id.toString())), studentFormData)
+        toast.success("اطلاعات دانشجو با موفقیت به‌روزرسانی شد")
+      } else {
+        await api.post(createApiUrl(API_ROUTES.ADD_STUDENT), studentFormData)
+        toast.success("دانشجوی جدید با موفقیت اضافه شد")
+      }
+
+      setStudentDialogOpen(false)
+      await fetchStudents()
+    } catch (error) {
+      console.error("Error saving student:", error)
+      toast.error(currentStudent ? "خطا در به‌روزرسانی اطلاعات دانشجو" : "خطا در افزودن دانشجوی جدید")
+    } finally {
+      setIsStudentSubmitting(false)
+    }
+  }, [studentFormData, currentStudent, fetchStudents])
+
+  const handleStudentDelete = useCallback(async () => {
+    if (!currentStudent) return
+
+    setIsStudentSubmitting(true)
+
+    try {
+      await api.delete(createApiUrl(API_ROUTES.DELETE_STUDENT(currentStudent.id.toString())))
+      toast.success("دانشجو با موفقیت حذف شد")
+      setStudentDeleteDialogOpen(false)
+      await fetchStudents()
+    } catch (error) {
+      console.error("Error deleting student:", error)
+      toast.error("خطا در حذف دانشجو")
+    } finally {
+      setIsStudentSubmitting(false)
+    }
+  }, [currentStudent, fetchStudents])
 
   const handleCategorySubmit = useCallback(async () => {
     if (!categoryFormData.name.trim()) {
@@ -484,15 +842,15 @@ export default function AdminDashboard() {
     openDialog(
       <div className="space-y-4" dir="rtl">
         <h2 className="text-lg font-bold">افزودن غذای جدید</h2>
-        <div className="space-y-2">
+        <div className="space-y-1">
           <Label htmlFor="food">نام غذا</Label>
           <Input id="food" placeholder="نام غذا را وارد کنید" className="form-input-focus" />
         </div>
-        <div className="space-y-2">
+        <div className="space-y-1">
           <Label htmlFor="foodDescription">توضیحات</Label>
           <Input id="foodDescription" placeholder="توضیحات غذا را وارد کنید" className="form-input-focus" />
         </div>
-        <div className="space-y-2">
+        <div className="space-y-1">
           <Label htmlFor="foodCategory">دسته‌بندی</Label>
           <div className="flex">
             <select
@@ -508,14 +866,28 @@ export default function AdminDashboard() {
             </select>
           </div>
         </div>
-        <div className="space-y-2">
+        <div className="space-y-1">
           <Label htmlFor="foodPrice">قیمت (تومان)</Label>
           <Input id="foodPrice" type="number" placeholder="قیمت را وارد کنید" className="form-input-focus" />
         </div>
-        <div className="space-y-2">
+        <div className="space-y-1">
           <Label htmlFor="foodImage">تصویر غذا</Label>
           <Input id="foodImage" type="file" accept="image/*" className="form-input-focus" />
         </div>
+        {/* Add extra voucher support toggle */}
+        <div className="flex items-center justify-between mt-4" dir="ltr">
+            <Switch
+              id="supports_extra_voucher"
+              name="supports_extra_voucher"
+              defaultChecked={false}
+            />
+            <Label htmlFor="supports_extra_voucher" className="flex flex-col gap-1" dir="rtl">
+              <span>پشتیبانی از ژتون اضافی</span>
+              <span className="font-normal leading-snug text-muted-foreground text-xs">
+                آیا این غذا از ژتون اضافی پشتیبانی می‌کند؟
+              </span>
+            </Label>
+          </div>
         <Button
           onClick={async () => {
             const name = (document.getElementById("food") as HTMLInputElement).value
@@ -524,6 +896,8 @@ export default function AdminDashboard() {
             const category = categorySelect?.value || ""
             const price = Number.parseInt((document.getElementById("foodPrice") as HTMLInputElement).value)
             const imageFile = (document.getElementById("foodImage") as HTMLInputElement).files?.[0]
+            const switchElement = document.querySelector('button[role="switch"][id="supports_extra_voucher"]')
+            const supportsExtraVoucher = switchElement?.getAttribute('data-state') === 'checked'
 
             if (!name || !price) {
               toast.error("لطفاً تمام فیلدها را پر کنید")
@@ -543,6 +917,8 @@ export default function AdminDashboard() {
               formData.append("category_id", category)
               formData.append("category", category)
             }
+            // Add supports_extra_voucher to form data
+            formData.append("supports_extra_voucher", supportsExtraVoucher.toString())
 
             try {
               await api.post(createApiUrl(API_ROUTES.ADD_FOOD), formData, {
@@ -570,10 +946,14 @@ export default function AdminDashboard() {
       openDialog(
         <div className="space-y-4" dir="rtl">
           <h2 className="text-lg font-bold">ویرایش غذا</h2>
-          <Label htmlFor="food">نام غذا</Label>
-          <Input id="food" defaultValue={food.name} className="form-input-focus" />
-          <Label htmlFor="foodDescription">توضیحات</Label>
-          <Input id="foodDescription" defaultValue={food.description} className="form-input-focus" />
+          <div className="space-y-2">
+            <Label htmlFor="food">نام غذا</Label>
+            <Input id="food" defaultValue={food.name} className="form-input-focus" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="foodDescription">توضیحات</Label>
+            <Input id="foodDescription" defaultValue={food.description} className="form-input-focus" />
+          </div>
           <div className="space-y-2">
             <Label htmlFor="foodCategory">دسته‌بندی</Label>
             <div className="flex">
@@ -591,15 +971,14 @@ export default function AdminDashboard() {
               </select>
             </div>
           </div>
-          <Label htmlFor="foodPrice">قیمت (تومان)</Label>
-          <Input
-            id="foodPrice"
-            type="number"
-            defaultValue={food.price}
-            className="form-input-focus"
-          />
-          <Label htmlFor="foodImage">تصویر غذا</Label>
-          <Input id="foodImage" type="file" accept="image/*" className="form-input-focus" />
+          <div className="space-y-2">
+            <Label htmlFor="foodPrice">قیمت (تومان)</Label>
+            <Input id="foodPrice" type="number" defaultValue={food.price} className="form-input-focus" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="foodImage">تصویر غذا</Label>
+            <Input id="foodImage" type="file" accept="image/*" className="form-input-focus" />
+          </div>
           <div className="flex justify-center mb-4">
             <div className="relative h-24 w-24">
               <Image
@@ -610,6 +989,20 @@ export default function AdminDashboard() {
               />
             </div>
           </div>
+          {/* Add extra voucher support toggle */}
+          <div className="flex items-center justify-between mt-4" dir="ltr">
+            <Switch
+              id="supports_extra_voucher"
+              name="supports_extra_voucher"
+              defaultChecked={food.supports_extra_voucher || false}
+            />
+            <Label htmlFor="supports_extra_voucher" className="flex flex-col gap-1" dir="rtl">
+              <span>پشتیبانی از ژتون اضافی</span>
+              <span className="font-normal leading-snug text-muted-foreground text-xs">
+                آیا این غذا از ژتون اضافی پشتیبانی می‌کند؟
+              </span>
+            </Label>
+          </div>
           <Button
             onClick={async () => {
               const foodElement = document.getElementById("food") as HTMLInputElement
@@ -617,17 +1010,19 @@ export default function AdminDashboard() {
               const categoryElement = document.getElementById("foodCategory") as HTMLSelectElement
               const priceElement = document.getElementById("foodPrice") as HTMLInputElement
               const imageElement = document.getElementById("foodImage") as HTMLInputElement
+              const switchElement = document.querySelector('button[role="switch"][id="supports_extra_voucher"]')
 
               if (!foodElement || !descriptionElement || !priceElement) {
                 toast.error("خطا در دریافت مقادیر فرم")
                 return
               }
-
+              
               const name = foodElement.value
               const description = descriptionElement.value
               const category = categoryElement?.value
               const price = Number.parseInt(priceElement.value)
               const imageFile = imageElement?.files?.[0]
+              const supportsExtraVoucher = switchElement?.getAttribute('data-state') === 'checked'
 
               if (!name || !price) {
                 toast.error("لطفاً تمام فیلدها را پر کنید")
@@ -647,6 +1042,7 @@ export default function AdminDashboard() {
               if (imageFile) {
                 formData.append("image", imageFile)
               }
+              formData.append("supports_extra_voucher", supportsExtraVoucher.toString())
 
               try {
                 await api.put(createApiUrl(API_ROUTES.UPDATE_FOOD(food.id)), formData, {
@@ -855,6 +1251,12 @@ export default function AdminDashboard() {
                       </div>
                     )}
                     <span className="truncate">{food.name}</span>
+                    {/* Show extra voucher badge if food supports it */}
+                    {food.supports_extra_voucher && (
+                      <Badge variant="outline" className="ml-auto bg-blue-100 text-blue-700 text-xs">
+                        ژتون اضافی
+                      </Badge>
+                    )}
                   </div>
                 ))}
                 <div id="noFoodResults" className="p-2 text-gray-500 text-center hidden">
@@ -865,21 +1267,9 @@ export default function AdminDashboard() {
             </div>
           </div>
           <Label htmlFor="start_time">زمان شروع</Label>
-          <Input
-            id="start_time"
-            name="start_time"
-            type="time"
-            required
-            className="form-input-focus"
-          />
+          <Input id="start_time" name="start_time" type="time" required className="form-input-focus" />
           <Label htmlFor="end_time">زمان پایان</Label>
-          <Input
-            id="end_time"
-            name="end_time"
-            type="time"
-            required
-            className="form-input-focus"
-          />
+          <Input id="end_time" name="end_time" type="time" required className="form-input-focus" />
           <Label htmlFor="time_slot_count">تعداد بازه‌های زمانی</Label>
           <Input
             id="time_slot_count"
@@ -992,7 +1382,7 @@ export default function AdminDashboard() {
                       foodList.classList.remove("hidden")
                       const items = foodList.getElementsByTagName("div")
                       let hasVisibleItems = false
-                      for (let i = 0; i <items.length; i++) {
+                      for (let i = 0; i < items.length; i++) {
                         const foodName = items[i].textContent || ""
                         if (foodName.toLowerCase().includes(searchValue)) {
                           items[i].style.display = ""
@@ -1052,6 +1442,12 @@ export default function AdminDashboard() {
                       </div>
                     )}
                     <span className="truncate">{food.name}</span>
+                    {/* Show extra voucher badge if food supports it */}
+                    {food.supports_extra_voucher && (
+                      <Badge variant="outline" className="ml-auto bg-blue-100 text-blue-700 text-xs">
+                        ژتون اضافی
+                      </Badge>
+                    )}
                   </div>
                 ))}
                 <div id="noFoodResults" className="p-2 text-gray-500 text-center hidden">
@@ -1156,12 +1552,7 @@ export default function AdminDashboard() {
       <div className="space-y-4" dir="rtl">
         <h2 className="text-lg font-bold">به‌روزرسانی قیمت ژتون</h2>
         <Label htmlFor="voucherPrice">قیمت جدید ژتون (تومان)</Label>
-        <Input
-          id="voucherPrice"
-          type="number"
-          defaultValue={voucherPrice}
-          className="form-input-focus"
-        />
+        <Input id="voucherPrice" type="number" defaultValue={voucherPrice} className="form-input-focus" />
         <Button
           onClick={async () => {
             const newPrice = Number.parseInt((document.getElementById("voucherPrice") as HTMLInputElement).value)
@@ -1248,51 +1639,49 @@ export default function AdminDashboard() {
   }, [selectedDate, selectedMeal_type, fetchDailyMenu])
 
   const convertToPersianNumbers = (str: string) => {
-    const persianNumbers = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']
+    const persianNumbers = ["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"]
     return str.replace(/[0-9]/g, (match) => {
-      return persianNumbers[parseInt(match)]
+      return persianNumbers[Number.parseInt(match)]
     })
   }
 
   const formatPersianDateTime = (isoDate: string) => {
     const date = new Date(isoDate)
-    const persianDate = new DateObject(date)
-      .setCalendar(persian)
-      .setLocale(persian_fa)
-    
+    const persianDate = new DateObject(date).setCalendar(persian).setLocale(persian_fa)
+
     // Format date in Persian
-    const persianDateStr = persianDate.format('YYYY/MM/DD')
+    const persianDateStr = persianDate.format("YYYY/MM/DD")
     // Format time in 24-hour format
-    const hours = date.getHours().toString().padStart(2, '0')
-    const minutes = date.getMinutes().toString().padStart(2, '0')
-    
+    const hours = date.getHours().toString().padStart(2, "0")
+    const minutes = date.getMinutes().toString().padStart(2, "0")
+
     // Convert numbers to Persian
     const persianHours = convertToPersianNumbers(hours)
     const persianMinutes = convertToPersianNumbers(minutes)
-    
+
     return `${convertToPersianNumbers(persianDateStr)} - ${persianHours}:${persianMinutes}`
   }
 
   const getStatusColor = (status: string) => {
     const statusColors = {
-      'waiting': 'bg-yellow-500',
-      'preparing': 'bg-blue-500',
-      'ready_to_pickup': 'bg-green-500',
-      'picked_up': 'bg-green-600',
-      'not_picked_up': 'bg-red-500'
+      waiting: "bg-yellow-500",
+      preparing: "bg-blue-500",
+      ready_to_pickup: "bg-green-500",
+      picked_up: "bg-green-600",
+      not_picked_up: "bg-red-500",
     }
-    return statusColors[status as keyof typeof statusColors] || 'bg-gray-500'
+    return statusColors[status as keyof typeof statusColors] || "bg-gray-500"
   }
 
   const getStatusText = (status: string) => {
     const statusTexts = {
-      'waiting': 'در انتظار',
-      'preparing': 'در حال آماده‌سازی',
-      'ready_to_pickup': 'آماده تحویل',
-      'picked_up': 'تحویل داده شده',
-      'not_picked_up': 'تحویل گرفته نشده'
+      waiting: "در انتظار",
+      preparing: "در حال آماده‌سازی",
+      ready_to_pickup: "آماده تحویل",
+      picked_up: "تحویل داده شده",
+      not_picked_up: "تحویل گرفته نشده",
     }
-    return statusTexts[status as keyof typeof statusTexts] || 'وضعیت ناشناخته'
+    return statusTexts[status as keyof typeof statusTexts] || "وضعیت ناشناخته"
   }
 
   return (
@@ -1399,6 +1788,16 @@ export default function AdminDashboard() {
                       دسته‌بندی‌ها
                     </Button>
                     <Button
+                      variant={activeTab === "students" ? "secondary" : "ghost"}
+                      className="justify-start"
+                      onClick={() => {
+                        setActiveTab("students")
+                      }}
+                    >
+                      <User className="ml-2 h-4 w-4" />
+                      مدیریت دانشجویان
+                    </Button>
+                    <Button
                       variant={activeTab === "template-menu" ? "secondary" : "ghost"}
                       className="justify-start"
                       onClick={() => {
@@ -1417,6 +1816,16 @@ export default function AdminDashboard() {
                     >
                       <Clipboard className="ml-2 h-4 w-4" />
                       منوی روزانه
+                    </Button>
+                    <Button
+                      variant={activeTab === "payments" ? "secondary" : "ghost"}
+                      className="justify-start"
+                      onClick={() => {
+                        setActiveTab("payments")
+                      }}
+                    >
+                      <DollarSign className="ml-2 h-4 w-4" />
+                      مدیریت پرداخت‌ها
                     </Button>
                     <Button
                       variant={activeTab === "voucher-price" ? "secondary" : "ghost"}
@@ -1532,6 +1941,14 @@ export default function AdminDashboard() {
                   دسته‌بندی‌ها
                 </Button>
                 <Button
+                  variant={activeTab === "students" ? "secondary" : "ghost"}
+                  className="w-full justify-start"
+                  onClick={() => setActiveTab("students")}
+                >
+                  <User className="ml-2 h-4 w-4" />
+                  مدیریت دانشجویان
+                </Button>
+                <Button
                   variant={activeTab === "template-menu" ? "secondary" : "ghost"}
                   className="w-full justify-start"
                   onClick={() => setActiveTab("template-menu")}
@@ -1554,6 +1971,14 @@ export default function AdminDashboard() {
                 >
                   <DollarSign className="ml-2 h-4 w-4" />
                   قیمت ژتون
+                </Button>
+                <Button
+                  variant={activeTab === "payments" ? "secondary" : "ghost"}
+                  className="w-full justify-start"
+                  onClick={() => setActiveTab("payments")}
+                >
+                  <DollarSign className="ml-2 h-4 w-4" />
+                  پرداخت‌ها
                 </Button>
                 <Button
                   variant={activeTab === "analytics" ? "secondary" : "ghost"}
@@ -1631,11 +2056,16 @@ export default function AdminDashboard() {
                               </div>
                               <div className="flex-1">
                                 <h4 className="font-medium">{food.name}</h4>
-                                <p className="text-sm text-gray-500">
-                                  {food.price.toLocaleString()} تومان
-                                </p>
+                                <p className="text-sm text-gray-500">{food.price.toLocaleString()} تومان</p>
                               </div>
-                              <Badge variant="outline">{food.category_name || "بدون دسته‌بندی"}</Badge>
+                              <div className="flex flex-col items-end gap-1">
+                                <Badge variant="outline">{food.category_name || "بدون دسته‌بندی"}</Badge>
+                                {food.supports_extra_voucher && (
+                                  <Badge variant="outline" className="bg-blue-100 text-blue-700 text-xs">
+                                    ژتون اضافی
+                                  </Badge>
+                                )}
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -1671,10 +2101,7 @@ export default function AdminDashboard() {
                                   {log.food} - {formatPersianDateTime(log.created_at)}
                                 </p>
                               </div>
-                              <Badge
-                                variant="outline"
-                                className={getStatusColor(log.status)}
-                              >
+                              <Badge variant="outline" className={getStatusColor(log.status)}>
                                 {getStatusText(log.status)}
                               </Badge>
                             </div>
@@ -1716,13 +2143,14 @@ export default function AdminDashboard() {
                             <TableHead>دسته‌بندی</TableHead>
                             <TableHead>توضیحات</TableHead>
                             <TableHead>قیمت (تومان)</TableHead>
+                            <TableHead>ژتون اضافی</TableHead>
                             <TableHead>عملیات</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {foods.length === 0 ? (
                             <TableRow>
-                              <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                              <TableCell colSpan={7} className="text-center py-8 text-gray-500">
                                 هیچ غذایی یافت نشد
                               </TableCell>
                             </TableRow>
@@ -1747,6 +2175,17 @@ export default function AdminDashboard() {
                                 </TableCell>
                                 <TableCell className="max-w-[200px] truncate">{food.description}</TableCell>
                                 <TableCell>{food.price.toLocaleString()}</TableCell>
+                                <TableCell>
+                                  {food.supports_extra_voucher ? (
+                                    <Badge variant="outline" className="bg-blue-100 text-blue-700">
+                                      دارد
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="bg-gray-100 text-gray-700">
+                                      ندارد
+                                    </Badge>
+                                  )}
+                                </TableCell>
                                 <TableCell>
                                   <div className="flex space-x-2">
                                     <Button
@@ -1909,8 +2348,14 @@ export default function AdminDashboard() {
                               <TableRow key={index} className="hover:bg-orange-50/50 transition-colors">
                                 <TableCell>
                                   <div className="mb-2 p-2 rounded-lg">
-                                    <span className="font-medium">{item.food?.name}</span>
-                                    <br />
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-medium">{item.food?.name}</span>
+                                      {item.food.supports_extra_voucher && (
+                                        <Badge variant="outline" className="bg-blue-100 text-blue-700 text-xs">
+                                          ژتون اضافی
+                                        </Badge>
+                                      )}
+                                    </div>
                                     <small className="text-gray-500">
                                       {item.start_time} - {item.end_time}, ظرفیت: {item.daily_capacity}
                                     </small>
@@ -1934,6 +2379,31 @@ export default function AdminDashboard() {
                                     >
                                       <Trash className="w-4 h-4" />
                                     </Button>
+                                  </div>
+                                  <div className="flex items-center justify-between px-2">
+                                    <div className="text-sm text-muted-foreground">
+                                      نمایش {(pagination.page - 1) * pagination.pageSize + 1} تا {
+                                        Math.min(pagination.page * pagination.pageSize, pagination.total)
+                                      } از {pagination.total} مورد
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                      <Button 
+                                        variant="outline" 
+                                        size="sm" 
+                                        onClick={() => fetchPayments(pagination.page - 1, pagination.search, pagination.status)}
+                                        disabled={pagination.page === 1 || paymentLoading}
+                                      >
+                                        قبلی
+                                      </Button>
+                                      <Button 
+                                        variant="outline" 
+                                        size="sm"
+                                        onClick={() => fetchPayments(pagination.page + 1, pagination.search, pagination.status)}
+                                        disabled={pagination.page * pagination.pageSize >= pagination.total || paymentLoading}
+                                      >
+                                        بعدی
+                                      </Button>
+                                    </div>
                                   </div>
                                 </TableCell>
                               </TableRow>
@@ -2012,8 +2482,14 @@ export default function AdminDashboard() {
                               <TableRow key={index} className="hover:bg-orange-50/50 transition-colors">
                                 <TableCell>
                                   <div className="mb-2 p-2 rounded-lg">
-                                    <span className="font-medium">{item.food?.name}</span>
-                                    <br />
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-medium">{item.food?.name}</span>
+                                      {item.food.supports_extra_voucher && (
+                                        <Badge variant="outline" className="bg-blue-100 text-blue-700 text-xs">
+                                          ژتون اضافی
+                                        </Badge>
+                                      )}
+                                    </div>
                                     <small className="text-gray-500">
                                       {item.start_time} - {item.end_time}, ظرفیت: {item.daily_capacity}
                                     </small>
@@ -2060,6 +2536,116 @@ export default function AdminDashboard() {
                 </Card>
               )}
 
+              {/* Students Management Tab */}
+              {activeTab === "students" && (
+                <Card className="backdrop-blur-md bg-white/80 border-0 shadow-md">
+                  <CardHeader>
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <CardTitle>مدیریت دانشجویان</CardTitle>
+                      <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto md:items-center">
+                        <Input
+                          value={studentSearch}
+                          onChange={(e) => setStudentSearch(e.target.value)}
+                          placeholder="جستجو دانشجو (نام، شماره دانشجویی، تلفن)"
+                          className="w-full md:w-80 form-input-focus"
+                          dir="rtl"
+                        />
+                        <Button onClick={handleAddStudent} className="bg-[#f97316] hover:bg-orange-600 btn-hover-effect">
+                          <Plus className="w-4 h-4 ml-2" /> افزودن دانشجو
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>نام</TableHead>
+                            <TableHead>شماره دانشجویی</TableHead>
+                            <TableHead>تلفن</TableHead>
+                            <TableHead>امتیاز اعتبار</TableHead>
+                            <TableHead>وضعیت</TableHead>
+                            <TableHead>عملیات</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredStudents.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                                {studentSearch ? "نتیجه‌ای برای جستجو یافت نشد" : "هیچ دانشجویی یافت نشد"}
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            filteredStudents.map((student) => (
+                              <TableRow key={student.id} className="hover:bg-orange-50/50 transition-colors">
+                                <TableCell className="font-medium">{student.name}</TableCell>
+                                <TableCell>{student.student_id}</TableCell>
+                                <TableCell>{student.phone || "-"}</TableCell>
+                                <TableCell>
+                                  <Badge
+                                    variant="outline"
+                                    className={
+                                      student.trust_score < 0
+                                        ? "bg-red-100 text-red-700"
+                                        : "bg-green-100 text-green-700"
+                                    }
+                                  >
+                                    {student.trust_score}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge
+                                    variant="outline"
+                                    className={
+                                      student.status === "active"
+                                        ? "bg-green-100 text-green-700"
+                                        : "bg-gray-100 text-gray-700"
+                                    }
+                                  >
+                                    {student.status === "active" ? "فعال" : "غیرفعال"}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex space-x-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleEditStudent(student)}
+                                      className="btn-hover-effect"
+                                    >
+                                      <Edit className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleRecoverTrustScore(student)}
+                                      className="btn-hover-effect bg-blue-50 hover:bg-blue-100"
+                                      title="بازیابی امتیاز اعتبار"
+                                      disabled={student.trust_score >= 0 || isTrustScoreSubmitting}
+                                    >
+                                      <ShieldCheck className="w-4 h-4 text-blue-600" />
+                                    </Button>
+                                    <Button
+                                      variant="destructive"
+                                      size="sm"
+                                      onClick={() => handleDeleteStudent(student)}
+                                      className="btn-hover-effect"
+                                    >
+                                      <Trash className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Voucher Price Tab */}
               {activeTab === "voucher-price" && (
                 <Card className="backdrop-blur-md bg-white/80 border-0 shadow-md">
@@ -2074,9 +2660,7 @@ export default function AdminDashboard() {
                         </div>
                         <div>
                           <h3 className="text-lg font-medium text-gray-700">قیمت فعلی ژتون</h3>
-                          <p className="text-2xl font-bold text-[#f97316]">
-                            {voucherPrice.toLocaleString()} تومان
-                          </p>
+                          <p className="text-2xl font-bold text-[#f97316]">{voucherPrice.toLocaleString()} تومان</p>
                         </div>
                       </div>
                       <Button
@@ -2091,6 +2675,156 @@ export default function AdminDashboard() {
               )}
 
               {/* Analytics Tab */}
+              {activeTab === "payments" && (
+                <div className="space-y-6">
+                  <Card className="backdrop-blur-md bg-white/80 border-0 shadow-md">
+                    <CardHeader>
+                      <CardTitle>مدیریت پرداخت‌ها</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <Tabs defaultValue="all" className="w-full">
+                        <TabsContent value="all" className="mt-4">
+                          <div className="space-y-4">
+                            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+                              <div className="flex-1">
+                                <Input
+                                  type="text"
+                                  placeholder="جستجوی بر اساس شناسه پرداخت یا شماره کاربر"
+                                  className="w-full"
+                                  value={pagination.search}
+                                  onChange={(e) => {
+                                    setPagination(prev => ({
+                                      ...prev,
+                                      search: e.target.value
+                                    }))
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      fetchPayments(1, pagination.search, pagination.status)
+                                    }
+                                  }}
+                                />
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Select
+                                  value={pagination.status}
+                                  onValueChange={(value) => {
+                                    setPagination(prev => ({
+                                      ...prev,
+                                      status: value as any
+                                    }))
+                                    fetchPayments(1, pagination.search, value as any)
+                                  }}
+                                >
+                                  <SelectTrigger className="w-[180px]">
+                                    <SelectValue placeholder="وضعیت پرداخت" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="all">همه وضعیت‌ها</SelectItem>
+                                    <SelectItem value="pending">در انتظار پرداخت</SelectItem>
+                                    <SelectItem value="paid">پرداخت شده</SelectItem>
+                                    <SelectItem value="failed">ناموفق</SelectItem>
+                                    <SelectItem value="refunded">مسترد شده</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <Button 
+                                  onClick={() => fetchPayments(1, pagination.search, pagination.status)}
+                                  disabled={paymentLoading}
+                                >
+                                  <Search className="ml-2 h-4 w-4" />
+                                  {paymentLoading ? 'در حال جستجو...' : 'جستجو'}
+                                </Button>
+                              </div>
+                            </div>
+                            <div className="rounded-md border">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead>شناسه پرداخت</TableHead>
+                                    <TableHead>کاربر</TableHead>
+                                    <TableHead>مبلغ (تومان)</TableHead>
+                                    <TableHead>وضعیت</TableHead>
+                                    <TableHead>تاریخ پرداخت</TableHead>
+                                    <TableHead>عملیات</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {paymentLoading ? (
+                                    <TableRow>
+                                      <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                                        در حال بارگذاری اطلاعات پرداخت‌ها...
+                                      </TableCell>
+                                    </TableRow>
+                                  ) : payments.length === 0 ? (
+                                    <TableRow>
+                                      <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                                        موردی یافت نشد
+                                      </TableCell>
+                                    </TableRow>
+                                  ) : (
+                                    payments.map((payment) => (
+                                      <TableRow key={payment.id}>
+                                        <TableCell className="font-medium">{payment.id}</TableCell>
+                                        <TableCell>
+                                          <div>
+                                            <div>{payment.user.full_name}</div>
+                                            <div className="text-sm text-gray-500">{payment.user.phone_number}</div>
+                                          </div>
+                                        </TableCell>
+                                        <TableCell>{payment.amount.toLocaleString('fa-IR')} تومان</TableCell>
+                                        <TableCell>
+                                          <Badge 
+                                            variant={
+                                              payment.status === 'paid' ? 'default' : 
+                                              payment.status === 'pending' ? 'secondary' :
+                                              payment.status === 'refunded' ? 'outline' : 'destructive'
+                                            }
+                                          >
+                                            {payment.status === 'paid' ? 'پرداخت شده' :
+                                             payment.status === 'pending' ? 'در انتظار پرداخت' :
+                                             payment.status === 'refunded' ? 'مسترد شده' : 'ناموفق'}
+                                          </Badge>
+                                        </TableCell>
+                                        <TableCell>
+                                          {new Date(payment.created_at).toLocaleString('fa-IR')}
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                          <Button 
+                                            variant="outline" 
+                                            size="sm"
+                                            onClick={() => inquirePayment(payment.authority)}
+                                            disabled={paymentLoading}
+                                            className="ml-2"
+                                          >
+                                            استعلام وضعیت
+                                          </Button>
+                                        </TableCell>
+                                      </TableRow>
+                                    ))
+                                  )}
+                                </TableBody>
+                              </Table>
+                            </div>
+                            <div className="flex items-center justify-between px-2">
+                              <div className="text-sm text-muted-foreground">
+                                نمایش ۱ تا ۱۰ از ۵۰ مورد
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <Button variant="outline" size="sm" disabled>
+                                  قبلی
+                                </Button>
+                                <Button variant="outline" size="sm">
+                                  بعدی
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </TabsContent>
+                      </Tabs>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
               {activeTab === "analytics" && (
                 <div className="space-y-6">
                   <Card className="backdrop-blur-md bg-white/80 border-0 shadow-md">
@@ -2128,10 +2862,7 @@ export default function AdminDashboard() {
                                       <TableCell>{log.food}</TableCell>
                                       <TableCell>{formatPersianDateTime(log.created_at)}</TableCell>
                                       <TableCell>
-                                        <Badge
-                                          variant="outline"
-                                          className={getStatusColor(log.status)}
-                                        >
+                                        <Badge variant="outline" className={getStatusColor(log.status)}>
                                           {getStatusText(log.status)}
                                         </Badge>
                                       </TableCell>
@@ -2236,6 +2967,312 @@ export default function AdminDashboard() {
               {isCategorySubmitting ? "در حال حذف..." : "حذف"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Recover Trust Score Confirm Dialog */}
+      <Dialog open={recoverConfirmOpen} onOpenChange={setRecoverConfirmOpen}>
+        <DialogContent className="sm:max-w-[425px] backdrop-blur-md bg-white/90 border-0 shadow-xl">
+          <DialogHeader>
+            <DialogTitle>تایید بازیابی امتیاز اعتبار</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-2" dir="rtl">
+            <p>
+              آیا از بازیابی امتیاز اعتبار برای دانشجو
+              {" "}
+              <span className="font-semibold">{recoverTarget?.name}</span>
+              {" "}
+              با شماره دانشجویی
+              {" "}
+              <span className="font-mono">{recoverTarget?.student_id}</span>
+              {" "}
+              مطمئن هستید؟
+            </p>
+            {recoverTarget && (
+              <p className="text-sm text-gray-600">امتیاز فعلی: {recoverTarget.trust_score}</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setRecoverConfirmOpen(false)}
+              disabled={isTrustScoreSubmitting}
+            >
+              انصراف
+            </Button>
+            <Button
+              onClick={confirmRecoverTrustScore}
+              className="bg-[#f97316] hover:bg-orange-600 btn-hover-effect"
+              disabled={isTrustScoreSubmitting}
+            >
+              {isTrustScoreSubmitting ? "در حال انجام..." : "تایید بازیابی"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Trust Score Recovery Dialog */}
+      <Dialog open={trustScoreDialogOpen} onOpenChange={setTrustScoreDialogOpen}>
+        <DialogContent className="sm:max-w-[425px] backdrop-blur-md bg-white/90 border-0 shadow-xl">
+          <DialogHeader>
+            <DialogTitle>بازیابی امتیاز اعتبار دانشجو</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4" dir="rtl">
+            <div className="space-y-2">
+              <Label htmlFor="user_id">شناسه دانشجو</Label>
+              <Input
+                id="user_id"
+                name="user_id"
+                type="number"
+                value={trustScoreFormData.user_id || ""}
+                onChange={handleTrustScoreInputChange}
+                placeholder="شناسه دانشجو را وارد کنید"
+                className="form-input-focus"
+                readOnly={trustScoreFormData.user_id > 0}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="points">تعداد امتیاز برای بازیابی</Label>
+              <Input
+                id="points"
+                name="points"
+                type="number"
+                min="1"
+                value={trustScoreFormData.points}
+                onChange={handleTrustScoreInputChange}
+                placeholder="تعداد امتیاز را وارد کنید"
+                className="form-input-focus"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="reason">دلیل بازیابی (اختیاری)</Label>
+              <Textarea
+                id="reason"
+                name="reason"
+                value={trustScoreFormData.reason || ""}
+                onChange={handleTrustScoreInputChange}
+                placeholder="دلیل بازیابی امتیاز اعتبار را وارد کنید"
+                rows={3}
+                className="form-input-focus"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTrustScoreDialogOpen(false)} disabled={isTrustScoreSubmitting}>
+              انصراف
+            </Button>
+            <Button
+              onClick={handleTrustScoreSubmit}
+              className="bg-[#f97316] hover:bg-orange-600 btn-hover-effect"
+              disabled={isTrustScoreSubmitting}
+            >
+              {isTrustScoreSubmitting ? "در حال ذخیره..." : "بازیابی امتیاز"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Student Dialog */}
+      <Dialog open={studentDialogOpen} onOpenChange={setStudentDialogOpen}>
+        <DialogContent className="sm:max-w-[425px] backdrop-blur-md bg-white/90 border-0 shadow-xl">
+          <DialogHeader>
+            <DialogTitle>{currentStudent ? "ویرایش اطلاعات دانشجو" : "افزودن دانشجوی جدید"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4" dir="rtl">
+            <div className="space-y-2">
+              <Label htmlFor="name">نام و نام خانوادگی</Label>
+              <Input
+                id="name"
+                name="name"
+                value={studentFormData.name}
+                onChange={handleStudentInputChange}
+                placeholder="نام و نام خانوادگی دانشجو را وارد کنید"
+                className="form-input-focus"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="student_id">شماره دانشجویی</Label>
+              <Input
+                id="student_id"
+                name="student_id"
+                value={studentFormData.student_id}
+                onChange={handleStudentInputChange}
+                placeholder="شماره دانشجویی را وارد کنید"
+                className="form-input-focus"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">ایمیل</Label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                value={studentFormData.email}
+                onChange={handleStudentInputChange}
+                placeholder="ایمیل دانشجو را وارد کنید"
+                className="form-input-focus"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">شماره تماس</Label>
+              <Input
+                id="phone"
+                name="phone"
+                value={studentFormData.phone}
+                onChange={handleStudentInputChange}
+                placeholder="شماره تماس دانشجو را وارد کنید"
+                className="form-input-focus"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="department">دانشکده</Label>
+              <Input
+                id="department"
+                name="department"
+                value={studentFormData.department}
+                onChange={handleStudentInputChange}
+                placeholder="دانشکده دانشجو را وارد کنید"
+                className="form-input-focus"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="status">وضعیت</Label>
+              <Select
+                name="status"
+                value={studentFormData.status}
+                onValueChange={(value) =>
+                  setStudentFormData({ ...studentFormData, status: value as "active" | "inactive" })
+                }
+              >
+                <SelectTrigger className="form-input-focus">
+                  <SelectValue placeholder="انتخاب وضعیت" />
+                </SelectTrigger>
+                <SelectContent dir="rtl">
+                  <SelectItem value="active">فعال</SelectItem>
+                  <SelectItem value="inactive">غیرفعال</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setStudentDialogOpen(false)} disabled={isStudentSubmitting}>
+              انصراف
+            </Button>
+            <Button
+              onClick={handleStudentSubmit}
+              className="bg-[#f97316] hover:bg-orange-600 btn-hover-effect"
+              disabled={isStudentSubmitting}
+            >
+              {isStudentSubmitting ? "در حال ذخیره..." : currentStudent ? "به‌روزرسانی" : "افزودن"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Student Delete Dialog */}
+      <Dialog open={studentDeleteDialogOpen} onOpenChange={setStudentDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-[425px] backdrop-blur-md bg-white/90 border-0 shadow-xl">
+          <DialogHeader>
+            <DialogTitle>حذف دانشجو</DialogTitle>
+          </DialogHeader>
+          <div className="py-4" dir="rtl">
+            <p>
+              آیا از حذف دانشجو &quot;{currentStudent?.name}&quot; با شماره دانشجویی &quot;{currentStudent?.student_id}
+              &quot; اطمینان دارید؟
+            </p>
+            <p className="text-sm text-red-500 mt-2">
+              توجه: این عمل غیرقابل بازگشت است و تمام اطلاعات مربوط به این دانشجو حذف خواهد شد.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setStudentDeleteDialogOpen(false)} disabled={isStudentSubmitting}>
+              انصراف
+            </Button>
+            <Button variant="destructive" onClick={handleStudentDelete} disabled={isStudentSubmitting}>
+              {isStudentSubmitting ? "در حال حذف..." : "حذف"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Payment Inquiry Modal */}
+      <Dialog open={isInquiryModalOpen} onOpenChange={setIsInquiryModalOpen}>
+        <DialogContent className="sm:max-w-[500px]" dir="rtl">
+          {inquiryResult && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-right">نتیجه استعلام پرداخت</DialogTitle>
+                <DialogDescription className="text-right">
+                  جزئیات وضعیت پرداخت
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label className="text-right font-medium">وضعیت:</Label>
+                  <div className="col-span-3 text-right">
+                    <Badge 
+                      variant={
+                        inquiryResult.status === 'PAID' || inquiryResult.status === 'VERIFIED' ? 'default' :
+                        inquiryResult.status === 'FAILED' || inquiryResult.status === 'REVERSED' ? 'destructive' :
+                        'outline'
+                      }
+                      className="text-sm"
+                    >
+                      {formatStatus(inquiryResult.status)}
+                      {inquiryResult.reversed && ' (برگشت خودکار انجام شد)'}
+                    </Badge>
+                  </div>
+                </div>
+                
+                {inquiryResult.payment && (
+                  <>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label className="text-right font-medium">مبلغ:</Label>
+                      <div className="col-span-3 text-right">
+                        {inquiryResult.payment.amount?.toLocaleString('fa-IR')} تومان
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label className="text-right font-medium">کاربر:</Label>
+                      <div className="col-span-3 text-right">
+                        {inquiryResult.payment.user?.full_name || 'نامشخص'}
+                        {inquiryResult.payment.user?.phone_number && (
+                          <div className="text-sm text-muted-foreground">
+                            {inquiryResult.payment.user.phone_number}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label className="text-right font-medium">تاریخ پرداخت:</Label>
+                      <div className="col-span-3 text-right">
+                        {new Date(inquiryResult.payment.created_at).toLocaleString('fa-IR')}
+                      </div>
+                    </div>
+                    {inquiryResult.payment.ref_id && (
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label className="text-right font-medium">شماره پیگیری:</Label>
+                        <div className="col-span-3 text-right font-mono">
+                          {inquiryResult.payment.ref_id}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+                
+                {inquiryResult.message && (
+                  <div className="mt-4 p-3 bg-muted/50 rounded-md">
+                    <p className="text-sm text-muted-foreground">{inquiryResult.message}</p>
+                  </div>
+                )}
+              </div>
+              <DialogFooter>
+                <Button onClick={() => setIsInquiryModalOpen(false)}>
+                  بستن
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>

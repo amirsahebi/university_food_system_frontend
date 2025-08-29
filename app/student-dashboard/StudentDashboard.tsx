@@ -23,6 +23,7 @@ import {
   CreditCard,
   Copy,
   CheckCheck,
+  CalendarDays,
 } from "lucide-react"
 import { toast, Toaster } from "react-hot-toast"
 import DatePicker from "react-multi-date-picker"
@@ -36,11 +37,31 @@ import { Separator } from "@/components/ui/separator"
 import { useAuth } from "@/lib/auth-context"
 // Import the CategoryFilter component
 import { CategoryFilter } from "@/components/student/category-filter"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
 interface TimeSlot {
   id: number
   start_time: string
   end_time: string
+}
+
+interface TrustScoreData {
+  trust_score: number
+  trust_score_updated_at: string
+  can_use_vouchers: boolean
+  status: 'good' | 'recovery_in_progress'
+  recovery_info?: {
+    points_to_recover: number
+    estimated_days: number
+    recovery_rate: string
+    message: string
+  }
+}
+
+interface UserProfile {
+  trust_score: number
+  trust_score_recovery_days?: number
+  trust_score_data?: TrustScoreData
 }
 
 interface MenuItem {
@@ -52,6 +73,7 @@ interface MenuItem {
     image_url: string
     category_id: number
     category_name: string
+    supports_extra_voucher?: boolean
   }
   start_time: string
   end_time: string
@@ -88,6 +110,7 @@ interface Reservation {
   delivery_code: string
   reservation_number: string
   payment_status?: "pending" | "paid" | "failed"
+  meal_type: string
 }
 
 const ModalOrSheet = ({
@@ -152,6 +175,29 @@ export default function StudentDashboard() {
   const [isCopied, setIsCopied] = useState(false)
   // Add state for selected category
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null)
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
+  const [extraVoucherSelected, setExtraVoucherSelected] = useState(false)
+  
+  // Trust score helper functions
+  const getTrustScoreStatus = (score: number) => {
+    if (score > 5) return "عالی";
+    if (score > 0) return "خوب";
+    if (score === 0) return "خنثی";
+    return "محدود";
+  };
+
+  const getTrustScoreStatusClass = (score: number) => {
+    if (score > 5) return "bg-green-100 text-green-700";
+    if (score > 0) return "bg-green-50 text-green-600";
+    if (score === 0) return "bg-yellow-100 text-yellow-700";
+    return "bg-red-100 text-red-700";
+  };
+
+  const getTrustScoreValueClass = (score: number) => {
+    if (score > 0) return "text-green-600";
+    if (score === 0) return "text-yellow-600";
+    return "text-red-600";
+  };
 
   const fetchDailyMenu = useCallback(async () => {
     try {
@@ -161,7 +207,7 @@ export default function StudentDashboard() {
           meal_type: selectedMeal,
         },
       })
-      console.log('Fetched daily menu:', response.data)
+      console.log("Fetched daily menu:", response.data)
       setDailyMenu(response.data)
     } catch (error) {
       console.error("Error fetching daily menu:", error)
@@ -173,6 +219,7 @@ export default function StudentDashboard() {
     fetchDailyMenu()
     fetchReservations()
     fetchVoucherPrice()
+    fetchUserProfile()
   }, [fetchDailyMenu])
 
   // Add effect to refresh orders when returning from payment verification
@@ -217,23 +264,48 @@ export default function StudentDashboard() {
     }
   }
 
+  const fetchUserProfile = useCallback(async () => {
+    try {
+      const userResponse = await api.get(createApiUrl(API_ROUTES.ME))
+      
+      try {
+        // Fetch trust score data
+        const trustScoreResponse = await api.get(createApiUrl(API_ROUTES.GET_TRUST_SCORE))
+        const trustData = trustScoreResponse.data;
+        
+        setUserProfile({
+          ...userResponse.data,
+          trust_score: trustData.trust_score,
+          trust_score_recovery_days: trustData.recovery_info?.estimated_days || null,
+          trust_score_data: trustData
+        })
+      } catch (trustError) {
+        console.error("Error fetching trust score", trustError)
+        setUserProfile(userResponse.data)
+      }
+    } catch (error) {
+      console.error("Error fetching user profile", error)
+      toast.error("خطا در دریافت اطلاعات کاربر")
+    }
+  }, [])
+
   const handleFoodSelect = (item: MenuItem) => {
     // First filter out any null time slots
-    const validTimeSlots = item.time_slots.filter(slot => slot !== null);
+    const validTimeSlots = item.time_slots.filter((slot) => slot !== null)
 
     // Sort time slots by start time
     const sortedTimeSlots = [...validTimeSlots].sort((a, b) => {
       // Convert start times to Date objects for accurate comparison
-      const startTimeA = new Date(`1970-01-01T${a.start_time}`);
-      const startTimeB = new Date(`1970-01-01T${b.start_time}`);
-      return startTimeA.getTime() - startTimeB.getTime();
-    });
+      const startTimeA = new Date(`1970-01-01T${a.start_time}`)
+      const startTimeB = new Date(`1970-01-01T${b.start_time}`)
+      return startTimeA.getTime() - startTimeB.getTime()
+    })
 
     // Create a new item with sorted time slots
     const itemWithSortedTimeSlots = {
       ...item,
-      time_slots: sortedTimeSlots
-    };
+      time_slots: sortedTimeSlots,
+    }
 
     setSelectedFood(itemWithSortedTimeSlots)
     setSelectedTimeSlot(null)
@@ -250,12 +322,30 @@ export default function StudentDashboard() {
 
   const calculateTotalPrice = () => {
     if (!selectedFood) return 0
-    return hasVoucher ? selectedFood.food.price - voucherPrice : selectedFood.food.price
+
+    let totalPrice = selectedFood.food.price
+
+    if (hasVoucher) totalPrice -= voucherPrice
+    if (extraVoucherSelected) totalPrice -= voucherPrice
+
+    return totalPrice
   }
 
   const handleOrder = () => {
     if (!selectedFood || !selectedTimeSlot) {
       toast.error("لطفاً یک غذا و یک بازه زمانی برای دریافت غذا انتخاب کنید")
+      return
+    }
+
+    const canUseVouchers = userProfile?.trust_score_data?.can_use_vouchers ?? (userProfile?.trust_score !== undefined ? userProfile.trust_score >= 0 : true);
+    
+    if (!canUseVouchers && hasVoucher) {
+      toast.error("به دلیل امتیاز اعتبار منفی، امکان استفاده از ژتون وجود ندارد")
+      return
+    }
+
+    if (extraVoucherSelected && !selectedFood.food.supports_extra_voucher) {
+      toast.error("این غذا از ژتون اضافی پشتیبانی نمی‌کند")
       return
     }
 
@@ -292,10 +382,10 @@ export default function StudentDashboard() {
         meal_type: selectedMeal,
         reserved_date: new DateObject(selectedDate).format("YYYY-MM-DD"),
         has_voucher: hasVoucher,
+        has_extra_voucher: extraVoucherSelected,
       })
-      console.log('Order response:', orderResponse)
-      console.log('Order response data:', orderResponse.data)
-
+      console.log("Order response:", orderResponse)
+      console.log("Order response data:", orderResponse.data)
 
       // If total price is zero, skip payment request and verification
       if (totalPrice === 0) {
@@ -322,11 +412,16 @@ export default function StudentDashboard() {
       }
     } catch (error: unknown) {
       // Type guard for axios error
-      const isAxiosError = (err: unknown): err is { response?: { data?: { message?: string; non_field_errors?: string[] } } } => {
-        return typeof err === 'object' && err !== null && 'response' in err
+      const isAxiosError = (
+        err: unknown,
+      ): err is { response?: { data?: { message?: string; non_field_errors?: string[] } } } => {
+        return typeof err === "object" && err !== null && "response" in err
       }
 
-      if (isAxiosError(error) && error.response?.data?.non_field_errors?.[0] === "You already have a reservation for this date and meal type.") {
+      if (
+        isAxiosError(error) &&
+        error.response?.data?.non_field_errors?.[0] === "You already have a reservation for this date and meal type."
+      ) {
         toast.error("شما قبلاً سفارشی برای این تاریخ و وعده داشته اید")
         setIsPaymentProcessing(false)
         return
@@ -336,7 +431,7 @@ export default function StudentDashboard() {
       const errorMessage =
         error instanceof Error
           ? error.message
-          : isAxiosError(error) 
+          : isAxiosError(error)
             ? error.response?.data?.message || "خطا در پرداخت"
             : "خطا در فرآیند پرداخت. لطفاً دوباره تلاش کنید"
       toast.error(errorMessage)
@@ -436,6 +531,155 @@ export default function StudentDashboard() {
         </div>
       </header>
 
+      {userProfile && (
+        <div className="mb-10 mx-auto max-w-2xl" dir="rtl">
+          <div className="bg-white rounded-xl shadow-md overflow-hidden">
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-bold text-gray-800">وضعیت اعتبار شما</h3>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 p-0 hover:bg-transparent"
+                      >
+                        <AlertCircle className="h-4 w-4 text-[#F47B20]" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      className="w-80 p-3 bg-white border border-gray-200 shadow-lg rounded-xl"
+                      align="center"
+                      side="bottom"
+                      dir="rtl"
+                    >
+                      <div className="space-y-2">
+                        <div className="text-center mb-2">
+                          <h4 className="text-base font-bold text-[#F47B20] mb-0.5">امتیاز اعتبار چیست؟</h4>
+                          <div className="w-10 h-0.5 bg-orange-100 rounded-full mx-auto"></div>
+                        </div>
+
+                        <p className="text-gray-700 text-xs leading-relaxed text-justify bg-gray-50 p-3 rounded-lg border border-gray-100">
+                          امتیاز اعتبار نشان‌دهنده میزان اعتماد سیستم به شماست. این امتیاز بر اساس رفتار پرداخت و رزرو
+                          شما محاسبه می‌شود و می‌تواند بر امکاناتی که در اختیار دارید تأثیر بگذارد.
+                        </p>
+
+                        <div className="space-y-2">
+                          <div className="flex items-start gap-2 bg-gradient-to-l from-green-50 to-white p-2 rounded-lg border border-green-100 hover:shadow-sm transition-shadow">
+                            <div className="bg-green-100 p-1 rounded-full">
+                              <span className="text-green-600 text-sm">+</span>
+                            </div>
+                            <div className="flex-1">
+                              <h5 className="font-medium text-gray-800 text-xs mb-0.5">افزایش امتیاز</h5>
+                              <p className="text-green-700 text-[0.7rem] leading-tight flex items-center justify-between">
+                                <span>به ازای هر ۱۰,۰۰۰ تومان پرداخت موفق:</span>
+                                <span className="mr-1 font-bold bg-green-100 px-1.5 py-0.5 rounded-full text-green-800 text-[0.7rem]">
+                                  ۱+ امتیاز
+                                </span>
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-start gap-2 bg-gradient-to-l from-red-50 to-white p-2 rounded-lg border border-red-100 hover:shadow-sm transition-shadow">
+                            <div className="bg-red-100 p-1 rounded-full">
+                              <span className="text-red-600 text-sm">-</span>
+                            </div>
+                            <div className="flex-1">
+                              <h5 className="font-medium text-gray-800 text-xs mb-0.5">کاهش امتیاز</h5>
+                              <p className="text-red-700 text-[0.7rem] leading-tight flex items-center justify-between">
+                                <span>به ازای هر رزرو با ژتون که تحویل گرفته نشود:</span>
+                                <span className="mr-1 font-bold bg-red-100 px-1.5 py-0.5 rounded-full text-red-800 text-[0.65rem]">
+                                  ۱۰- امتیاز
+                                </span>
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-start gap-2 bg-gradient-to-l from-blue-50 to-white p-2 rounded-lg border border-blue-100 hover:shadow-sm transition-shadow">
+                            <div className="bg-blue-100 p-1 rounded-full">
+                              <span className="text-blue-600 text-sm">↻</span>
+                            </div>
+                            <div className="flex-1">
+                              <h5 className="font-medium text-gray-800 text-xs mb-0.5">بازیابی خودکار</h5>
+                              <p className="text-blue-700 text-[0.7rem] leading-tight flex items-center justify-between">
+                                <span>فقط برای امتیاز منفی، حداکثر تا صفر:</span>
+                                <span className="mr-1 font-bold bg-blue-100 px-1.5 py-0.5 rounded-full text-blue-800 text-[0.7rem]">
+                                  ۲+ امتیاز در روز
+                                </span>
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-start gap-2 bg-gradient-to-l from-yellow-50 to-white p-2 rounded-lg border border-yellow-100 hover:shadow-sm transition-shadow">
+                            <div className="bg-yellow-100 p-1 rounded-full">
+                              <span className="text-yellow-600 text-sm">⏳</span>
+                            </div>
+                            <div className="flex-1">
+                              <h5 className="font-medium text-gray-800 text-xs mb-0.5">پیامدهای امتیاز منفی</h5>
+                              <div className="flex items-start mt-1">
+                                <p className="text-yellow-700 text-[0.7rem] leading-relaxed text-justify flex-1 pr-1 w-full">
+                                در صورت منفی بودن امتیاز، امکان استفاده از ژتون (عادی یا اضافی) وجود ندارد
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div
+                  className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    userProfile.trust_score !== undefined && userProfile.trust_score > 5
+                      ? "bg-green-100 text-green-700"
+                      : userProfile.trust_score !== undefined && userProfile.trust_score > 0
+                        ? "bg-green-50 text-green-600"
+                        : userProfile.trust_score === 0
+                          ? "bg-yellow-100 text-yellow-700"
+                          : "bg-red-100 text-red-700"
+                  }`}
+                >
+                  {userProfile.trust_score !== undefined && userProfile.trust_score > 5
+                    ? "عالی"
+                    : userProfile.trust_score !== undefined && userProfile.trust_score > 0
+                      ? "خوب"
+                      : userProfile.trust_score === 0
+                        ? "خنثی"
+                        : "محدود"}
+                </div>
+              </div>
+
+              <div className="mt-4 flex items-center justify-between">
+                <div className="flex items-center">
+                  <span className="text-gray-600 text-sm">امتیاز فعلی:</span>
+                  <span
+                    className={`text-2xl font-bold mr-1 ${
+                      userProfile.trust_score !== undefined && userProfile.trust_score > 0
+                        ? "text-green-600"
+                        : userProfile.trust_score === 0
+                          ? "text-yellow-600"
+                          : "text-red-600"
+                    }`}
+                  >
+                    {new Intl.NumberFormat("fa-IR", { useGrouping: false }).format(userProfile.trust_score)}
+                  </span>
+                </div>
+
+                {userProfile.trust_score !== undefined &&
+                  userProfile.trust_score < 0 &&
+                  userProfile.trust_score_recovery_days && (
+                    <div className="text-sm text-red-600">
+                      <span>زمان بازیابی: </span>
+                      <span className="font-medium">{new Intl.NumberFormat("fa-IR", { useGrouping: false }).format(userProfile.trust_score_recovery_days)} روز دیگر</span>
+                    </div>
+                  )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-4 max-w-7xl mx-auto">
         <div className="flex gap-2 h-[42px] md:w-2/3 lg:w-1/2 mx-auto">
           <div className="flex-[3] h-full">
@@ -491,8 +735,8 @@ export default function StudentDashboard() {
             className={`mt-4 transition-all duration-300 ease-in-out ${activeTab === "menu" ? "animate-slide-right" : ""}`}
           >
             <div className="mb-4">
-              <CategoryFilter 
-                onCategoryChange={setSelectedCategory} 
+              <CategoryFilter
+                onCategoryChange={setSelectedCategory}
                 selectedCategoryId={selectedCategory}
                 dailyMenuItems={dailyMenu?.items || []}
               />
@@ -530,7 +774,9 @@ export default function StudentDashboard() {
                           )}
                         </div>
                         <div className="flex flex-col items-end flex-grow ">
-                          <h3 className="font-semibold text-[1rem] mb-1 mr-1" dir="rtl">{item.food.name}</h3>
+                          <h3 className="font-semibold text-[1rem] mb-1 mr-1" dir="rtl">
+                            {item.food.name}
+                          </h3>
                           {item.food.category_name && (
                             <span className="text-xs bg-[#F47B20]/10 text-[#F47B20] px-2 py-1 rounded-full mb-2">
                               {item.food.category_name}
@@ -538,7 +784,8 @@ export default function StudentDashboard() {
                           )}
                           {item.is_available && (
                             <p className="text-sm text-gray-500 bg-[#F4EDE7] px-2 py-1 rounded-full mb-10">
-                              ظرفیت: {new Intl.NumberFormat("fa-IR", { useGrouping: false }).format(item.daily_capacity)}
+                              ظرفیت:{" "}
+                              {new Intl.NumberFormat("fa-IR", { useGrouping: false }).format(item.daily_capacity)}
                             </p>
                           )}
                         </div>
@@ -561,8 +808,9 @@ export default function StudentDashboard() {
                     </CardContent>
                   </Card>
                 ))}
-              {dailyMenu?.items.filter((item) => selectedCategory === null || item.food.category_id === selectedCategory)
-                .length === 0 && (
+              {dailyMenu?.items.filter(
+                (item) => selectedCategory === null || item.food.category_id === selectedCategory,
+              ).length === 0 && (
                 <div className="col-span-full text-center py-12 bg-white rounded-lg shadow-md">
                   <p className="text-gray-500">هیچ غذایی در این دسته‌بندی یافت نشد</p>
                 </div>
@@ -583,155 +831,173 @@ export default function StudentDashboard() {
               {[...reservations]
                 .sort((a, b) => {
                   // First compare dates (newest first)
-                  const dateComparison = new Date(b.reserved_date).getTime() - new Date(a.reserved_date).getTime();
-                  if (dateComparison !== 0) return dateComparison;
+                  const dateComparison = new Date(b.reserved_date).getTime() - new Date(a.reserved_date).getTime()
+                  if (dateComparison !== 0) return dateComparison
 
                   // If dates are equal, compare meal types (reverse alphabetical)
-                  const mealComparison = b.food.name.localeCompare(a.food.name);
-                  if (mealComparison !== 0) return mealComparison;
+                  const mealComparison = b.food.name.localeCompare(a.food.name)
+                  if (mealComparison !== 0) return mealComparison
 
                   // If dates and meals are equal, compare reservation numbers (reverse order)
                   // Convert to string to handle undefined/null values
-                  const aNum = String(a.reservation_number || '');
-                  const bNum = String(b.reservation_number || '');
-                  return bNum.localeCompare(aNum);
+                  const aNum = String(a.reservation_number || "")
+                  const bNum = String(b.reservation_number || "")
+                  return bNum.localeCompare(aNum)
                 })
                 .map((reservation) => (
-                <Card
-                  key={reservation.id}
-                  className="bg-white rounded-2xl shadow-[0_0_10px_rgba(0,0,0,0.1)] transition-all duration-300 ease-in-out hover:shadow-[0_0_15px_rgba(0,0,0,0.2)] border border-gray-300"
-                >
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-center mb-4">
-                      <Badge
-                        variant={
-                          reservation.status === "picked_up"
-                            ? "default"
-                            : reservation.status === "ready_to_pickup"
-                              ? "secondary"
-                              : reservation.status === "preparing"
-                                ? "outline"
-                                : reservation.status === "pending_payment"
-                                  ? "destructive"
-                                  : reservation.status === "not_picked_up"
-                                    ? "destructive"
-                                    : reservation.status === "cancelled"
+                  <Card
+                    key={reservation.id}
+                    className="bg-white rounded-2xl shadow-[0_0_10px_rgba(0,0,0,0.1)] transition-all duration-300 ease-in-out hover:shadow-[0_0_15px_rgba(0,0,0,0.2)] border border-gray-300"
+                  >
+                    <CardContent className="p-4">
+                      <div className="space-y-3 mb-4">
+                        <div className="flex justify-between items-center">
+                          <Badge
+                            variant={
+                              reservation.status === "picked_up"
+                                ? "default"
+                                : reservation.status === "ready_to_pickup"
+                                  ? "secondary"
+                                  : reservation.status === "preparing"
+                                    ? "outline"
+                                    : reservation.status === "pending_payment"
                                       ? "destructive"
-                                      : "destructive"
-                        }
-                        className={`text-lg px-3 py-1 ${
-                          reservation.status === "ready_to_pickup"
-                            ? "bg-[#F47B20]"
-                            : reservation.status === "picked_up"
-                              ? "bg-[#5CB85C]"
-                              : reservation.status === "not_picked_up"
-                                ? "bg-red-500"
-                                : reservation.status === "cancelled"
-                                  ? "bg-red-500"
-                                  : ""
-                        }`}
-                      >
-                        {reservation.status === "waiting"
-                          ? "در انتظار"
-                          : reservation.status === "preparing"
-                            ? "در حال آماده‌سازی"
-                            : reservation.status === "ready_to_pickup"
-                              ? "آماده تحویل"
-                              : reservation.status === "pending_payment"
-                                ? "در انتظار پرداخت"
-                                : reservation.status === "not_picked_up"
-                                  ? "تحویل گرفته نشده"
-                                  : reservation.status === "cancelled"
-                                    ? "لغو شده"
-                                    : "تحویل داده شده"}
-                      </Badge>
-                      <h3 className="font-bold text-xl">سفارش #{reservation.reservation_number}</h3>
-                    </div>
-                    <div className="flex justify-between items-center mb-2">
-                      <span dir="rtl">
-                        {new Intl.NumberFormat("fa-IR", { useGrouping: true })
-                          .format(reservation.price)
-                          .replace(/٬/g, ",")}{" "}
-                        تومان
-                      </span>
-                      <span>{reservation.food.name}</span>
-                    </div>
-                    <div className="border-t pt-2 mt-2">
-                        <div className="flex justify-between items-center mt-2">
-                          <span className="text-gray-600">
-                            {new Intl.DateTimeFormat('fa-IR').format(new Date(reservation.reserved_date))}
-                          </span>
-                          <span className="font-bold">:تاریخ سفارش</span>
+                                      : reservation.status === "not_picked_up"
+                                        ? "destructive"
+                                        : reservation.status === "cancelled"
+                                          ? "destructive"
+                                          : "destructive"
+                            }
+                            className={`text-lg px-3 py-1 ${
+                              reservation.status === "ready_to_pickup"
+                                ? "bg-[#F47B20]"
+                                : reservation.status === "picked_up"
+                                  ? "bg-[#5CB85C]"
+                                  : reservation.status === "not_picked_up"
+                                    ? "bg-red-500"
+                                    : reservation.status === "cancelled"
+                                      ? "bg-red-500"
+                                      : ""
+                            }`}
+                          >
+                            {reservation.status === "waiting"
+                              ? "در انتظار"
+                              : reservation.status === "preparing"
+                                ? "در حال آماده‌سازی"
+                                : reservation.status === "ready_to_pickup"
+                                  ? "آماده تحویل"
+                                  : reservation.status === "pending_payment"
+                                    ? "در انتظار پرداخت"
+                                    : reservation.status === "not_picked_up"
+                                      ? "تحویل گرفته نشده"
+                                      : reservation.status === "cancelled"
+                                        ? "لغو شده"
+                                        : "تحویل داده شده"}
+                          </Badge>
+                          <h3 className="font-bold text-xl">سفارش #{reservation.reservation_number}</h3>
                         </div>
-                      <div className="flex justify-between items-center mt-2">
-                        <span className="text-gray-600">
-                          {reservation.time_slot && reservation.time_slot.start_time 
-                            ? reservation.time_slot.start_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])
-                            : ""}
-                          {reservation.time_slot && reservation.time_slot.start_time && reservation.time_slot.end_time 
-                            ? " - " + reservation.time_slot.end_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])
-                            : ""}
-                        </span>
-                        <span className="font-bold">:زمان تحویل</span>
-                      </div>
-                      <div className="flex justify-between items-center mt-2">
-                        <span className="text-gray-600">{reservation.has_voucher ? "بله" : "خیر"}</span>
-                        <span className="font-bold">:استفاده از ژتون</span>
-                      </div>
-                    </div>
-                    {reservation.status === "pending_payment" && (
-                      <div className="mt-4 space-y-4">
-                        <Button
-                          onClick={() => handlePaymentForOrder(reservation)}
-                          className="w-full bg-[#F47B20] hover:bg-[#E06A10] text-white transition-colors duration-200"
-                        >
-                          پرداخت سفارش
-                          <ChevronRight className="ml-2 h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          onClick={() => handleCancelReservation(reservation.id)}
-                          className="w-full hover:bg-red-600 transition-colors duration-200"
-                        >
-                          لغو سفارش
-                          <X className="ml-2 h-4 w-4" />
-                        </Button>
-                      </div>
-                    )}
-                    {reservation.status !== "pending_payment" && reservation.status !== "cancelled" && (
-                      <div className="mt-4">
-                        <div className="bg-gradient-to-r from-orange-100 to-orange-200 p-4 rounded-xl shadow-inner">
-                          <div className="bg-white rounded-lg p-4 shadow-md text-center">
-                            <h3 className="text-lg font-bold mb-2 text-[#F47B20]">کد تحویل شما</h3>
-                            <div className="flex items-center justify-center">
-                              <div className="font-mono text-2xl font-bold tracking-widest bg-gray-100 px-4 py-2 rounded-md border-2 border-dashed border-[#F47B20]">
-                                {reservation.delivery_code.toString()}
-                              </div>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="ml-2 text-[#F47B20] hover:text-[#E06A10]"
-                                onClick={() =>
-                                  copyToClipboard(
-                                    reservation.delivery_code.toString(),
-                                  )
-                                }
-                              >
-                                {isCopied ? (
-                                  <CheckCheck className="h-4 w-4 text-[#5CB85C]" />
-                                ) : (
-                                  <Copy className="h-4 w-4" />
-                                )}
-                              </Button>
-                            </div>
-                            <p className="text-sm text-gray-500 mt-2">این کد را به متصدی تحویل غذا نشان دهید</p>
+                        <div className="grid grid-cols-3 items-center text-sm text-gray-600 bg-gray-50 px-3 py-1.5 rounded-lg">
+                          <div className="flex items-center">
+                            <span className="mr-1">{reservation.meal_type === "dinner" ? "شام" : "ناهار"}</span>
+                            <Utensils className="h-4 w-4 text-[#F47B20]" />
+                          </div>
+                          <div className="h-4 w-px bg-gray-300 mx-auto"></div>
+                          <div className="flex items-center justify-end">
+                            <span className="mr-1">
+                              {new Intl.DateTimeFormat("fa-IR", { weekday: "long" }).format(
+                                new Date(reservation.reserved_date)
+                              )}
+                            </span>
+                            <CalendarDays className="h-4 w-4 text-[#F47B20]" />
                           </div>
                         </div>
                       </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
+                      <div className="flex justify-between items-center mb-2">
+                        <span dir="rtl">
+                          {new Intl.NumberFormat("fa-IR", { useGrouping: true })
+                            .format(reservation.price)
+                            .replace(/٬/g, ",")}{" "}
+                          تومان
+                        </span>
+                        <span>{reservation.food.name}</span>
+                      </div>
+                      <div className="border-t pt-2 mt-2">
+                        <div className="flex justify-between items-center mt-2">
+                          <span className="text-gray-600">
+                            {new Intl.DateTimeFormat("fa-IR").format(new Date(reservation.reserved_date))}
+                          </span>
+                          <span className="font-bold">:تاریخ سفارش</span>
+                        </div>
+                        <div className="flex justify-between items-center mt-2">
+                          <span className="text-gray-600">
+                            {reservation.time_slot && reservation.time_slot.start_time
+                              ? reservation.time_slot.start_time
+                                  .slice(0, 5)
+                                  .replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])
+                              : ""}
+                            {reservation.time_slot && reservation.time_slot.start_time && reservation.time_slot.end_time
+                              ? " - " +
+                                reservation.time_slot.end_time
+                                  .slice(0, 5)
+                                  .replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])
+                              : ""}
+                          </span>
+                          <span className="font-bold">:زمان تحویل</span>
+                        </div>
+                        <div className="flex justify-between items-center mt-2">
+                          <span className="text-gray-600">{reservation.has_voucher ? "بله" : "خیر"}</span>
+                          <span className="font-bold">:استفاده از ژتون</span>
+                        </div>
+                      </div>
+                      {reservation.status === "pending_payment" && (
+                        <div className="mt-4 space-y-4">
+                          <Button
+                            onClick={() => handlePaymentForOrder(reservation)}
+                            className="w-full bg-[#F47B20] hover:bg-[#E06A10] text-white transition-colors duration-200"
+                          >
+                            پرداخت سفارش
+                            <ChevronRight className="ml-2 h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            onClick={() => handleCancelReservation(reservation.id)}
+                            className="w-full hover:bg-red-600 transition-colors duration-200"
+                          >
+                            لغو سفارش
+                            <X className="ml-2 h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
+                      {reservation.status !== "pending_payment" && reservation.status !== "cancelled" && (
+                        <div className="mt-4">
+                          <div className="bg-gradient-to-r from-orange-100 to-orange-200 p-4 rounded-xl shadow-inner">
+                            <div className="bg-white rounded-lg p-4 shadow-md text-center">
+                              <h3 className="text-lg font-bold mb-2 text-[#F47B20]">کد تحویل شما</h3>
+                              <div className="flex items-center justify-center">
+                                <div className="font-mono text-2xl font-bold tracking-widest bg-gray-100 px-4 py-2 rounded-md border-2 border-dashed border-[#F47B20]">
+                                  {reservation.delivery_code.toString()}
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="ml-2 text-[#F47B20] hover:text-[#E06A10]"
+                                  onClick={() => copyToClipboard(reservation.delivery_code.toString())}
+                                >
+                                  {isCopied ? (
+                                    <CheckCheck className="h-4 w-4 text-[#5CB85C]" />
+                                  ) : (
+                                    <Copy className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </div>
+                              <p className="text-sm text-gray-500 mt-2">این کد را به متصدی تحویل غذا نشان دهید</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
               {reservations.length === 0 && (
                 <div className="text-center py-12 bg-white rounded-lg shadow-md">
                   <div className="flex justify-center mb-4">
@@ -772,7 +1038,7 @@ export default function StudentDashboard() {
           </p>
           <div className="grid grid-cols-2 gap-4 mb-6">
             {selectedFood?.time_slots
-              ?.filter(slot => slot !== null)
+              ?.filter((slot) => slot !== null)
               .map((slot) => (
                 <Button
                   key={slot.id}
@@ -791,11 +1057,43 @@ export default function StudentDashboard() {
               ))}
           </div>
           <div className="flex items-center justify-between mb-4">
-            <Switch id="voucher" checked={hasVoucher} onCheckedChange={handleVoucherToggle} />
-            <Label htmlFor="voucher" className="text-black">
-              استفاده از ژتون
+            <Switch
+              id="voucher"
+              checked={hasVoucher}
+              onCheckedChange={handleVoucherToggle}
+              disabled={userProfile?.trust_score !== undefined && userProfile.trust_score < 0}
+            />
+            <Label
+              htmlFor="voucher"
+              className={`text-black ${userProfile?.trust_score !== undefined && userProfile.trust_score < 0 ? "opacity-50" : ""}`}
+            >
+              استفاده از ژتون عادی
             </Label>
           </div>
+
+          {selectedFood?.food.supports_extra_voucher && (
+            <div className="flex items-center justify-between mb-4">
+              <Switch
+                id="extraVoucher"
+                checked={extraVoucherSelected}
+                onCheckedChange={setExtraVoucherSelected}
+                disabled={(userProfile?.trust_score !== undefined && userProfile.trust_score < 0) || !hasVoucher}
+              />
+              <Label
+                htmlFor="extraVoucher"
+                className={`text-black ${(userProfile?.trust_score !== undefined && userProfile.trust_score < 0) || !hasVoucher ? "opacity-50" : ""}`}
+              >
+                استفاده از ژتون اضافی
+              </Label>
+            </div>
+          )}
+
+          {userProfile?.trust_score !== undefined && userProfile.trust_score < 0 && (
+            <div className="mb-4 p-2 bg-red-100 border border-red-300 rounded-md text-sm text-red-700 text-center" dir="rtl">
+              به دلیل امتیاز اعتبار منفی، امکان استفاده از ژتون وجود ندارد
+            </div>
+          )}
+
           <div className="text-xl font-bold mb-6 text-[#F47B20] estedad-font">
             قیمت نهایی:{" "}
             {new Intl.NumberFormat("fa-IR", { useGrouping: true }).format(calculateTotalPrice()).replace(/٬/g, ",")}{" "}
@@ -851,8 +1149,16 @@ export default function StudentDashboard() {
             </div>
             <div className="flex justify-between items-center mb-2">
               <span className="text-black">{hasVoucher ? "بله" : "خیر"}</span>
-              <span className="font-semibold text-black">استفاده از ژتون</span>
+              <span className="font-semibold text-black">استفاده از ژتون عادی</span>
             </div>
+
+            {selectedFood?.food.supports_extra_voucher && (
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-black">{extraVoucherSelected ? "بله" : "خیر"}</span>
+                <span className="font-semibold text-black">استفاده از ژتون اضافی</span>
+              </div>
+            )}
+
             <Separator className="my-2 bg-black" />
             <div className="flex justify-between items-center mt-2 text-lg font-bold">
               <span className="text-black" dir="rtl">

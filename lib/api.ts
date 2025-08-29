@@ -15,12 +15,27 @@ export const API_ROUTES = {
   CHANGE_PASSWORD: '/auth/change-password/',
   CHECK_PHONE_EXISTS: '/auth/check-phone-number/',
   CHECK_STUDENT_NUMBER_EXISTS: '/auth/check-student-number/',
+  GET_STUDENTS: '/auth/students/',
+  ADD_STUDENT: '/auth/students/',
+  UPDATE_STUDENT: (id: string) => `/auth/students/${id}/`,
+  DELETE_STUDENT: (id: string) => `/auth/students/${id}/`,
+  
+  
+  // Trust Score
+  GET_TRUST_SCORE: '/auth/trust-score/',
+  RECOVER_TRUST_SCORE: '/auth/trust-score/recover/',
   
   // Payment routes
   PAYMENT_REQUEST: "/payments/request/",
   PAYMENT_VERIFY: "/payments/verify/",
   PAYMENT_START: "/payments/start",
   PAYMENT_HISTORY: "/payments/history/",
+  // Admin payment management
+  GET_ALL_PAYMENTS: "/payments/payments/",
+  GET_PAYMENT_DETAILS: (id: string) => `/payments/payments/${id}/`,
+  REFUND_PAYMENT: (id: string) => `/payments/payments/${id}/refund/`,
+  GET_FAILED_PAYMENTS: "/payments/payments/failed/",
+  INQUIRE_PAYMENT: (authority: string) => `/payments/payments/inquire/${authority}/`,
 
   // Foods
   GET_FOODS: '/foods/',
