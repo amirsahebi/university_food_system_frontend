@@ -167,9 +167,10 @@ interface Payment {
 
 interface PaymentResponse {
   count: number;
-  next: string | null;
-  previous: string | null;
   results: Payment[];
+  // The backend might return next/previous in the future, so we'll keep them optional
+  next?: string | null;
+  previous?: string | null;
 }
 
 type PaymentFilterStatus = 'all' | 'pending' | 'paid' | 'failed' | 'refunded'
@@ -345,14 +346,17 @@ export default function AdminDashboard() {
   const fetchPayments = useCallback(async (page = 1, search = '', status: PaymentFilterStatus = 'all') => {
     try {
       setPaymentLoading(true)
+      const limit = pagination.pageSize;
+      const offset = (page - 1) * limit;
+      
       const response = await api.get<PaymentResponse>(
         createApiUrl(API_ROUTES.GET_ALL_PAYMENTS),
         {
           params: {
-            page,
-            page_size: pagination.pageSize,
+            limit,
+            offset,
             search,
-            status: status === 'all' ? undefined : status
+            status: status === 'all' ? undefined : status.toLowerCase()
           }
         }
       )
