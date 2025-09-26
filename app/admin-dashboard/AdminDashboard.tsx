@@ -2403,31 +2403,6 @@ export default function AdminDashboard() {
                                       <Trash className="w-4 h-4" />
                                     </Button>
                                   </div>
-                                  <div className="flex items-center justify-between px-2">
-                                    <div className="text-sm text-muted-foreground">
-                                      نمایش {(pagination.page - 1) * pagination.pageSize + 1} تا {
-                                        Math.min(pagination.page * pagination.pageSize, pagination.total)
-                                      } از {pagination.total} مورد
-                                    </div>
-                                    <div className="flex items-center space-x-2">
-                                      <Button 
-                                        variant="outline" 
-                                        size="sm" 
-                                        onClick={() => fetchPayments(pagination.page - 1, pagination.search, pagination.status)}
-                                        disabled={pagination.page === 1 || paymentLoading}
-                                      >
-                                        قبلی
-                                      </Button>
-                                      <Button 
-                                        variant="outline" 
-                                        size="sm"
-                                        onClick={() => fetchPayments(pagination.page + 1, pagination.search, pagination.status)}
-                                        disabled={pagination.page * pagination.pageSize >= pagination.total || paymentLoading}
-                                      >
-                                        بعدی
-                                      </Button>
-                                    </div>
-                                  </div>
                                 </TableCell>
                               </TableRow>
                             ))
