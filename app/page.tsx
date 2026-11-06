@@ -15,9 +15,13 @@ import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
 import api from "@/lib/axios"
 import { API_ROUTES, createApiUrl } from "@/lib/api"
+import { toEnglishDigits } from "@/lib/formatters"
 
 const loginSchema = z.object({
-  phone_number: z.string().regex(/^09\d{9}$/, { message: "شماره تلفن باید 11 رقم و با 09 شروع شود" }),
+  phone_number: z.preprocess(
+    (val) => toEnglishDigits(val as string).trim(),
+    z.string().regex(/^09\d{9}$/, { message: "شماره تلفن باید 11 رقم و با 09 شروع شود" })
+  ),
   password: z.string().min(6, { message: "رمز عبور باید حداقل 6 کاراکتر باشد" }),
 })
 

@@ -8,22 +8,33 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { toast, Toaster } from "react-hot-toast"
-import { Send, ArrowLeft, LogIn, Phone, Key, Lock } from "lucide-react"
+import { Send, LogIn, Phone, Key, Lock, ChevronLeft } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import api from "@/lib/axios"
 import { API_ROUTES, createApiUrl } from "@/lib/api"
 import { AnimatePresence, motion } from "framer-motion"
+import { toEnglishDigits } from "@/lib/formatters"
 
 const requestCodeSchema = z.object({
-  phone_number: z.string().regex(/^09\d{9}$/, { message: "شماره تلفن باید 11 رقم و با 09 شروع شود" }),
+  phone_number: z.preprocess(
+    (val) => toEnglishDigits(val as string).trim(),
+    z.string().regex(/^09\d{9}$/, { message: "شماره تلفن باید 11 رقم و با 09 شروع شود" })
+  ),
 })
 
 const resetPasswordSchema = z
   .object({
-    phone_number: z.string().regex(/^09\d{9}$/, { message: "شماره تلفن باید 11 رقم و با 09 شروع شود" }),
-    verification_code: z.string(),
+    phone_number: z.preprocess(
+      (val) => toEnglishDigits(val as string).trim(),
+      z.string().regex(/^09\d{9}$/, { message: "شماره تلفن باید 11 رقم و با 09 شروع شود" })
+    ),
+    verification_code: z.preprocess(
+      (val) => toEnglishDigits(val as string).trim(),
+      z.string()
+    ),
     new_password: z.string().min(8, { message: "رمز عبور جدید باید حداقل 8 کاراکتر باشد" }),
     confirm_password: z.string(),
   })
@@ -39,6 +50,7 @@ export default function ForgotPasswordPage() {
   const [step, setStep] = useState<"request" | "reset">("request")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [phoneNumber, setPhoneNumber] = useState("")
+  const router = useRouter()
 
   const {
     register: registerRequest,
@@ -196,24 +208,24 @@ export default function ForgotPasswordPage() {
                       <p className="text-sm text-red-500 animate-shake">{errorsRequest.phone_number.message}</p>
                     )}
                   </div>
-                  <Button
-                    type="submit"
-                    className="w-full py-5 sm:py-6 text-base sm:text-lg bg-[#f97316] hover:bg-orange-600 btn-hover-effect"
-                    disabled={isSubmitting}
-                    dir="rtl"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        در حال ارسال...
-                        <Send className="mr-2 h-4 w-4 animate-spin" />
-                      </>
-                    ) : (
-                      <>
-                        ارسال کد تایید
-                        <Send className="mr-2 h-4 w-4" />
-                      </>
-                    )}
-                  </Button>
+                  <div className="mt-6 flex justify-between items-center" dir="rtl">
+                    <Button
+                      type="submit"
+                      className="bg-[#f97316] hover:bg-orange-600 btn-hover-effect flex items-center gap-2"
+                      disabled={isSubmitting}
+                    >
+                      <Send className={`h-4 w-4 ${isSubmitting ? "animate-spin" : ""}`} />
+                      <span>{isSubmitting ? "در حال ارسال..." : "ارسال کد تایید"}</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={() => router.push('/')}
+                      variant="outline"
+                      className="btn-hover-effect"
+                    >
+                      بازگشت به صفحه ورود
+                    </Button>
+                  </div>
                 </form>
               </motion.div>
             ) : (
@@ -298,40 +310,37 @@ export default function ForgotPasswordPage() {
                       <p className="text-sm text-red-500 animate-shake">{errorsReset.confirm_password.message}</p>
                     )}
                   </div>
-                  <Button
-                    type="submit"
-                    className="w-full py-5 sm:py-6 text-base sm:text-lg bg-[#f97316] hover:bg-orange-600 btn-hover-effect"
-                    disabled={isSubmitting}
-                    dir="rtl"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        در حال تغییر رمز عبور...
-                        <LogIn className="mr-2 h-4 w-4 animate-spin" />
-                      </>
-                    ) : (
-                      <>
-                        تغییر رمز عبور
-                        <LogIn className="mr-2 h-4 w-4" />
-                      </>
-                    )}
-                  </Button>
+                  <div className="mt-6 flex justify-between items-center" dir="rtl">
+                    <Button
+                      type="submit"
+                      className="bg-[#f97316] hover:bg-orange-600 btn-hover-effect flex items-center gap-2"
+                      disabled={isSubmitting}
+                    >
+                      <LogIn className={`h-4 w-4 ${isSubmitting ? "animate-spin" : ""}`} />
+                      <span>{isSubmitting ? "در حال تغییر رمز عبور..." : "تغییر رمز عبور"}</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="btn-hover-effect flex items-center gap-2"
+                      onClick={() => setStep("request")}
+                    >
+                      <span>بازگشت به مرحله قبل</span>
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </form>
               </motion.div>
             )}
           </AnimatePresence>
         </CardContent>
-        <CardFooter className="flex flex-col space-y-3 px-4 sm:px-6 pb-6">
-          {step === "reset" && (
-            <Button variant="ghost" className="text-[#f97316] hover:text-orange-600" onClick={() => setStep("request")}>
-              <ArrowLeft className="ml-2 h-4 w-4" />
-              بازگشت به مرحله قبل
-            </Button>
-          )}
-          <Link href="/" className="text-sm text-[#f97316] hover:underline text-center">
-            بازگشت به صفحه ورود
-          </Link>
-        </CardFooter>
+        {step === "reset" && (
+          <div className="flex justify-center pb-6">
+            <Link href="/" className="text-sm text-[#f97316] hover:underline text-center">
+              بازگشت به صفحه ورود
+            </Link>
+          </div>
+        )}
       </Card>
     </div>
   )

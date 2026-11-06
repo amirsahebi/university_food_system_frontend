@@ -1,55 +1,54 @@
 "use client"
 
-import type React from "react"
-import { useState, useEffect, useCallback } from "react"
-import Image from "next/image"
+import { useMemo, useState, useEffect, useCallback, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
+import Image from "next/image"
+import { motion, AnimatePresence } from "framer-motion"
+import { NotificationCenter } from "@/components/notification-center"
+import { InteractiveDateSlider } from "@/components/interactive-date-slider"
 import {
   Utensils,
   Clock,
-  User,
   LogOut,
-  AlertCircle,
   X,
   ChevronLeft,
   ChevronRight,
   CreditCard,
   Copy,
   CheckCheck,
-  CalendarDays,
+  ShieldCheck,
+  Info,
+  Ticket,
+  Sun,
+  Moon,
+  ShoppingBag,
+  User,
+  Download,
 } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { FoodImage } from "@/components/ui/food-image"
+import { cn } from "@/lib/utils"
 import { toast, Toaster } from "react-hot-toast"
-import DatePicker from "react-multi-date-picker"
-import persian from "react-date-object/calendars/persian"
-import persian_fa from "react-date-object/locales/persian_fa"
 import { DateObject } from "react-multi-date-picker"
 import { API_ROUTES, createApiUrl } from "@/lib/api"
 import api from "@/lib/axios"
-import { motion, AnimatePresence } from "framer-motion"
-import { Separator } from "@/components/ui/separator"
 import { useAuth } from "@/lib/auth-context"
-// Import the CategoryFilter component
-import { CategoryFilter } from "@/components/student/category-filter"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { toPersianDigits, formatPersianPrice } from "@/lib/formatters"
 
+/* ---------- Data Types ---------- */
 interface TimeSlot {
   id: number
   start_time: string
   end_time: string
+  capacity?: number
 }
 
 interface TrustScoreData {
   trust_score: number
   trust_score_updated_at: string
   can_use_vouchers: boolean
-  status: 'good' | 'recovery_in_progress'
+  status: "good" | "recovery_in_progress"
   recovery_info?: {
     points_to_recover: number
     estimated_days: number
@@ -59,9 +58,26 @@ interface TrustScoreData {
 }
 
 interface UserProfile {
-  trust_score: number
+  id?: number
+  username?: string
+  student?: {
+    id?: number
+    first_name?: string
+    last_name?: string
+    phone_number?: string
+  }
+  trust_score?: number
   trust_score_recovery_days?: number
   trust_score_data?: TrustScoreData
+}
+
+interface VoucherType {
+  id: number
+  code: string
+  name: string
+  discount_amount: number | string
+  is_active: boolean
+  description?: string
 }
 
 interface MenuItem {
@@ -73,6 +89,7 @@ interface MenuItem {
     image_url: string
     category_id: number
     category_name: string
+    allowed_vouchers?: VoucherType[]
     supports_extra_voucher?: boolean
   }
   start_time: string
@@ -91,6 +108,15 @@ interface DailyMenu {
   items: MenuItem[]
 }
 
+type ReservationStatus =
+  | "waiting"
+  | "preparing"
+  | "ready_to_pickup"
+  | "picked_up"
+  | "not_picked_up"
+  | "pending_payment"
+  | "cancelled"
+
 interface Reservation {
   id: number
   student: {
@@ -104,49 +130,54 @@ interface Reservation {
   }
   time_slot: TimeSlot
   reserved_date: string
+  voucher_type?: VoucherType
+  voucher_discount_applied?: number
   has_voucher: boolean
   price: number
-  status: "waiting" | "preparing" | "ready_to_pickup" | "picked_up" | "not_picked_up" | "pending_payment" | "cancelled"
+  status: ReservationStatus
   delivery_code: string
   reservation_number: string
   payment_status?: "pending" | "paid" | "failed"
   meal_type: string
 }
 
-const ModalOrSheet = ({
-  isOpen,
-  children,
+const STATUS: Record<string, { label: string; cls: string }> = {
+  waiting: { label: "در انتظار", cls: "bg-info-soft text-info" },
+  preparing: { label: "در حال آماده‌سازی", cls: "bg-warning-soft text-warning" },
+  ready_to_pickup: { label: "آماده تحویل", cls: "bg-success-soft text-success" },
+  picked_up: { label: "تحویل شده", cls: "bg-muted text-muted-foreground" },
+  not_picked_up: { label: "تحویل نگرفته", cls: "bg-destructive-soft text-destructive" },
+  pending_payment: { label: "در انتظار پرداخت", cls: "bg-accent text-accent-foreground" },
+  cancelled: { label: "لغو شده", cls: "bg-destructive-soft text-destructive" },
+}
+
+/* ---------- Sheet / Modal Component ---------- */
+function Sheet({
+  open,
   onClose,
+  children,
 }: {
-  isOpen: boolean
-  children: React.ReactNode
-  onClose?: () => void
-}) => {
-  const [isMobile, setIsMobile] = useState(false)
-
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768)
-    checkMobile()
-    window.addEventListener("resize", checkMobile)
-    return () => window.removeEventListener("resize", checkMobile)
-  }, [])
-
+  open: boolean
+  onClose: () => void
+  children: ReactNode
+}) {
   return (
     <AnimatePresence>
-      {isOpen && (
+      {open && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-end justify-center sm:items-center"
+          transition={{ duration: 0.25, ease: "easeOut" }}
+          className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/20 backdrop-blur-md sm:items-center p-0 sm:p-4"
           onClick={onClose}
         >
           <motion.div
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            transition={{ type: "spring", damping: 25, stiffness: 500 }}
-            className={`bg-[#FFF8F2] w-full sm:w-[425px] ${isMobile ? "rounded-t-3xl" : "rounded-xl"} shadow-[0_0_10px_rgba(0,0,0,0.1)] overflow-hidden`}
+            initial={{ y: "100%", opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: "100%", opacity: 0 }}
+            transition={{ type: "spring", damping: 28, stiffness: 280 }}
+            className="glass-strong w-full max-h-[92vh] overflow-y-auto rounded-t-[2rem] sm:w-[440px] sm:rounded-[2rem] shadow-2xl border border-glass-border custom-scrollbar"
             onClick={(e) => e.stopPropagation()}
           >
             {children}
@@ -157,43 +188,135 @@ const ModalOrSheet = ({
   )
 }
 
+/* ---------- Trust Card Component ---------- */
+function TrustCard({
+  score,
+  recoveryDays,
+}: {
+  score: number
+  recoveryDays?: number | null
+}) {
+  const tone =
+    score > 5
+      ? ["عالی", "bg-success-soft text-success", "text-success"]
+      : score > 0
+      ? ["خوب", "bg-success-soft text-success", "text-success"]
+      : score === 0
+      ? ["خنثی", "bg-warning-soft text-warning", "text-warning"]
+      : ["محدود", "bg-destructive-soft text-destructive", "text-destructive"]
+
+  const pct = Math.max(4, Math.min(100, 50 + score * 2.5))
+  const rules = [
+    ["+", "افزایش امتیاز", "هر ۱۰٬۰۰۰ تومان پرداخت موفق", "۱+", "bg-success-soft text-success"],
+    ["−", "کاهش امتیاز", "رزرو با ژتون که تحویل گرفته نشود", "۱۰-", "bg-destructive-soft text-destructive"],
+    ["↻", "بازیابی خودکار", "فقط برای امتیاز منفی، تا صفر", "۲+ / روز", "bg-info-soft text-info"],
+  ]
+
+  return (
+    <div className="glass mx-auto max-w-xl rounded-[1.75rem] p-5">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="grid size-11 place-items-center rounded-2xl bg-brand text-primary-foreground shadow-glow">
+            <ShieldCheck className="size-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-1">
+              <h3 className="font-bold">امتیاز اعتبار</h3>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="text-primary hover:opacity-80 transition cursor-pointer"
+                    aria-label="توضیح امتیاز"
+                  >
+                    <Info className="size-4" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent dir="rtl" className="glass-strong w-80 rounded-2xl p-4 shadow-xl border border-glass-border">
+                  <h4 className="mb-2 font-bold text-primary">امتیاز اعتبار چیست؟</h4>
+                  <p className="mb-3 text-xs leading-6 text-muted-foreground">
+                    میزان اعتماد سیستم به شما بر اساس رفتار پرداخت و رزرو. در صورت منفی بودن امتیاز، امکان استفاده از ژتون وجود ندارد.
+                  </p>
+                  <div className="space-y-2">
+                    {rules.map(([i, t, d, v, c]) => (
+                      <div key={t} className="flex items-center gap-2 rounded-xl bg-glass p-2">
+                        <span className={cn("grid size-7 place-items-center rounded-full text-sm font-bold", c)}>
+                          {i}
+                        </span>
+                        <div className="flex-1">
+                          <div className="text-xs font-semibold">{t}</div>
+                          <div className="text-[0.7rem] text-muted-foreground">{d}</div>
+                        </div>
+                        <span className={cn("rounded-full px-2 py-0.5 text-[0.7rem] font-bold", c)}>
+                          {v}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+            <p className="text-xs text-muted-foreground">وضعیت حساب شما</p>
+          </div>
+        </div>
+        <span className={cn("rounded-full px-3 py-1 text-xs font-semibold", tone[1])}>
+          {tone[0]}
+        </span>
+      </div>
+      <div className="mt-5 flex items-end justify-between">
+        <span className="text-sm text-muted-foreground">امتیاز فعلی</span>
+        <div className="text-left">
+          <span className={cn("text-3xl font-extrabold", tone[2])}>{toPersianDigits(score)}</span>
+          {score < 0 && recoveryDays && (
+            <div className="text-[0.7rem] text-destructive mt-0.5">
+              زمان بازیابی: {toPersianDigits(recoveryDays)} روز دیگر
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
+        <div className="h-full rounded-full bg-brand transition-all duration-500" style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  )
+}
+
+/* ---------- Main Dashboard Component ---------- */
 export default function StudentDashboard() {
   const router = useRouter()
   const { logout } = useAuth()
-  const [dailyMenu, setDailyMenu] = useState<DailyMenu | null>(null)
-  const [reservations, setReservations] = useState<Reservation[]>([])
+
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [selectedMeal, setSelectedMeal] = useState<"lunch" | "dinner">("lunch")
+  const [activeTab, setActiveTab] = useState<"menu" | "orders">("menu")
+  const [selectedCategory, setSelectedCategory] = useState<number | null>(null)
+
+  const [dailyMenu, setDailyMenu] = useState<DailyMenu | null>(null)
+  const [reservations, setReservations] = useState<Reservation[]>([])
+  const [voucherTypes, setVoucherTypes] = useState<VoucherType[]>([])
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
+
   const [selectedFood, setSelectedFood] = useState<MenuItem | null>(null)
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<number | null>(null)
-  const [hasVoucher, setHasVoucher] = useState(false)
+  const [selectedVoucherId, setSelectedVoucherId] = useState<number | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false)
   const [isPaymentProcessing, setIsPaymentProcessing] = useState(false)
-  const [activeTab, setActiveTab] = useState("menu")
-  const [voucherPrice, setVoucherPrice] = useState<number>(0)
-  const [isCopied, setIsCopied] = useState(false)
-  // Add state for selected category
-  const [selectedCategory, setSelectedCategory] = useState<number | null>(null)
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
-  const [extraVoucherSelected, setExtraVoucherSelected] = useState(false)
-  
-  // (Removed unused trust score helper functions)
 
+  const [copiedId, setCopiedId] = useState<number | null>(null)
+
+  /* ---------- Data Fetching ---------- */
   const fetchUserProfile = useCallback(async () => {
     try {
       const userResponse = await api.get(createApiUrl(API_ROUTES.ME))
-      
       try {
-        // Fetch trust score data
         const trustScoreResponse = await api.get(createApiUrl(API_ROUTES.GET_TRUST_SCORE))
-        const trustData = trustScoreResponse.data;
-        
+        const trustData = trustScoreResponse.data
         setUserProfile({
           ...userResponse.data,
           trust_score: trustData.trust_score,
           trust_score_recovery_days: trustData.recovery_info?.estimated_days || null,
-          trust_score_data: trustData
+          trust_score_data: trustData,
         })
       } catch (trustError) {
         console.error("Error fetching trust score", trustError)
@@ -201,19 +324,18 @@ export default function StudentDashboard() {
       }
     } catch (error) {
       console.error("Error fetching user profile", error)
-      toast.error("خطا در دریافت اطلاعات کاربر")
     }
   }, [])
 
   const fetchDailyMenu = useCallback(async () => {
     try {
+      const formattedDate = new DateObject(selectedDate).format("YYYY-MM-DD")
       const response = await api.get(createApiUrl(API_ROUTES.GET_DAILY_MENU), {
         params: {
-          date: new DateObject(selectedDate).format("YYYY-MM-DD"),
+          date: formattedDate,
           meal_type: selectedMeal,
         },
       })
-      console.log("Fetched daily menu:", response.data)
       setDailyMenu(response.data)
     } catch (error) {
       console.error("Error fetching daily menu:", error)
@@ -221,46 +343,17 @@ export default function StudentDashboard() {
     }
   }, [selectedDate, selectedMeal])
 
-  useEffect(() => {
-    fetchDailyMenu()
-    fetchReservations()
-    fetchVoucherPrice()
-    fetchUserProfile()
-  }, [fetchDailyMenu, fetchUserProfile])
-
-  // Add effect to refresh orders when returning from payment verification
-  useEffect(() => {
-    const handleFocus = () => {
-      fetchReservations()
-    }
-
-    window.addEventListener("focus", handleFocus)
-    return () => window.removeEventListener("focus", handleFocus)
-  }, [])
-
-  // Add effect to refresh orders when the page becomes visible
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        fetchReservations()
-      }
-    }
-
-    document.addEventListener("visibilitychange", handleVisibilityChange)
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange)
-  }, [])
-
-  const fetchVoucherPrice = async () => {
+  const fetchVoucherTypes = useCallback(async () => {
     try {
-      const response = await api.get(createApiUrl(API_ROUTES.GET_VOUCHER_PRICE))
-      setVoucherPrice(Number(response.data["price"]))
+      const response = await api.get(createApiUrl(API_ROUTES.GET_VOUCHER_TYPES))
+      setVoucherTypes(response.data)
     } catch (error) {
-      console.error("Error fetching voucher price:", error)
-      setVoucherPrice(0)
+      console.error("Error fetching voucher types:", error)
+      setVoucherTypes([])
     }
-  }
+  }, [])
 
-  const fetchReservations = async () => {
+  const fetchReservations = useCallback(async () => {
     try {
       const response = await api.get(createApiUrl(API_ROUTES.GET_STUDENT_ORDERS))
       setReservations(response.data)
@@ -268,82 +361,106 @@ export default function StudentDashboard() {
       console.error("Error fetching reservations:", error)
       setReservations([])
     }
-  }
+  }, [])
 
-  
+  useEffect(() => {
+    fetchDailyMenu()
+    fetchReservations()
+    fetchVoucherTypes()
+    fetchUserProfile()
+  }, [fetchDailyMenu, fetchReservations, fetchVoucherTypes, fetchUserProfile])
 
-  const handleFoodSelect = (item: MenuItem) => {
-    // First filter out any null time slots
-    const validTimeSlots = item.time_slots.filter((slot) => slot !== null)
-
-    // Sort time slots by start time
-    const sortedTimeSlots = [...validTimeSlots].sort((a, b) => {
-      // Convert start times to Date objects for accurate comparison
-      const startTimeA = new Date(`1970-01-01T${a.start_time}`)
-      const startTimeB = new Date(`1970-01-01T${b.start_time}`)
-      return startTimeA.getTime() - startTimeB.getTime()
-    })
-
-    // Create a new item with sorted time slots
-    const itemWithSortedTimeSlots = {
-      ...item,
-      time_slots: sortedTimeSlots,
+  // Refresh reservations on window focus
+  useEffect(() => {
+    const handleFocus = () => {
+      fetchReservations()
     }
+    window.addEventListener("focus", handleFocus)
+    return () => window.removeEventListener("focus", handleFocus)
+  }, [fetchReservations])
 
-    setSelectedFood(itemWithSortedTimeSlots)
+  /* ---------- Menu Categories & Filtering ---------- */
+  const categories = useMemo(() => {
+    if (!dailyMenu?.items) return []
+    const map = new Map<number, string>()
+    dailyMenu.items.forEach((item) => {
+      if (item.food?.category_id && item.food?.category_name) {
+        map.set(item.food.category_id, item.food.category_name)
+      }
+    })
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }))
+  }, [dailyMenu])
+
+  const menuItems = useMemo(() => {
+    if (!dailyMenu?.items) return []
+    return dailyMenu.items.filter(
+      (item) => selectedCategory === null || item.food.category_id === selectedCategory
+    )
+  }, [dailyMenu, selectedCategory])
+
+  /* ---------- Pricing Calculations ---------- */
+  const calculateTotalPrice = useCallback(() => {
+    if (!selectedFood) return 0
+    let totalPrice = Number(selectedFood.food.price)
+    if (selectedVoucherId) {
+      const vt = voucherTypes.find((v) => v.id === selectedVoucherId)
+      if (vt) {
+        totalPrice -= Number(vt.discount_amount)
+      }
+    }
+    return Math.max(0, totalPrice)
+  }, [selectedFood, selectedVoucherId, voucherTypes])
+
+  const selectedVoucher = useMemo(() => {
+    if (!selectedVoucherId) return null
+    return voucherTypes.find((v) => v.id === selectedVoucherId) || null
+  }, [selectedVoucherId, voucherTypes])
+
+  const voucherDiscount = useMemo(() => {
+    return selectedVoucher ? Number(selectedVoucher.discount_amount) : 0
+  }, [selectedVoucher])
+
+  /* ---------- Dialog & Order Handlers ---------- */
+  const handleOpenFood = (item: MenuItem) => {
+    const validTimeSlots = (item.time_slots || [])
+      .filter((slot) => slot !== null)
+      .sort((a, b) => a.start_time.localeCompare(b.start_time))
+
+    setSelectedFood({
+      ...item,
+      time_slots: validTimeSlots,
+    })
     setSelectedTimeSlot(null)
+    setSelectedVoucherId(null)
     setIsDialogOpen(true)
   }
 
-  const handleTimeSelect = (slotId: number) => {
-    setSelectedTimeSlot(slotId)
-  }
-
-  const handleVoucherToggle = (checked: boolean) => {
-    setHasVoucher(checked)
-  }
-
-  const calculateTotalPrice = () => {
-    if (!selectedFood) return 0
-
-    let totalPrice = selectedFood.food.price
-
-    if (hasVoucher) totalPrice -= voucherPrice
-    if (extraVoucherSelected) totalPrice -= voucherPrice
-
-    return totalPrice
-  }
-
-  const handleOrder = () => {
+  const handleConfirmSelection = () => {
     if (!selectedFood || !selectedTimeSlot) {
-      toast.error("لطفاً یک غذا و یک بازه زمانی برای دریافت غذا انتخاب کنید")
+      toast.error("لطفاً یک بازه زمانی انتخاب کنید")
       return
     }
 
-    const canUseVouchers = userProfile?.trust_score_data?.can_use_vouchers ?? (userProfile?.trust_score !== undefined ? userProfile.trust_score >= 0 : true);
-    
-    if (!canUseVouchers && hasVoucher) {
+    const canUseVouchers =
+      userProfile?.trust_score_data?.can_use_vouchers ??
+      (userProfile?.trust_score !== undefined ? userProfile.trust_score >= 0 : true)
+
+    if (!canUseVouchers && selectedVoucherId) {
       toast.error("به دلیل امتیاز اعتبار منفی، امکان استفاده از ژتون وجود ندارد")
       return
     }
 
-    if (extraVoucherSelected && !selectedFood.food.supports_extra_voucher) {
-      toast.error("این غذا از ژتون اضافی پشتیبانی نمی‌کند")
-      return
+    if (selectedVoucherId) {
+      const allowed = selectedFood.food.allowed_vouchers || []
+      const isAllowed = allowed.some((v) => v.id === selectedVoucherId)
+      if (!isAllowed) {
+        toast.error("این غذا از ژتون انتخاب‌شده پشتیبانی نمی‌کند")
+        return
+      }
     }
 
     setIsDialogOpen(false)
     setIsPaymentDialogOpen(true)
-  }
-
-  const handleLogout = async () => {
-    try {
-      await logout()
-      toast.success("با موفقیت از حساب کاربری خارج شدید")
-    } catch (error) {
-      console.error("Error logging out:", error)
-      toast.error("خطا در خروج از حساب کاربری")
-    }
   }
 
   const handlePayment = async () => {
@@ -358,35 +475,31 @@ export default function StudentDashboard() {
       const callbackUrl = `${window.location.origin}/payment/verify`
       const totalPrice = calculateTotalPrice()
 
-      // First place the order
       const orderResponse = await api.post(createApiUrl(API_ROUTES.PLACE_ORDER), {
         food: selectedFood.food.id,
         time_slot: selectedTimeSlot,
         meal_type: selectedMeal,
         reserved_date: new DateObject(selectedDate).format("YYYY-MM-DD"),
-        has_voucher: hasVoucher,
-        has_extra_voucher: extraVoucherSelected,
+        voucher_type: selectedVoucherId,
+        has_voucher: Boolean(selectedVoucherId),
       })
-      console.log("Order response:", orderResponse)
-      console.log("Order response data:", orderResponse.data)
 
-      // If total price is zero, skip payment request and verification
       if (totalPrice === 0) {
         toast.success("سفارش با موفقیت ثبت شد")
         setIsPaymentProcessing(false)
-        fetchReservations()
         setIsPaymentDialogOpen(false)
+        setSelectedFood(null)
+        setActiveTab("orders")
+        fetchReservations()
         return
       }
 
-      // Then create a payment request
       const paymentResponse = await api.post(createApiUrl(API_ROUTES.PAYMENT_REQUEST), {
         amount: totalPrice,
         callback_url: callbackUrl,
         reservation_id: orderResponse.data.id,
       })
 
-      // If we get a payment authority, redirect to ZarinPal
       if (paymentResponse.status === 201) {
         window.location.href = paymentResponse.data.redirect_url
       } else {
@@ -394,16 +507,16 @@ export default function StudentDashboard() {
         setIsPaymentProcessing(false)
       }
     } catch (error: unknown) {
-      // Type guard for axios error
       const isAxiosError = (
-        err: unknown,
+        err: unknown
       ): err is { response?: { data?: { message?: string; non_field_errors?: string[] } } } => {
         return typeof err === "object" && err !== null && "response" in err
       }
 
       if (
         isAxiosError(error) &&
-        error.response?.data?.non_field_errors?.[0] === "You already have a reservation for this date and meal type."
+        error.response?.data?.non_field_errors?.[0] ===
+          "You already have a reservation for this date and meal type."
       ) {
         toast.error("شما قبلاً سفارشی برای این تاریخ و وعده داشته اید")
         setIsPaymentProcessing(false)
@@ -415,8 +528,8 @@ export default function StudentDashboard() {
         error instanceof Error
           ? error.message
           : isAxiosError(error)
-            ? error.response?.data?.message || "خطا در پرداخت"
-            : "خطا در فرآیند پرداخت. لطفاً دوباره تلاش کنید"
+          ? error.response?.data?.message || "خطا در پرداخت"
+          : "خطا در فرآیند پرداخت. لطفاً دوباره تلاش کنید"
       toast.error(errorMessage)
       setIsPaymentProcessing(false)
     }
@@ -424,15 +537,15 @@ export default function StudentDashboard() {
 
   const handlePaymentForOrder = async (reservation: Reservation) => {
     setIsPaymentProcessing(true)
-
     try {
-      const response: { data: unknown } = await api.post(createApiUrl(API_ROUTES.PAYMENT_REQUEST), {
-        reservation_id: reservation.id,
-        amount: Math.round(reservation.price),
-        callback_url: `${window.location.origin}/payment/verify`,
-      })
-
-      // Redirect to payment URL
+      const response: { data: unknown } = await api.post(
+        createApiUrl(API_ROUTES.PAYMENT_REQUEST),
+        {
+          reservation_id: reservation.id,
+          amount: Math.round(reservation.price),
+          callback_url: `${window.location.origin}/payment/verify`,
+        }
+      )
       window.location.href = (response.data as { redirect_url: string }).redirect_url
     } catch (error) {
       console.error("Error processing payment:", error)
@@ -452,737 +565,748 @@ export default function StudentDashboard() {
     }
   }
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text)
-    setIsCopied(true)
+  const copyToClipboard = (o: Reservation) => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(String(o.delivery_code))
+    }
+    setCopiedId(o.id)
     toast.success("کد تحویل کپی شد")
-    setTimeout(() => setIsCopied(false), 2000)
+    setTimeout(() => setCopiedId(null), 1500)
   }
 
+  const handleLogout = async () => {
+    try {
+      await logout()
+      toast.success("با موفقیت از حساب کاربری خارج شدید")
+    } catch (error) {
+      console.error("Error logging out:", error)
+      toast.error("خطا در خروج از حساب کاربری")
+    }
+  }
+
+  const trustScore = userProfile?.trust_score ?? 0
+  const recoveryDays = userProfile?.trust_score_recovery_days ?? null
+
   return (
-    <div className="min-h-screen bg-[#FFF8F2] p-4 rtl">
+    <div dir="rtl" className="bg-page min-h-screen pb-16 font-sans text-foreground">
       <Toaster position="top-center" />
-      <header className="flex justify-between items-center mb-8 bg-white p-4 rounded-2xl shadow-md">
-        <link rel="icon" href="images/javanfoods_logo.png" />
-        {/* Payment and Profile buttons on the left side */}
-        <div className="flex-1 flex justify-start items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="rounded-full transition-all duration-300 ease-in-out hover:scale-105 bg-[#FFF8F2]"
-            onClick={() => router.push("/payment/history")}
-          >
-            <CreditCard className="h-6 w-6 text-[#F47B20]" />
-          </Button>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            className="rounded-full transition-all duration-300 ease-in-out hover:scale-105 bg-[#FFF8F2]"
-            onClick={() => router.push("/edit-profile")}
-          >
-            <User className="h-6 w-6 text-[#F47B20]" />
-          </Button>
-        </div>
-
-        {/* Logo in the center of header */}
-        <div className="flex-1 flex justify-center items-center">
-          <div className="flex flex-col items-center">
-            <div className="relative h-14 w-14 transition-transform duration-300 hover:scale-110">
+      {/* Header */}
+      <header className="sticky top-0 z-40 px-2 sm:px-4 pt-3 sm:pt-4">
+        <div className="glass mx-auto flex max-w-6xl items-center justify-between rounded-full px-3 sm:px-4 py-2 sm:py-2.5">
+          {/* Logo & Brand */}
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+            <div className="relative size-8 sm:size-9 shrink-0 drop-shadow-sm">
               <Image
                 src="/images/javanfoods_logo.png"
-                alt="جوان"
+                alt="رستوران جوان"
                 fill
-                className="object-contain drop-shadow-md"
+                className="object-contain"
                 priority
               />
             </div>
-            <h1 className="text-md font-bold text-[#F47B20]">رستوران جوان</h1>
+            <span className="font-extrabold text-sm sm:text-base text-foreground tracking-tight truncate">
+              رستوران جوان
+            </span>
           </div>
-        </div>
 
-        {/* Logout button on the right side */}
-        <div className="flex-1 flex justify-end items-center">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="rounded-full transition-all duration-300 ease-in-out hover:scale-105 bg-[#FFF8F2]"
-            onClick={handleLogout}
-          >
-            <LogOut className="h-6 w-6 text-[#F47B20]" />
-          </Button>
+          {/* Action Buttons */}
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+            {/* Notification Center */}
+            <NotificationCenter />
+
+            {/* PWA Install */}
+            <Button
+              variant="glass"
+              size="sm"
+              className="gap-1.5 text-orange-500 hover:text-orange-600 size-8 sm:size-auto sm:px-3 p-0 sm:py-1.5 rounded-full"
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent("open-pwa-install"))
+              }}
+              title="نصب نسخه وب‌اپلیکیشن (PWA)"
+            >
+              <Download className="size-4" />
+              <span className="hidden md:inline text-xs font-medium">نصب برنامه</span>
+            </Button>
+
+            {/* Payment History */}
+            <Button
+              variant="glass"
+              size="sm"
+              className="gap-1.5 size-8 sm:size-auto sm:px-3 p-0 sm:py-1.5 rounded-full"
+              onClick={() => router.push("/payment/history")}
+              title="تاریخچه پرداخت‌ها"
+            >
+              <CreditCard className="size-4 text-primary" />
+              <span className="hidden sm:inline text-xs">تراکنش‌ها</span>
+            </Button>
+
+            {/* Profile */}
+            <Button
+              variant="glass"
+              size="sm"
+              className="gap-1.5 size-8 sm:size-auto sm:px-3 p-0 sm:py-1.5 rounded-full"
+              onClick={() => router.push("/edit-profile")}
+              title="پروفایل کاربری"
+            >
+              <User className="size-4 text-primary" />
+              <span className="hidden sm:inline text-xs">پروفایل</span>
+            </Button>
+
+            {/* Logout */}
+            <Button
+              variant="glass"
+              size="sm"
+              className="gap-1.5 size-8 sm:size-auto sm:px-3 p-0 sm:py-1.5 rounded-full hover:text-destructive"
+              onClick={handleLogout}
+              title="خروج از حساب کاربری"
+            >
+              <LogOut className="size-4" />
+              <span className="hidden sm:inline text-xs">خروج</span>
+            </Button>
+          </div>
         </div>
       </header>
 
-      {userProfile && (
-        <div className="mb-10 mx-auto max-w-2xl" dir="rtl">
-          <div className="bg-white rounded-xl shadow-md overflow-hidden">
-            <div className="p-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-lg font-bold text-gray-800">وضعیت اعتبار شما</h3>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 p-0 hover:bg-transparent"
-                      >
-                        <AlertCircle className="h-4 w-4 text-[#F47B20]" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent
-                      className="w-80 p-3 bg-white border border-gray-200 shadow-lg rounded-xl"
-                      align="center"
-                      side="bottom"
-                      dir="rtl"
-                    >
-                      <div className="space-y-2">
-                        <div className="text-center mb-2">
-                          <h4 className="text-base font-bold text-[#F47B20] mb-0.5">امتیاز اعتبار چیست؟</h4>
-                          <div className="w-10 h-0.5 bg-orange-100 rounded-full mx-auto"></div>
-                        </div>
+      {/* Main Container */}
+      <main className="mx-auto mt-6 max-w-6xl space-y-6 px-4">
+        {/* Trust Card */}
+        <TrustCard score={trustScore} recoveryDays={recoveryDays} />
 
-                        <p className="text-gray-700 text-xs leading-relaxed text-justify bg-gray-50 p-3 rounded-lg border border-gray-100">
-                          امتیاز اعتبار نشان‌دهنده میزان اعتماد سیستم به شماست. این امتیاز بر اساس رفتار پرداخت و رزرو
-                          شما محاسبه می‌شود و می‌تواند بر امکاناتی که در اختیار دارید تأثیر بگذارد.
-                        </p>
+        {/* Controls: Date Picker & Meal Switcher */}
+        <section className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <InteractiveDateSlider
+            selectedDate={selectedDate}
+            onChange={setSelectedDate}
+          />
 
-                        <div className="space-y-2">
-                          <div className="flex items-start gap-2 bg-gradient-to-l from-green-50 to-white p-2 rounded-lg border border-green-100 hover:shadow-sm transition-shadow">
-                            <div className="bg-green-100 p-1 rounded-full">
-                              <span className="text-green-600 text-sm">+</span>
-                            </div>
-                            <div className="flex-1">
-                              <h5 className="font-medium text-gray-800 text-xs mb-0.5">افزایش امتیاز</h5>
-                              <p className="text-green-700 text-[0.7rem] leading-tight flex items-center justify-between">
-                                <span>به ازای هر ۱۰,۰۰۰ تومان پرداخت موفق:</span>
-                                <span className="mr-1 font-bold bg-green-100 px-1.5 py-0.5 rounded-full text-green-800 text-[0.7rem]">
-                                  ۱+ امتیاز
-                                </span>
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-start gap-2 bg-gradient-to-l from-red-50 to-white p-2 rounded-lg border border-red-100 hover:shadow-sm transition-shadow">
-                            <div className="bg-red-100 p-1 rounded-full">
-                              <span className="text-red-600 text-sm">-</span>
-                            </div>
-                            <div className="flex-1">
-                              <h5 className="font-medium text-gray-800 text-xs mb-0.5">کاهش امتیاز</h5>
-                              <p className="text-red-700 text-[0.7rem] leading-tight flex items-center justify-between">
-                                <span>به ازای هر رزرو با ژتون که تحویل گرفته نشود:</span>
-                                <span className="mr-1 font-bold bg-red-100 px-1.5 py-0.5 rounded-full text-red-800 text-[0.65rem]">
-                                  ۱۰- امتیاز
-                                </span>
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-start gap-2 bg-gradient-to-l from-blue-50 to-white p-2 rounded-lg border border-blue-100 hover:shadow-sm transition-shadow">
-                            <div className="bg-blue-100 p-1 rounded-full">
-                              <span className="text-blue-600 text-sm">↻</span>
-                            </div>
-                            <div className="flex-1">
-                              <h5 className="font-medium text-gray-800 text-xs mb-0.5">بازیابی خودکار</h5>
-                              <p className="text-blue-700 text-[0.7rem] leading-tight flex items-center justify-between">
-                                <span>فقط برای امتیاز منفی، حداکثر تا صفر:</span>
-                                <span className="mr-1 font-bold bg-blue-100 px-1.5 py-0.5 rounded-full text-blue-800 text-[0.7rem]">
-                                  ۲+ امتیاز در روز
-                                </span>
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-start gap-2 bg-gradient-to-l from-yellow-50 to-white p-2 rounded-lg border border-yellow-100 hover:shadow-sm transition-shadow">
-                            <div className="bg-yellow-100 p-1 rounded-full">
-                              <span className="text-yellow-600 text-sm">⏳</span>
-                            </div>
-                            <div className="flex-1">
-                              <h5 className="font-medium text-gray-800 text-xs mb-0.5">پیامدهای امتیاز منفی</h5>
-                              <div className="flex items-start mt-1">
-                                <p className="text-yellow-700 text-[0.7rem] leading-relaxed text-justify flex-1 pr-1 w-full">
-                                در صورت منفی بودن امتیاز، امکان استفاده از ژتون (عادی یا اضافی) وجود ندارد
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                <div
-                  className={`px-3 py-1 rounded-full text-sm font-medium ${
-                    userProfile.trust_score !== undefined && userProfile.trust_score > 5
-                      ? "bg-green-100 text-green-700"
-                      : userProfile.trust_score !== undefined && userProfile.trust_score > 0
-                        ? "bg-green-50 text-green-600"
-                        : userProfile.trust_score === 0
-                          ? "bg-yellow-100 text-yellow-700"
-                          : "bg-red-100 text-red-700"
-                  }`}
-                >
-                  {userProfile.trust_score !== undefined && userProfile.trust_score > 5
-                    ? "عالی"
-                    : userProfile.trust_score !== undefined && userProfile.trust_score > 0
-                      ? "خوب"
-                      : userProfile.trust_score === 0
-                        ? "خنثی"
-                        : "محدود"}
-                </div>
-              </div>
-
-              <div className="mt-4 flex items-center justify-between">
-                <div className="flex items-center">
-                  <span className="text-gray-600 text-sm">امتیاز فعلی:</span>
-                  <span
-                    className={`text-2xl font-bold mr-1 ${
-                      userProfile.trust_score !== undefined && userProfile.trust_score > 0
-                        ? "text-green-600"
-                        : userProfile.trust_score === 0
-                          ? "text-yellow-600"
-                          : "text-red-600"
-                    }`}
-                  >
-                    {new Intl.NumberFormat("fa-IR", { useGrouping: false }).format(userProfile.trust_score)}
-                  </span>
-                </div>
-
-                {userProfile.trust_score !== undefined &&
-                  userProfile.trust_score < 0 &&
-                  userProfile.trust_score_recovery_days && (
-                    <div className="text-sm text-red-600">
-                      <span>زمان بازیابی: </span>
-                      <span className="font-medium">{new Intl.NumberFormat("fa-IR", { useGrouping: false }).format(userProfile.trust_score_recovery_days)} روز دیگر</span>
-                    </div>
+          <div className="glass flex rounded-full p-1.5">
+            {([["lunch", "ناهار", Sun], ["dinner", "شام", Moon]] as const).map(([k, l, I]) => {
+              const isActive = selectedMeal === k
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setSelectedMeal(k)}
+                  className={cn(
+                    "relative flex flex-1 items-center justify-center gap-1.5 rounded-full px-5 py-2 text-sm font-medium transition-colors cursor-pointer",
+                    isActive
+                      ? "text-primary-foreground font-bold"
+                      : "text-muted-foreground hover:text-foreground"
                   )}
-              </div>
-            </div>
+                >
+                  {isActive && (
+                    <motion.div
+                      layoutId="activeMealPill"
+                      className="absolute inset-0 rounded-full bg-brand shadow-glow"
+                      transition={{ type: "spring", stiffness: 450, damping: 32 }}
+                    />
+                  )}
+                  <span className="relative z-10 flex items-center gap-1.5">
+                    <I className="size-4" />
+                    {l}
+                  </span>
+                </button>
+              )
+            })}
           </div>
+        </section>
+
+        {/* Navigation Tabs */}
+        <div className="glass mx-auto flex max-w-md rounded-full p-1.5">
+          {([["menu", "منوی غذا", Utensils], ["orders", "سفارش‌های من", ShoppingBag]] as const).map(
+            ([k, l, I]) => {
+              const isActive = activeTab === k
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setActiveTab(k)}
+                  className={cn(
+                    "relative flex flex-1 items-center justify-center gap-2 rounded-full py-2.5 text-sm font-semibold transition-colors cursor-pointer",
+                    isActive ? "text-primary font-bold" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {isActive && (
+                    <motion.div
+                      layoutId="activeTabPill"
+                      className="absolute inset-0 rounded-full bg-glass-strong shadow-sm"
+                      transition={{ type: "spring", stiffness: 450, damping: 32 }}
+                    />
+                  )}
+                  <span className="relative z-10 flex items-center gap-2">
+                    <I className="size-4" />
+                    {l}
+                    {k === "orders" && reservations.length > 0 && (
+                      <span className="rounded-full bg-brand px-1.5 text-[0.65rem] text-primary-foreground font-bold">
+                        {toPersianDigits(reservations.length)}
+                      </span>
+                    )}
+                  </span>
+                </button>
+              )
+            }
+          )}
         </div>
-      )}
 
-      <div className="space-y-4 max-w-7xl mx-auto">
-        <div className="flex gap-2 h-[42px] md:w-2/3 lg:w-1/2 mx-auto">
-          <div className="flex-[3] h-full">
-            <DatePicker
-              value={selectedDate}
-              onChange={(date) => {
-                if (date instanceof DateObject) {
-                  setSelectedDate(date.toDate())
-                }
-              }}
-              calendar={persian}
-              locale={persian_fa}
-              calendarPosition="bottom-right"
-              inputClass="w-full h-full px-3 py-2 rounded-md bg-white shadow-[0_0_10px_rgba(0,0,0,0.1)] text-sm focus-visible:outline-none"
-              containerClassName="w-full h-full"
-              placeholder="انتخاب تاریخ"
-            />
-          </div>
-          <div className="flex-1 h-full">
-            <Select value={selectedMeal} onValueChange={(value: "lunch" | "dinner") => setSelectedMeal(value)}>
-              <SelectTrigger className="w-full h-full bg-[#F4EDE7] shadow-[0_0_10px_rgba(0,0,0,0.1)] rounded-full">
-                <SelectValue placeholder="وعده" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="lunch">ناهار</SelectItem>
-                <SelectItem value="dinner">شام</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full bg-[#F4EDE7] p-1 h-auto rounded-full">
-            <TabsTrigger
-              value="menu"
-              className="flex-1 data-[state=active]:bg-white rounded-full py-2 transition-all duration-300 ease-in-out text-gray-700"
-              dir="rtl"
-            >
-              <Utensils className="w-4 h-4 ml-2" />
-              منو
-            </TabsTrigger>
-            <TabsTrigger
-              value="orders"
-              className="flex-1 data-[state=active]:bg-white rounded-full py-2 transition-all duration-300 ease-in-out text-gray-700"
-              dir="rtl"
-            >
-              <Clock className="w-4 h-4 ml-2" />
-              سفارش ها
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent
-            value="menu"
-            className={`mt-4 transition-all duration-300 ease-in-out ${activeTab === "menu" ? "animate-slide-right" : ""}`}
-          >
-            <div className="mb-4">
-              <CategoryFilter
-                onCategoryChange={setSelectedCategory}
-                selectedCategoryId={selectedCategory}
-                dailyMenuItems={dailyMenu?.items || []}
-              />
-            </div>
-
-            <motion.div
-              initial={{ opacity: 0, x: activeTab === "menu" ? 0 : -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              transition={{ duration: 0.3 }}
-              className="grid gap-4 md:grid-cols-2 lg:grid-cols-3"
-            >
-              {dailyMenu?.items
-                .filter((item) => selectedCategory === null || item.food.category_id === selectedCategory)
-                .map((item: MenuItem) => (
-                  <Card
-                    key={item.id}
-                    className="bg-white rounded-2xl shadow-[0_0_10px_rgba(0,0,0,0.1)] transition-all duration-300 ease-in-out hover:shadow-[0_0_15px_rgba(0,0,0,0.2)] border border-gray-300"
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="relative w-[100px] h-[100px]">
-                          <Image
-                            src={item.food.image_url || "/placeholder.svg"}
-                            alt={item.food.name}
-                            layout="fill"
-                            objectFit="cover"
-                            className="rounded-xl"
-                          />
-                          {!item.is_available && (
-                            <Badge variant="destructive" className="absolute top-2 right-2 animate-pulse">
-                              <AlertCircle className="w-4 h-4 ml-1" />
-                              ناموجود
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="flex flex-col items-end flex-grow ">
-                          <h3 className="font-semibold text-[1rem] mb-1 mr-1" dir="rtl">
-                            {item.food.name}
-                          </h3>
-                          {item.food.category_name && (
-                            <span className="text-xs bg-[#F47B20]/10 text-[#F47B20] px-2 py-1 rounded-full mb-2">
-                              {item.food.category_name}
-                            </span>
-                          )}
-                          {item.is_available && (
-                            <p className="text-sm text-gray-500 bg-[#F4EDE7] px-2 py-1 rounded-full mb-10">
-                              ظرفیت:{" "}
-                              {new Intl.NumberFormat("fa-IR", { useGrouping: false }).format(item.daily_capacity)}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex justify-between items-center mt-4">
-                        <Button
-                          onClick={() => handleFoodSelect(item)}
-                          className="bg-[#F47B20] hover:bg-[#E06A10] text-white transition-all duration-300 ease-in-out hover:scale-105 rounded-full"
-                          disabled={!item.is_available}
-                        >
-                          انتخاب
-                        </Button>
-                        <p className="text-xl font-bold text-[#F47B20] estedad-font mr-1" dir="rtl">
-                          {new Intl.NumberFormat("fa-IR", { useGrouping: true })
-                            .format(item.food.price)
-                            .replace(/٬/g, ",")}
-                          <span className="text-sm mr-1">تومان</span>
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              {dailyMenu?.items.filter(
-                (item) => selectedCategory === null || item.food.category_id === selectedCategory,
-              ).length === 0 && (
-                <div className="col-span-full text-center py-12 bg-white rounded-lg shadow-md">
-                  <p className="text-gray-500">هیچ غذایی در این دسته‌بندی یافت نشد</p>
-                </div>
-              )}
-            </motion.div>
-          </TabsContent>
-          <TabsContent
-            value="orders"
-            className={`mt-4 transition-all duration-300 ease-in-out ${activeTab === "orders" ? "animate-slide-left" : ""}`}
-          >
-            <motion.div
-              initial={{ opacity: 0, x: activeTab === "orders" ? 0 : 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3 }}
+        {/* Tab Content with Smooth Transition */}
+        <AnimatePresence mode="wait">
+          {activeTab === "menu" ? (
+            <motion.section
+              key={`menu-${selectedMeal}`}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.22, ease: "easeOut" }}
               className="space-y-4"
             >
-              {[...reservations]
-                .sort((a, b) => {
-                  // First compare dates (newest first)
-                  const dateComparison = new Date(b.reserved_date).getTime() - new Date(a.reserved_date).getTime()
-                  if (dateComparison !== 0) return dateComparison
-
-                  // If dates are equal, compare meal types (reverse alphabetical)
-                  const mealComparison = b.food.name.localeCompare(a.food.name)
-                  if (mealComparison !== 0) return mealComparison
-
-                  // If dates and meals are equal, compare reservation numbers (reverse order)
-                  // Convert to string to handle undefined/null values
-                  const aNum = String(a.reservation_number || "")
-                  const bNum = String(b.reservation_number || "")
-                  return bNum.localeCompare(aNum)
-                })
-                .map((reservation) => (
-                  <Card
-                    key={reservation.id}
-                    className="bg-white rounded-2xl shadow-[0_0_10px_rgba(0,0,0,0.1)] transition-all duration-300 ease-in-out hover:shadow-[0_0_15px_rgba(0,0,0,0.2)] border border-gray-300"
-                  >
-                    <CardContent className="p-4">
-                      <div className="space-y-3 mb-4">
-                        <div className="flex justify-between items-center">
-                          <Badge
-                            variant={
-                              reservation.status === "picked_up"
-                                ? "default"
-                                : reservation.status === "ready_to_pickup"
-                                  ? "secondary"
-                                  : reservation.status === "preparing"
-                                    ? "outline"
-                                    : reservation.status === "pending_payment"
-                                      ? "destructive"
-                                      : reservation.status === "not_picked_up"
-                                        ? "destructive"
-                                        : reservation.status === "cancelled"
-                                          ? "destructive"
-                                          : "destructive"
-                            }
-                            className={`text-lg px-3 py-1 ${
-                              reservation.status === "ready_to_pickup"
-                                ? "bg-[#F47B20]"
-                                : reservation.status === "picked_up"
-                                  ? "bg-[#5CB85C]"
-                                  : reservation.status === "not_picked_up"
-                                    ? "bg-red-500"
-                                    : reservation.status === "cancelled"
-                                      ? "bg-red-500"
-                                      : ""
-                            }`}
-                          >
-                            {reservation.status === "waiting"
-                              ? "در انتظار"
-                              : reservation.status === "preparing"
-                                ? "در حال آماده‌سازی"
-                                : reservation.status === "ready_to_pickup"
-                                  ? "آماده تحویل"
-                                  : reservation.status === "pending_payment"
-                                    ? "در انتظار پرداخت"
-                                    : reservation.status === "not_picked_up"
-                                      ? "تحویل گرفته نشده"
-                                      : reservation.status === "cancelled"
-                                        ? "لغو شده"
-                                        : "تحویل داده شده"}
-                          </Badge>
-                          <h3 className="font-bold text-xl">سفارش #{reservation.reservation_number}</h3>
-                        </div>
-                        <div className="grid grid-cols-3 items-center text-sm text-gray-600 bg-gray-50 px-3 py-1.5 rounded-lg">
-                          <div className="flex items-center">
-                            <span className="mr-1">{reservation.meal_type === "dinner" ? "شام" : "ناهار"}</span>
-                            <Utensils className="h-4 w-4 text-[#F47B20]" />
-                          </div>
-                          <div className="h-4 w-px bg-gray-300 mx-auto"></div>
-                          <div className="flex items-center justify-end">
-                            <span className="mr-1">
-                              {new Intl.DateTimeFormat("fa-IR", { weekday: "long" }).format(
-                                new Date(reservation.reserved_date)
-                              )}
-                            </span>
-                            <CalendarDays className="h-4 w-4 text-[#F47B20]" />
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex justify-between items-center mb-2">
-                        <span dir="rtl">
-                          {new Intl.NumberFormat("fa-IR", { useGrouping: true })
-                            .format(reservation.price)
-                            .replace(/٬/g, ",")}{" "}
-                          تومان
-                        </span>
-                        <span>{reservation.food.name}</span>
-                      </div>
-                      <div className="border-t pt-2 mt-2">
-                        <div className="flex justify-between items-center mt-2">
-                          <span className="text-gray-600">
-                            {new Intl.DateTimeFormat("fa-IR").format(new Date(reservation.reserved_date))}
-                          </span>
-                          <span className="font-bold">:تاریخ سفارش</span>
-                        </div>
-                        <div className="flex justify-between items-center mt-2">
-                          <span className="text-gray-600">
-                            {reservation.time_slot && reservation.time_slot.start_time
-                              ? reservation.time_slot.start_time
-                                  .slice(0, 5)
-                                  .replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])
-                              : ""}
-                            {reservation.time_slot && reservation.time_slot.start_time && reservation.time_slot.end_time
-                              ? " - " +
-                                reservation.time_slot.end_time
-                                  .slice(0, 5)
-                                  .replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])
-                              : ""}
-                          </span>
-                          <span className="font-bold">:زمان تحویل</span>
-                        </div>
-                        <div className="flex justify-between items-center mt-2">
-                          <span className="text-gray-600">{reservation.has_voucher ? "بله" : "خیر"}</span>
-                          <span className="font-bold">:استفاده از ژتون</span>
-                        </div>
-                      </div>
-                      {reservation.status === "pending_payment" && (
-                        <div className="mt-4 space-y-4">
-                          <Button
-                            onClick={() => handlePaymentForOrder(reservation)}
-                            className="w-full bg-[#F47B20] hover:bg-[#E06A10] text-white transition-colors duration-200"
-                          >
-                            پرداخت سفارش
-                            <ChevronRight className="ml-2 h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            onClick={() => handleCancelReservation(reservation.id)}
-                            className="w-full hover:bg-red-600 transition-colors duration-200"
-                          >
-                            لغو سفارش
-                            <X className="ml-2 h-4 w-4" />
-                          </Button>
-                        </div>
-                      )}
-                      {reservation.status !== "pending_payment" && reservation.status !== "cancelled" && (
-                        <div className="mt-4">
-                          <div className="bg-gradient-to-r from-orange-100 to-orange-200 p-4 rounded-xl shadow-inner">
-                            <div className="bg-white rounded-lg p-4 shadow-md text-center">
-                              <h3 className="text-lg font-bold mb-2 text-[#F47B20]">کد تحویل شما</h3>
-                              <div className="flex items-center justify-center">
-                                <div className="font-mono text-2xl font-bold tracking-widest bg-gray-100 px-4 py-2 rounded-md border-2 border-dashed border-[#F47B20]">
-                                  {reservation.delivery_code.toString()}
-                                </div>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="ml-2 text-[#F47B20] hover:text-[#E06A10]"
-                                  onClick={() => copyToClipboard(reservation.delivery_code.toString())}
-                                >
-                                  {isCopied ? (
-                                    <CheckCheck className="h-4 w-4 text-[#5CB85C]" />
-                                  ) : (
-                                    <Copy className="h-4 w-4" />
-                                  )}
-                                </Button>
-                              </div>
-                              <p className="text-sm text-gray-500 mt-2">این کد را به متصدی تحویل غذا نشان دهید</p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-              {reservations.length === 0 && (
-                <div className="text-center py-12 bg-white rounded-lg shadow-md">
-                  <div className="flex justify-center mb-4">
-                    <div className="relative h-28 w-28 animate-pulse">
-                      <Image
-                        src="/images/javanfoods_logo.png"
-                        alt="جوان"
-                        fill
-                        className="object-contain drop-shadow-lg"
-                      />
-                    </div>
-                  </div>
-                  <h3 className="text-xl font-bold text-[#F47B20] mb-2">هیچ سفارشی یافت نشد</h3>
-                  <p className="text-gray-400">از منوی غذا یک غذا انتخاب کنید</p>
-                </div>
-              )}
-            </motion.div>
-          </TabsContent>
-        </Tabs>
-      </div>
-
-      {/* Food Selection Modal */}
-      <ModalOrSheet isOpen={isDialogOpen} onClose={() => setIsDialogOpen(false)}>
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-4" dir="rtl">
-            <h2 className="text-xl font-semibold text-black">انتخاب زمان تحویل</h2>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setIsDialogOpen(false)}
-              className="text-black hover:text-black/80"
-            >
-              <X className="h-6 w-6" />
-            </Button>
-          </div>
-          <p className="text-black mb-4" dir="rtl">
-            لطفاً زمان تحویل مورد نظر خود را برای {selectedFood?.food.name} انتخاب کنید.
-          </p>
-          <div className="grid grid-cols-2 gap-4 mb-6">
-            {selectedFood?.time_slots
-              ?.filter((slot) => slot !== null)
-              .map((slot) => (
-                <Button
-                  key={slot.id}
-                  variant={selectedTimeSlot === slot.id ? "default" : "outline"}
-                  onClick={() => handleTimeSelect(slot.id)}
-                  className={`transition-all duration-200 ${
-                    selectedTimeSlot === slot.id
-                      ? "bg-[#F47B20] text-white hover:bg-[#E06A10]"
-                      : "text-black hover:bg-[#F4EDE7]"
-                  }`}
+            {categories.length > 0 && (
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                <button
+                  type="button"
+                  onClick={() => setSelectedCategory(null)}
+                  className={cn(
+                    "shrink-0 rounded-full px-4 py-1.5 text-sm transition cursor-pointer",
+                    selectedCategory === null
+                      ? "bg-brand text-primary-foreground shadow-glow"
+                      : "glass text-muted-foreground hover:text-foreground"
+                  )}
                 >
-                  {slot.start_time && slot.start_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])}
-                  {slot.start_time && slot.end_time ? " - " : ""}
-                  {slot.end_time && slot.end_time.slice(0, 5).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])}
-                </Button>
-              ))}
-          </div>
-          <div className="flex items-center justify-between mb-4">
-            <Switch
-              id="voucher"
-              checked={hasVoucher}
-              onCheckedChange={handleVoucherToggle}
-              disabled={userProfile?.trust_score !== undefined && userProfile.trust_score < 0}
-            />
-            <Label
-              htmlFor="voucher"
-              className={`text-black ${userProfile?.trust_score !== undefined && userProfile.trust_score < 0 ? "opacity-50" : ""}`}
-            >
-              استفاده از ژتون عادی
-            </Label>
-          </div>
-
-          {selectedFood?.food.supports_extra_voucher && (
-            <div className="flex items-center justify-between mb-4">
-              <Switch
-                id="extraVoucher"
-                checked={extraVoucherSelected}
-                onCheckedChange={setExtraVoucherSelected}
-                disabled={(userProfile?.trust_score !== undefined && userProfile.trust_score < 0) || !hasVoucher}
-              />
-              <Label
-                htmlFor="extraVoucher"
-                className={`text-black ${(userProfile?.trust_score !== undefined && userProfile.trust_score < 0) || !hasVoucher ? "opacity-50" : ""}`}
-              >
-                استفاده از ژتون اضافی
-              </Label>
-            </div>
-          )}
-
-          {userProfile?.trust_score !== undefined && userProfile.trust_score < 0 && (
-            <div className="mb-4 p-2 bg-red-100 border border-red-300 rounded-md text-sm text-red-700 text-center" dir="rtl">
-              به دلیل امتیاز اعتبار منفی، امکان استفاده از ژتون وجود ندارد
-            </div>
-          )}
-
-          <div className="text-xl font-bold mb-6 text-[#F47B20] estedad-font">
-            قیمت نهایی:{" "}
-            {new Intl.NumberFormat("fa-IR", { useGrouping: true }).format(calculateTotalPrice()).replace(/٬/g, ",")}{" "}
-            تومان
-          </div>
-          <div className="flex justify-end gap-4">
-            <Button
-              onClick={() => setIsDialogOpen(false)}
-              variant="outline"
-              className="text-black hover:bg-[#F4EDE7] transition-colors duration-200"
-            >
-              <ChevronLeft className="mr-2 h-4 w-4" />
-              بازگشت
-            </Button>
-            <Button
-              onClick={handleOrder}
-              disabled={!selectedTimeSlot}
-              className="bg-[#F47B20] hover:bg-[#E06A10] text-white transition-colors duration-200"
-            >
-              ادامه به پرداخت
-              <ChevronRight className="ml-2 h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </ModalOrSheet>
-
-      {/* Payment Modal */}
-      <ModalOrSheet isOpen={isPaymentDialogOpen} onClose={() => setIsPaymentDialogOpen(false)}>
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-4" dir="rtl">
-            <h2 className="text-xl font-semibold text-black">صورتحساب سفارش</h2>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setIsPaymentDialogOpen(false)}
-              className="text-black hover:text-black/80"
-            >
-              <X className="h-6 w-6" />
-            </Button>
-          </div>
-          <p className="text-black mb-4" dir="rtl">
-            لطفاً جزئیات سفارش خود را بررسی کنید.
-          </p>
-          <div className="bg-[#F4EDE7] p-4 rounded-lg mb-6">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-black" dir="rtl">
-                {new Intl.NumberFormat("fa-IR", { useGrouping: true })
-                  .format(Number(selectedFood?.food.price))
-                  .replace(/٬/g, ",")}{" "}
-                تومان
-              </span>
-              <span className="text-black">{selectedFood?.food.name}</span>
-            </div>
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-black">{hasVoucher ? "بله" : "خیر"}</span>
-              <span className="font-semibold text-black">استفاده از ژتون عادی</span>
-            </div>
-
-            {selectedFood?.food.supports_extra_voucher && (
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-black">{extraVoucherSelected ? "بله" : "خیر"}</span>
-                <span className="font-semibold text-black">استفاده از ژتون اضافی</span>
+                  همه
+                </button>
+                {categories.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => setSelectedCategory(c.id)}
+                    className={cn(
+                      "shrink-0 rounded-full px-4 py-1.5 text-sm transition cursor-pointer",
+                      selectedCategory === c.id
+                        ? "bg-brand text-primary-foreground shadow-glow"
+                        : "glass text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {c.name}
+                  </button>
+                ))}
               </div>
             )}
 
-            <Separator className="my-2 bg-black" />
-            <div className="flex justify-between items-center mt-2 text-lg font-bold">
-              <span className="text-black" dir="rtl">
-                {new Intl.NumberFormat("fa-IR", { useGrouping: true }).format(calculateTotalPrice()).replace(/٬/g, ",")}{" "}
-                تومان
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {menuItems.map((item) => {
+                const hasVouchers =
+                  (item.food.allowed_vouchers && item.food.allowed_vouchers.length > 0) ||
+                  item.food.supports_extra_voucher
+                return (
+                  <article
+                    key={item.id}
+                    className="glass group overflow-hidden rounded-[1.75rem] p-2 transition hover:-translate-y-1"
+                  >
+                    <div className="relative aspect-[4/3] overflow-hidden rounded-[1.4rem]">
+                      <FoodImage
+                        src={item.food.image_url}
+                        alt={item.food.name}
+                        fill
+                        className="size-full object-cover transition duration-500 group-hover:scale-105"
+                      />
+                      {item.food.category_name && (
+                        <span className="glass absolute right-3 top-3 rounded-full px-3 py-1 text-xs font-medium">
+                          {item.food.category_name}
+                        </span>
+                      )}
+                      {hasVouchers && (
+                        <span className="absolute left-3 top-3 flex items-center gap-1 rounded-full bg-brand px-2.5 py-1 text-[0.7rem] text-primary-foreground shadow-sm">
+                          <Ticket className="size-3" />
+                          ژتون
+                        </span>
+                      )}
+                      {!item.is_available && (
+                        <div className="absolute inset-0 bg-black/45 backdrop-blur-xs flex items-center justify-center">
+                          <span className="rounded-full bg-destructive px-3 py-1 text-xs font-bold text-destructive-foreground">
+                            ناموجود
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between p-3">
+                      <div>
+                        <h3 className="font-bold">{item.food.name}</h3>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          <span className="font-bold text-primary">
+                            {formatPersianPrice(item.food.price)}
+                          </span>{" "}
+                          تومان
+                        </p>
+                        {item.is_available && item.daily_capacity !== undefined && (
+                          <p className="mt-0.5 text-[0.7rem] text-muted-foreground">
+                            ظرفیت: {toPersianDigits(item.daily_capacity)}
+                          </p>
+                        )}
+                      </div>
+                      <Button
+                        variant="brand"
+                        disabled={!item.is_available}
+                        onClick={() => handleOpenFood(item)}
+                      >
+                        رزرو
+                      </Button>
+                    </div>
+                  </article>
+                )
+              })}
+            </div>
+
+            {menuItems.length === 0 && (
+              <div className="glass rounded-[1.75rem] p-12 text-center col-span-full">
+                <div className="mx-auto mb-4 grid size-16 place-items-center rounded-3xl bg-glass-strong text-muted-foreground">
+                  <Utensils className="size-8" />
+                </div>
+                <h3 className="text-lg font-bold">غذایی در این بخش موجود نیست</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  لطفاً تاریخ یا وعده دیگری را انتخاب فرمایید.
+                </p>
+              </div>
+            )}
+          </motion.section>
+        ) : (
+          /* Tab Content: Orders */
+          <motion.section
+            key="orders"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.22, ease: "easeOut" }}
+            className="grid gap-4 md:grid-cols-2"
+          >
+            {[...reservations]
+              .sort((a, b) => new Date(b.reserved_date).getTime() - new Date(a.reserved_date).getTime())
+              .map((o) => {
+                const statusInfo = STATUS[o.status] || {
+                  label: o.status,
+                  cls: "bg-muted text-muted-foreground",
+                }
+                const formattedDate = new Intl.DateTimeFormat("fa-IR", {
+                  weekday: "short",
+                  day: "numeric",
+                  month: "long",
+                }).format(new Date(o.reserved_date))
+                const timeSlotText = o.time_slot
+                  ? `${toPersianDigits(o.time_slot.start_time.slice(0, 5))} - ${toPersianDigits(
+                      o.time_slot.end_time.slice(0, 5)
+                    )}`
+                  : "زمان نامشخص"
+
+                return (
+                  <article key={o.id} className="glass rounded-[1.75rem] p-4">
+                    <div className="flex gap-3">
+                      <div className="relative size-20 shrink-0 overflow-hidden rounded-2xl">
+                        <FoodImage
+                          src={o.food.image_url}
+                          alt={o.food.name}
+                          fill
+                          className="size-full object-cover"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <h3 className="font-bold">{o.food.name}</h3>
+                          <span
+                            className={cn(
+                              "shrink-0 rounded-full px-2.5 py-1 text-[0.7rem] font-semibold",
+                              statusInfo.cls
+                            )}
+                          >
+                            {statusInfo.label}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {formattedDate} · {o.meal_type === "dinner" ? "شام" : "ناهار"}
+                        </p>
+                        <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                          <Clock className="size-3.5" />
+                          {timeSlotText}
+                        </p>
+                        {o.reservation_number && (
+                          <p className="mt-0.5 text-[0.7rem] text-muted-foreground">
+                            شماره رزرو: #{toPersianDigits(o.reservation_number)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex items-center justify-between rounded-2xl bg-glass p-3">
+                      <div>
+                        <div className="text-[0.7rem] text-muted-foreground">کد تحویل</div>
+                        <div className="text-xl font-extrabold tracking-[0.3em] text-primary">
+                          {toPersianDigits(o.delivery_code)}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold">
+                          {formatPersianPrice(o.price)}{" "}
+                          <span className="text-xs text-muted-foreground">تومان</span>
+                        </span>
+                        <button
+                          type="button"
+                          aria-label="کپی کد تحویل"
+                          onClick={() => copyToClipboard(o)}
+                          className="grid size-9 place-items-center rounded-full bg-glass-strong text-primary hover:opacity-80 transition cursor-pointer"
+                        >
+                          {copiedId === o.id ? (
+                            <CheckCheck className="size-4 text-success" />
+                          ) : (
+                            <Copy className="size-4" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    {o.status === "pending_payment" && (
+                      <div className="mt-3 flex gap-2">
+                        <Button
+                          variant="brand"
+                          className="flex-1"
+                          size="sm"
+                          onClick={() => handlePaymentForOrder(o)}
+                        >
+                          پرداخت سفارش
+                          <ChevronLeft className="size-4" />
+                        </Button>
+                        <Button
+                          variant="glass"
+                          className="text-destructive hover:bg-destructive-soft"
+                          size="sm"
+                          onClick={() => handleCancelReservation(o.id)}
+                        >
+                          لغو
+                        </Button>
+                      </div>
+                    )}
+
+                    {o.status === "waiting" && (
+                      <button
+                        type="button"
+                        onClick={() => handleCancelReservation(o.id)}
+                        className="mt-3 w-full rounded-full py-2 text-sm text-destructive hover:bg-destructive-soft transition cursor-pointer"
+                      >
+                        لغو سفارش
+                      </button>
+                    )}
+                  </article>
+                )
+              })}
+
+            {reservations.length === 0 && (
+              <div className="glass rounded-[1.75rem] p-12 text-center md:col-span-2">
+                <div className="mx-auto mb-4 grid size-16 place-items-center rounded-3xl bg-glass-strong text-muted-foreground">
+                  <ShoppingBag className="size-8" />
+                </div>
+                <h3 className="text-lg font-bold">هیچ سفارشی یافت نشد</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  از منوی غذا یک غذا را انتخاب و رزرو فرمایید.
+                </p>
+                <Button variant="brand" className="mt-4" onClick={() => setActiveTab("menu")}>
+                  مشاهده منوی غذا
+                </Button>
+              </div>
+            )}
+          </motion.section>
+        )}
+        </AnimatePresence>
+      </main>
+
+      {/* Food Selection Sheet / Modal */}
+      <Sheet open={isDialogOpen && !isPaymentDialogOpen} onClose={() => setIsDialogOpen(false)}>
+        {selectedFood && (
+          <div>
+            {/* Top Image Banner */}
+            <div className="relative h-44 sm:h-48 w-full overflow-hidden">
+              <FoodImage
+                src={selectedFood.food.image_url}
+                alt={selectedFood.food.name}
+                fill
+                className="size-full object-cover"
+              />
+              <button
+                type="button"
+                aria-label="بستن"
+                onClick={() => setIsDialogOpen(false)}
+                className="glass absolute left-4 top-4 grid size-9 place-items-center rounded-full hover:bg-glass-strong transition cursor-pointer text-foreground shadow-md z-10"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+
+            <div className="space-y-5 p-5">
+              {/* Food Title & Base Price */}
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-extrabold text-foreground">{selectedFood.food.name}</h2>
+                <span className="font-bold text-base sm:text-lg text-primary whitespace-nowrap">
+                  {formatPersianPrice(selectedFood.food.price)} تومان
+                </span>
+              </div>
+
+              {/* Time Slots */}
+              <div>
+                <h4 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-foreground">
+                  <Clock className="size-4 text-primary" />
+                  زمان تحویل
+                </h4>
+                {selectedFood.time_slots && selectedFood.time_slots.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-2" dir="ltr">
+                    {[...selectedFood.time_slots]
+                      .sort((a, b) => a.start_time.localeCompare(b.start_time))
+                      .map((s) => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          disabled={s.capacity !== undefined && s.capacity <= 0}
+                          onClick={() => setSelectedTimeSlot(s.id)}
+                          className={cn(
+                            "rounded-2xl border p-3 text-center text-sm transition disabled:opacity-40 cursor-pointer",
+                            selectedTimeSlot === s.id
+                              ? "border-primary bg-accent text-accent-foreground font-semibold shadow-sm"
+                              : "border-glass-border bg-glass hover:bg-glass-strong text-foreground"
+                          )}
+                        >
+                          <div className="font-semibold" dir="ltr">
+                            {toPersianDigits(s.start_time.slice(0, 5))} - {toPersianDigits(s.end_time.slice(0, 5))}
+                          </div>
+                          <div className="text-[0.7rem] text-muted-foreground mt-0.5">
+                            {s.capacity !== undefined
+                              ? s.capacity > 0
+                                ? `${toPersianDigits(s.capacity)} ظرفیت`
+                                : "تکمیل"
+                              : ""}
+                          </div>
+                        </button>
+                      ))}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-dashed border-amber-500/40 bg-amber-500/10 p-2.5 text-center text-xs text-amber-700 dark:text-amber-300">
+                    در حال حاضر بازه زمانی تحویل برای این غذا ثبت نشده است.
+                  </div>
+                )}
+              </div>
+
+              {/* Voucher Selection */}
+              {((selectedFood.food.allowed_vouchers && selectedFood.food.allowed_vouchers.length > 0) || voucherTypes.length > 0) && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="flex items-center gap-1.5 text-sm font-bold text-foreground">
+                      <Ticket className="size-4 text-primary" />
+                      <span>انتخاب فیش / ژتون</span>
+                    </h4>
+                    <span className="text-[0.7rem] text-muted-foreground">
+                      یک گزینه را انتخاب کنید
+                    </span>
+                  </div>
+
+                  {userProfile?.trust_score !== undefined && userProfile.trust_score < 0 && (
+                    <div className="rounded-2xl bg-destructive-soft border border-destructive/20 p-2.5 text-xs text-destructive text-center">
+                      به دلیل امتیاز اعتبار منفی، امکان استفاده از ژتون وجود ندارد
+                    </div>
+                  )}
+
+                  {/* Stacked and Justified Voucher List */}
+                  <div className="flex flex-col gap-2 w-full">
+                    {/* Option: No Voucher */}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedVoucherId(null)}
+                      className={cn(
+                        "w-full rounded-2xl p-3 sm:p-3.5 flex items-center justify-between transition-all cursor-pointer border text-right",
+                        selectedVoucherId === null
+                          ? "border-primary bg-primary/10 shadow-xs"
+                          : "border-glass-border bg-glass/60 hover:bg-glass-strong"
+                      )}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div
+                          className={cn(
+                            "size-5 rounded-full border-2 flex items-center justify-center transition-colors shrink-0",
+                            selectedVoucherId === null
+                              ? "border-primary bg-primary"
+                              : "border-muted-foreground/40 bg-transparent"
+                          )}
+                        >
+                          {selectedVoucherId === null && (
+                            <div className="size-1.5 rounded-full bg-white" />
+                          )}
+                        </div>
+                        <div>
+                          <div className="font-bold text-xs sm:text-sm text-foreground">
+                            بدون ژتون
+                          </div>
+                          <div className="text-[0.65rem] text-muted-foreground">
+                            پرداخت کامل مبلغ غذا (قیمت آزاد)
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="shrink-0">
+                        <span className="rounded-full bg-glass px-2.5 py-1 text-[0.7rem] font-medium text-muted-foreground border border-glass-border">
+                          قیمت پایه
+                        </span>
+                      </div>
+                    </button>
+
+                    {/* Voucher Options */}
+                    {voucherTypes.map((vt) => {
+                      const isAllowed = selectedFood.food.allowed_vouchers?.some(
+                        (v) => v.id === vt.id
+                      )
+                      const isTrustBlocked =
+                        userProfile?.trust_score !== undefined && userProfile.trust_score < 0
+                      const isDisabled = !isAllowed || isTrustBlocked
+                      const isSelected = selectedVoucherId === vt.id
+
+                      return (
+                        <button
+                          key={vt.id}
+                          type="button"
+                          disabled={isDisabled}
+                          onClick={() => setSelectedVoucherId(vt.id)}
+                          className={cn(
+                            "w-full rounded-2xl p-3 sm:p-3.5 flex items-center justify-between transition-all border text-right",
+                            isDisabled
+                              ? "opacity-45 cursor-not-allowed border-dashed border-glass-border bg-glass/30"
+                              : isSelected
+                              ? "border-primary bg-primary/10 shadow-xs cursor-pointer"
+                              : "border-glass-border bg-glass/60 hover:bg-glass-strong cursor-pointer"
+                          )}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div
+                              className={cn(
+                                "size-5 rounded-full border-2 flex items-center justify-center transition-colors shrink-0",
+                                isSelected
+                                  ? "border-primary bg-primary"
+                                  : "border-muted-foreground/40 bg-transparent"
+                              )}
+                            >
+                              {isSelected && (
+                                <div className="size-1.5 rounded-full bg-white" />
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="font-bold text-xs sm:text-sm text-foreground truncate">
+                                {vt.name}
+                              </div>
+                              <div className="text-[0.65rem] text-muted-foreground truncate">
+                                {isDisabled
+                                  ? "غیرقابل استفاده برای این غذا"
+                                  : "کسر از مبلغ نهایی سفارش"}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="shrink-0">
+                            {vt.discount_amount ? (
+                              <span className="rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-2.5 py-1 text-[0.7rem] font-bold">
+                                {formatPersianPrice(vt.discount_amount)}− تومان
+                              </span>
+                            ) : (
+                              <span className="rounded-full bg-primary/10 text-primary border border-primary/20 px-2.5 py-1 text-[0.7rem] font-bold">
+                                رایگان
+                              </span>
+                            )}
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Bottom Footer Separator */}
+              <div className="flex items-center justify-between border-t border-glass-border pt-4">
+                <Button
+                  variant="brand"
+                  disabled={!selectedTimeSlot}
+                  onClick={handleConfirmSelection}
+                  className="gap-1 h-11 rounded-xl px-5 text-sm font-bold shadow-md cursor-pointer"
+                >
+                  <ChevronRight className="size-4" />
+                  <span>ادامه به پرداخت</span>
+                </Button>
+                <div className="text-left">
+                  <div className="text-xs text-muted-foreground">مبلغ نهایی</div>
+                  <div className="text-xl font-extrabold text-foreground">
+                    {formatPersianPrice(calculateTotalPrice())}{" "}
+                    <span className="text-xs font-normal text-muted-foreground">تومان</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </Sheet>
+
+      {/* Payment Confirmation Sheet / Modal */}
+      <Sheet open={isPaymentDialogOpen} onClose={() => setIsPaymentDialogOpen(false)}>
+        <div className="space-y-5 p-6 text-center">
+          <div className="mx-auto grid size-16 place-items-center rounded-3xl bg-brand text-primary-foreground shadow-glow">
+            <CreditCard className="size-7" />
+          </div>
+          <div>
+            <h2 className="text-xl font-extrabold text-foreground">تأیید و پرداخت</h2>
+            <p className="mt-1 text-sm text-muted-foreground">{selectedFood?.food.name}</p>
+          </div>
+
+          <div className="rounded-2xl bg-glass p-4 text-sm space-y-2.5 border border-glass-border text-foreground">
+            <div className="flex justify-between items-center text-muted-foreground">
+              <span>قیمت پایه غذا:</span>
+              <span>{formatPersianPrice(selectedFood?.food.price ?? 0)} تومان</span>
+            </div>
+            <div className="flex justify-between items-center text-muted-foreground">
+              <span>نوع ژتون:</span>
+              <span className="font-medium text-foreground">
+                {selectedVoucher ? selectedVoucher.name : "بدون ژتون (پرداخت نقدی)"}
               </span>
-              <span className="text-black">قیمت نهایی</span>
+            </div>
+            {voucherDiscount > 0 && (
+              <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400 font-medium">
+                <span>تخفیف ژتون:</span>
+                <span>−{formatPersianPrice(voucherDiscount)} تومان</span>
+              </div>
+            )}
+            <div className="border-t border-glass-border pt-3 flex justify-between items-center font-bold text-base">
+              <span>مبلغ قابل پرداخت:</span>
+              <span className="text-primary font-black">{formatPersianPrice(calculateTotalPrice())} تومان</span>
             </div>
           </div>
 
-          <Button
-            onClick={handlePayment}
-            disabled={isPaymentProcessing}
-            className="bg-[#F47B20] hover:bg-[#E06A10] text-white transition-colors duration-200 w-full"
-          >
-            {isPaymentProcessing ? (
-              <span className="flex items-center">
-                <svg
-                  className="animate-spin -ml-1 mr-3 h-4 w-4 text-white"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-                در حال پردازش...
-              </span>
-            ) : (
-              <span className="flex items-center">
-                پرداخت و ثبت سفارش
-                <ChevronRight className="ml-2 h-4 w-4" />
-              </span>
-            )}
-          </Button>
+          <div className="flex items-center gap-2 pt-2 border-t border-glass-border">
+            <Button
+              variant="brand"
+              className="flex-[2] gap-1 h-11 rounded-xl text-sm font-bold shadow-md cursor-pointer"
+              disabled={isPaymentProcessing}
+              onClick={handlePayment}
+            >
+              {isPaymentProcessing ? (
+                "در حال پردازش..."
+              ) : (
+                <>
+                  <ChevronRight className="size-4" />
+                  <span>پرداخت و ثبت سفارش</span>
+                </>
+              )}
+            </Button>
+            <Button
+              variant="glass"
+              className="flex-1 gap-1 h-11 rounded-xl text-sm cursor-pointer"
+              onClick={() => {
+                setIsPaymentDialogOpen(false)
+                setIsDialogOpen(true)
+              }}
+            >
+              <span>بازگشت</span>
+              <ChevronLeft className="size-4" />
+            </Button>
+          </div>
         </div>
-      </ModalOrSheet>
+      </Sheet>
     </div>
   )
 }

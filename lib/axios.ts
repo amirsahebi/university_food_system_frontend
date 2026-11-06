@@ -27,11 +27,22 @@ api.interceptors.response.use(
     if (error.response && error.response.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       const refreshToken = localStorage.getItem('refresh_token');
+      if (!refreshToken) {
+        localStorage.removeItem('access_token');
+        return Promise.reject(error);
+      }
       try {
-        const response = await axios.post(`${API_BASE_URL}/auth/refresh/`, { refresh_token: refreshToken });
-        const { access_token } = response.data;
+        const response = await axios.post(`${API_BASE_URL}/auth/refresh/`, {
+          refresh: refreshToken,
+          refresh_token: refreshToken
+        });
+        const access_token = response.data.access_token || response.data.access;
+        if (!access_token) {
+          throw new Error('Access token not found in refresh response');
+        }
         localStorage.setItem('access_token', access_token);
         api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+        originalRequest.headers['Authorization'] = `Bearer ${access_token}`;
         return api(originalRequest);
       } catch (refreshError) {
         // If refresh token is invalid, logout the user

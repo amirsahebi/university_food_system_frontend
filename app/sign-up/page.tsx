@@ -28,6 +28,7 @@ import {
   School,
   ShieldCheck,
   KeyRound,
+  Sparkles,
 } from "lucide-react"
 import api from "@/lib/axios"
 import { API_ROUTES, createApiUrl } from "@/lib/api"
@@ -114,9 +115,25 @@ const SuccessModal = ({ isOpen, onClose, studentName }: SuccessModalProps) => {
                 className="h-1 bg-[#f97316] rounded-full mb-6"
               />
 
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}>
-                <Button onClick={onClose} className="bg-[#f97316] hover:bg-orange-600">
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 }}
+                className="flex flex-col sm:flex-row items-center justify-center gap-2"
+              >
+                <Button onClick={onClose} className="bg-[#f97316] hover:bg-orange-600 w-full sm:w-auto">
                   ورود به حساب کاربری
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent("open-whats-new"))
+                  }}
+                  className="border-orange-500/30 text-orange-600 hover:bg-orange-50 w-full sm:w-auto text-xs"
+                >
+                  <Sparkles className="w-3.5 h-3.5 ml-1 text-orange-500" />
+                  آشنایی با امکانات جدید
                 </Button>
               </motion.div>
             </div>
@@ -155,9 +172,18 @@ const signUpSchema = z
   .object({
     firstName: z.string().min(2, { message: "نام باید حداقل 2 حرف باشد" }),
     lastName: z.string().min(2, { message: "نام خانوادگی باید حداقل 2 حرف باشد" }),
-    studentNumber: z.string().regex(/^\d{7,12}$/, { message: "شماره دانشجویی باید بین 7 تا 10 رقم باشد" }),
-    phoneNumber: z.string().regex(/^09\d{9}$/, { message: "شماره تلفن باید 11 رقم و با 09 شروع شود" }),
-    verificationCode: z.string(),
+    studentNumber: z.preprocess(
+      (val) => convertToEnglishNumbers(val as string || "").trim(),
+      z.string().regex(/^\d{7,12}$/, { message: "شماره دانشجویی باید بین 7 تا 10 رقم باشد" })
+    ),
+    phoneNumber: z.preprocess(
+      (val) => convertToEnglishNumbers(val as string || "").trim(),
+      z.string().regex(/^09\d{9}$/, { message: "شماره تلفن باید 11 رقم و با 09 شروع شود" })
+    ),
+    verificationCode: z.preprocess(
+      (val) => convertToEnglishNumbers(val as string || "").trim(),
+      z.string()
+    ),
     password: z.string().min(8, { message: "رمز عبور باید حداقل 8 کاراکتر باشد" }),
     confirmPassword: z.string(),
   })
@@ -185,6 +211,7 @@ export default function SignUp() {
   const [displayPhoneNumber, setDisplayPhoneNumber] = useState("")
   const [displayStudentNumber, setDisplayStudentNumber] = useState("")
   const [validationError, setValidationError] = useState<string | null>(null)
+  const [verificationToken, setVerificationToken] = useState<string | null>(null)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const redirectTimerRef = useRef<NodeJS.Timeout | null>(null)
@@ -211,6 +238,7 @@ export default function SignUp() {
         password: data.password,
         role: "student",
         verification_code: data.verificationCode,
+        verification_token: verificationToken,
         student_number: data.studentNumber,
       })
 
@@ -398,6 +426,7 @@ export default function SignUp() {
       })
 
       if (response.data.verified) {
+        setVerificationToken(response.data.verification_token)
         setIsCodeVerified(true)
         setIsCodeError(false)
         setValidationError(null)
@@ -795,7 +824,56 @@ export default function SignUp() {
                 )}
               </motion.div>
             </AnimatePresence>
-            <div className="mt-6 flex justify-between items-center">
+            <div className="mt-6 flex justify-between items-center" dir="rtl">
+              {/* دکمه بعدی / ارسال کد / ثبت نام در گوشه سمت راست */}
+              {step < steps.length - 1 ? (
+                step === 1 ? (
+                  <Button
+                    type="button"
+                    onClick={sendVerificationCode}
+                    className="bg-[#f97316] hover:bg-orange-600 btn-hover-effect flex items-center gap-2"
+                    disabled={isVerifying}
+                  >
+                    <Send className="h-4 w-4" />
+                    <span>{isVerifying ? "در حال ارسال..." : "ارسال کد تایید"}</span>
+                  </Button>
+                ) : step === 2 ? (
+                  <Button
+                    type="button"
+                    onClick={goToNextStep}
+                    className="bg-[#f97316] hover:bg-orange-600 btn-hover-effect flex items-center gap-2"
+                    disabled={!isCodeVerified}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                    <span>بعدی</span>
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    onClick={goToNextStep}
+                    className="bg-[#f97316] hover:bg-orange-600 btn-hover-effect flex items-center gap-2"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                    <span>بعدی</span>
+                  </Button>
+                )
+              ) : (
+                <Button
+                  type="submit"
+                  className="bg-[#f97316] hover:bg-orange-600 btn-hover-effect flex items-center gap-2"
+                  onClick={async (e) => {
+                    const isValid = await validateCurrentStep()
+                    if (!isValid) {
+                      e.preventDefault()
+                    }
+                  }}
+                >
+                  <GraduationCap className="h-4 w-4" />
+                  <span>ثبت نام</span>
+                </Button>
+              )}
+
+              {/* دکمه بازگشت به صفحه ورود / قبلی در گوشه سمت چپ */}
               {step === 0 ? (
                 <Button
                   type="button"
@@ -805,51 +883,15 @@ export default function SignUp() {
                 >
                   بازگشت به صفحه ورود
                 </Button>
-              ) : step > 0 && (
-                <Button type="button" onClick={() => setStep(step - 1)} variant="outline" className="btn-hover-effect">
-                  <ChevronLeft className="mr-2 h-4 w-4" /> قبلی
-                </Button>
-              )}
-              {step < steps.length - 1 ? (
-                step === 1 ? (
-                  <Button
-                    type="button"
-                    onClick={sendVerificationCode}
-                    className="ml-auto bg-[#f97316] hover:bg-orange-600 btn-hover-effect"
-                    disabled={isVerifying}
-                  >
-                    <Send className="mr-2 h-4 w-4" /> {isVerifying ? "در حال ارسال..." : "ارسال کد تایید"}
-                  </Button>
-                ) : step === 2 ? (
-                  <Button
-                    type="button"
-                    onClick={goToNextStep}
-                    className="ml-auto bg-[#f97316] hover:bg-orange-600 btn-hover-effect"
-                    disabled={!isCodeVerified}
-                  >
-                    بعدی <ChevronRight className="ml-2 h-4 w-4" />
-                  </Button>
-                ) : (
-                  <Button
-                    type="button"
-                    onClick={goToNextStep}
-                    className="ml-auto bg-[#f97316] hover:bg-orange-600 btn-hover-effect"
-                  >
-                    بعدی <ChevronRight className="ml-2 h-4 w-4" />
-                  </Button>
-                )
               ) : (
                 <Button
-                  type="submit"
-                  className="ml-auto bg-[#f97316] hover:bg-orange-600 btn-hover-effect"
-                  onClick={async (e) => {
-                    const isValid = await validateCurrentStep()
-                    if (!isValid) {
-                      e.preventDefault()
-                    }
-                  }}
+                  type="button"
+                  onClick={() => setStep(step - 1)}
+                  variant="outline"
+                  className="btn-hover-effect flex items-center gap-2"
                 >
-                  ثبت نام <GraduationCap className="ml-2 h-4 w-4" />
+                  <span>قبلی</span>
+                  <ChevronLeft className="h-4 w-4" />
                 </Button>
               )}
             </div>

@@ -23,7 +23,8 @@ interface AuthContextType {
 }
 
 // Define authentication-related constants
-const PROTECTED_ROUTES = ['/edit-profile', '/payment/verify']
+const PROTECTED_ROUTES = ['/edit-profile', '/payment/verify', '/payment/history', '/payment/start']
+const PUBLIC_ROUTES = ['/', '/sign-up', '/forgot-password']
 const LOGIN_ROUTE = '/'
 const DASHBOARD_ROUTE_PREFIX = '-dashboard'
 
@@ -48,7 +49,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     if (!token) {
       clearAuthState()
-      if (window.location.pathname !== LOGIN_ROUTE) {
+      const isPublicRoute = PUBLIC_ROUTES.includes(window.location.pathname)
+      if (!isPublicRoute) {
         router.push(LOGIN_ROUTE)
       }
       setIsLoading(false)
@@ -61,18 +63,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsAuthenticated(true)
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`
 
-      // Prevent redirecting from specific routes
+      // Prevent redirecting if already on a dashboard or protected route
       const currentPath = window.location.pathname
       const isProtectedRoute = PROTECTED_ROUTES.some(route => currentPath.includes(route))
+      const isDashboardRoute = currentPath.includes(DASHBOARD_ROUTE_PREFIX)
       
-      if (!isProtectedRoute) {
+      if (!isProtectedRoute && !isDashboardRoute) {
         router.push(`/${response.data.role}${DASHBOARD_ROUTE_PREFIX}`)
       }
     } catch (error) {
       console.error('Authentication check failed:', error)
       clearAuthState()
       
-      if (window.location.pathname !== LOGIN_ROUTE) {
+      const isPublicRoute = PUBLIC_ROUTES.includes(window.location.pathname)
+      if (!isPublicRoute) {
         router.push(LOGIN_ROUTE)
       }
     } finally {

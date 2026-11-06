@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import Link from "next/link"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
@@ -10,17 +9,25 @@ import * as z from "zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent } from "@/components/ui/card"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { toast, Toaster } from "react-hot-toast"
-import { User, Phone, Save, Lock, Menu, LogOut, ChevronLeft, GraduationCap } from "lucide-react"
+import {
+  User,
+  Phone,
+  Save,
+  Lock,
+  LogOut,
+  ChevronRight,
+  GraduationCap,
+  ShieldCheck,
+  KeyRound,
+} from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import api from "@/lib/axios"
 import { API_ROUTES, createApiUrl } from "@/lib/api"
 
 const editProfileSchema = z.object({
-  first_name: z.string().min(2, { message: "نام باید حداقل 2 حرف باشد" }),
-  last_name: z.string().min(2, { message: "نام خانوادگی باید حداقل 2 حرف باشد" }),
+  first_name: z.string().min(2, { message: "نام باید حداقل ۲ حرف باشد" }),
+  last_name: z.string().min(2, { message: "نام خانوادگی باید حداقل ۲ حرف باشد" }),
   phone_number: z.string(),
   avatar_url: z.string().optional(),
   avatar: z.any().optional(),
@@ -30,8 +37,8 @@ const editProfileSchema = z.object({
 const changePasswordSchema = z
   .object({
     currentPassword: z.string().min(1, { message: "رمز عبور فعلی الزامی است" }),
-    newPassword: z.string().min(8, { message: "رمز عبور جدید باید حداقل 8 کاراکتر باشد" }),
-    confirmNewPassword: z.string().min(8, { message: "تکرار رمز عبور جدید باید حداقل 8 کاراکتر باشد" }),
+    newPassword: z.string().min(8, { message: "رمز عبور جدید باید حداقل ۸ کاراکتر باشد" }),
+    confirmNewPassword: z.string().min(8, { message: "تکرار رمز عبور جدید باید حداقل ۸ کاراکتر باشد" }),
   })
   .refine((data) => data.newPassword === data.confirmNewPassword, {
     message: "رمزهای عبور جدید مطابقت ندارند",
@@ -63,6 +70,7 @@ export default function EditProfile() {
     register: registerPassword,
     handleSubmit: handleSubmitPassword,
     formState: { errors: errorsPassword },
+    reset: resetPasswordForm,
   } = useForm<z.infer<typeof changePasswordSchema>>({
     resolver: zodResolver(changePasswordSchema),
     defaultValues: {
@@ -76,7 +84,6 @@ export default function EditProfile() {
     try {
       const response = await api.get(createApiUrl(API_ROUTES.ME))
       const userData = response.data
-      console.log(response.data)
       setValue("first_name", userData.first_name || "")
       setValue("last_name", userData.last_name || "")
       setValue("phone_number", userData.phone_number || "")
@@ -98,18 +105,22 @@ export default function EditProfile() {
       formData.append("first_name", data.first_name)
       formData.append("last_name", data.last_name)
       formData.append("phone_number", data.phone_number)
-      formData.append("student_number", data.student_number || "")
+      if (data.student_number) {
+        formData.append("student_number", data.student_number)
+      }
 
-      await api.put(createApiUrl(API_ROUTES.UPDATE_PROFILE), formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-          Authorization: `Bearer ${localStorage.getItem("token")}`, // Assuming you store the token in localStorage
-        },
+      const response = await api.put(createApiUrl(API_ROUTES.UPDATE_PROFILE), formData, {
+        headers: { "Content-Type": "multipart/form-data" },
       })
-      toast.success("پروفایل با موفقیت به‌روزرسانی شد")
+
+      if (response.status === 200) {
+        toast.success("پروفایل با موفقیت به‌روزرسانی شد")
+      }
     } catch (error) {
       console.error("Error updating profile:", error)
-      toast.error("خطا در به‌روزرسانی پروفایل")
+      const err = error as { response?: { data?: { message?: string } } }
+      const errorMsg = err.response?.data?.message || "خطا در به‌روزرسانی پروفایل"
+      toast.error(errorMsg)
     } finally {
       setIsSubmitting(false)
     }
@@ -118,14 +129,32 @@ export default function EditProfile() {
   const onChangePassword = async (data: z.infer<typeof changePasswordSchema>) => {
     setIsChangingPassword(true)
     try {
-      await api.post(createApiUrl(API_ROUTES.CHANGE_PASSWORD), {
-        currentPassword: data.currentPassword,
-        newPassword: data.newPassword,
+      const response = await api.post(createApiUrl(API_ROUTES.CHANGE_PASSWORD), {
+        old_password: data.currentPassword,
+        new_password: data.newPassword,
       })
-      toast.success("رمز عبور با موفقیت تغییر کرد")
+
+      if (response.status === 200) {
+        toast.success("رمز عبور با موفقیت تغییر یافت")
+        resetPasswordForm()
+      }
     } catch (error) {
       console.error("Error changing password:", error)
-      toast.error("خطا در تغییر رمز عبور")
+      const err = error as {
+        response?: {
+          data?: {
+            detail?: string
+            old_password?: string[]
+            message?: string
+          }
+        }
+      }
+      const errorMsg =
+        err.response?.data?.detail ||
+        err.response?.data?.old_password?.[0] ||
+        err.response?.data?.message ||
+        "خطا در تغییر رمز عبور"
+      toast.error(errorMsg)
     } finally {
       setIsChangingPassword(false)
     }
@@ -133,9 +162,10 @@ export default function EditProfile() {
 
   const handleLogout = async () => {
     try {
-      await api.post(createApiUrl(API_ROUTES.SIGNOUT), {
-        refresh_token: localStorage.getItem("refresh_token"),
-      })
+      const refreshToken = localStorage.getItem("refresh_token")
+      if (refreshToken) {
+        await api.post(createApiUrl(API_ROUTES.SIGNOUT), { refresh_token: refreshToken })
+      }
       localStorage.removeItem("access_token")
       localStorage.removeItem("refresh_token")
       toast.success("با موفقیت از حساب کاربری خارج شدید")
@@ -147,158 +177,234 @@ export default function EditProfile() {
   }
 
   if (isLoading) {
-    return <div>Loading...</div>
+    return (
+      <div className="bg-page min-h-screen flex items-center justify-center p-4">
+        <div className="glass rounded-[1.75rem] p-8 flex items-center gap-3">
+          <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <span className="text-sm font-medium">در حال بارگذاری اطلاعات...</span>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="min-h-screen bg-[#FBF7F4] p-4 rtl">
+    <div dir="rtl" className="bg-page min-h-screen pb-16 font-sans text-foreground">
       <Toaster position="top-center" />
-      <header className="flex justify-between items-center mb-6 bg-white p-4 rounded-xl shadow-md">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="rounded-full transition-all duration-300 ease-in-out hover:scale-105"
-        >
-          <Menu className="h-6 w-6 text-[#F47B20]" />
-        </Button>
 
-        <div className="flex items-center">
-          <div className="relative h-10 w-10 mr-2">
-            <Image
-              src="/images/javanfoods_logo.png"
-              alt="جوان"
-              fill
-              className="object-contain drop-shadow-md"
-              priority
-            />
+      {/* Header */}
+      <header className="sticky top-0 z-40 px-2 sm:px-4 pt-3 sm:pt-4">
+        <div className="glass mx-auto flex max-w-2xl items-center justify-between rounded-full px-3 sm:px-4 py-2 sm:py-2.5">
+          <div className="flex items-center gap-2.5">
+            <div className="relative size-8 sm:size-9 shrink-0 drop-shadow-sm">
+              <Image
+                src="/images/javanfoods_logo.png"
+                alt="رستوران جوان"
+                fill
+                className="object-contain"
+                priority
+              />
+            </div>
+            <h1 className="font-extrabold text-sm sm:text-base text-foreground tracking-tight">
+              ویرایش پروفایل
+            </h1>
           </div>
-          <span className="text-xl font-bold text-[#F47B20]">ویرایش پروفایل</span>
-        </div>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+          <div className="flex items-center gap-1.5">
             <Button
-              variant="ghost"
-              size="icon"
-              className="rounded-full transition-all duration-300 ease-in-out hover:scale-105"
+              variant="glass"
+              size="sm"
+              onClick={() => router.push("/student-dashboard")}
+              className="gap-1 rounded-full px-3 text-xs font-semibold cursor-pointer"
             >
-              <User className="h-6 w-6 text-[#F47B20]" />
+              <ChevronRight className="size-4" />
+              <span>داشبورد</span>
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56" align="end">
-            <DropdownMenuItem asChild dir="rtl">
-              <Link href="/student-dashboard" className="flex items-center">
-                <ChevronLeft className="ml-2 h-4 w-4" />
-                <span>بازگشت به داشبورد</span>
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleLogout} dir="rtl">
-              <LogOut className="ml-2 h-4 w-4" />
-              <span>خروج</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+            <Button
+              variant="glass"
+              size="sm"
+              onClick={handleLogout}
+              className="size-8 sm:size-auto sm:px-3 p-0 rounded-full text-destructive hover:bg-destructive-soft transition cursor-pointer"
+              title="خروج از حساب"
+            >
+              <LogOut className="size-4" />
+              <span className="hidden sm:inline text-xs mr-1">خروج</span>
+            </Button>
+          </div>
+        </div>
       </header>
 
-      <div className="max-w-4xl mx-auto" dir="rtl">
-        <Card className="bg-white rounded-2xl shadow-[0_0_10px_rgba(0,0,0,0.1)] mb-6">
-          <CardContent className="p-6">
-            <h1 className="text-2xl font-bold text-center text-[#F47B20] mb-6">ویرایش پروفایل</h1>
-            <form onSubmit={handleSubmitProfile(onSubmit)} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <Label htmlFor="first_name" className="mb-2 block">
-                    نام
-                  </Label>
-                  <div className="relative">
-                    <Input id="first_name" {...registerProfile("first_name")} className="pr-10" />
-                    <User className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-                  </div>
-                  {errorsProfile.first_name && (
-                    <p className="text-red-500 text-sm mt-1">{errorsProfile.first_name.message}</p>
-                  )}
-                </div>
-                <div>
-                  <Label htmlFor="last_name" className="mb-2 block">
-                    نام خانوادگی
-                  </Label>
-                  <div className="relative">
-                    <Input id="last_name" {...registerProfile("last_name")} className="pr-10" />
-                    <User className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-                  </div>
-                  {errorsProfile.last_name && (
-                    <p className="text-red-500 text-sm mt-1">{errorsProfile.last_name.message}</p>
-                  )}
-                </div>
-                <div>
-                  <Label htmlFor="phone_number" className="mb-2 block">
-                    شماره تلفن
-                  </Label>
-                  <div className="relative">
-                    <Input id="phone_number" {...registerProfile("phone_number")} className="pr-10" readOnly />
-                    <Phone className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="student_number" className="mb-2 block">
-                    شماره دانشجویی
-                  </Label>
-                  <div className="relative">
-                    <Input id="student_number" {...registerProfile("student_number")} className="pr-10" />
-                    <GraduationCap
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                      size={18}
-                    />
-                  </div>
-                </div>
-              </div>
-              <Button
-                type="submit"
-                className="w-full bg-[#F47B20] hover:bg-[#E06A10] text-white"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? <Save className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                {isSubmitting ? "در حال ذخیره..." : "ذخیره تغییرات"}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+      {/* Main Container */}
+      <main className="mx-auto mt-6 max-w-2xl space-y-6 px-4">
+        {/* Personal Info Card */}
+        <div className="glass rounded-[1.75rem] p-5 sm:p-7 border border-glass-border space-y-5">
+          <div className="flex items-center gap-3 border-b border-glass-border pb-4">
+            <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-brand text-primary-foreground shadow-glow">
+              <User className="size-5" />
+            </div>
+            <div>
+              <h2 className="text-base sm:text-lg font-black text-foreground">اطلاعات کاربری</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                مشخصات فردی و شماره دانشجویی خود را ویرایش کنید
+              </p>
+            </div>
+          </div>
 
-        <Card className="bg-white rounded-2xl shadow-[0_0_10px_rgba(0,0,0,0.1)]">
-          <CardContent className="p-6">
-            <h2 className="text-xl font-semibold text-[#F47B20] mb-4">تغییر رمز عبور</h2>
-            <form onSubmit={handleSubmitPassword(onChangePassword)} className="space-y-4">
-              <div>
-                <Label htmlFor="currentPassword" className="mb-2 block">
-                  رمز عبور فعلی
+          <form onSubmit={handleSubmitProfile(onSubmit)} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="first_name" className="text-xs font-semibold text-foreground">
+                  نام
                 </Label>
                 <div className="relative">
                   <Input
-                    id="currentPassword"
-                    type="password"
-                    {...registerPassword("currentPassword")}
-                    className="pr-10"
+                    id="first_name"
+                    {...registerProfile("first_name")}
+                    className="glass-strong border-glass-border rounded-xl pr-10 focus:ring-primary focus:border-primary text-sm h-11"
                   />
-                  <Lock className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                  <User className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
                 </div>
-                {errorsPassword.currentPassword && (
-                  <p className="text-red-500 text-sm mt-1">{errorsPassword.currentPassword.message}</p>
+                {errorsProfile.first_name && (
+                  <p className="text-xs text-destructive mt-1">{errorsProfile.first_name.message}</p>
                 )}
               </div>
-              <div>
-                <Label htmlFor="newPassword" className="mb-2 block">
+
+              <div className="space-y-1.5">
+                <Label htmlFor="last_name" className="text-xs font-semibold text-foreground">
+                  نام خانوادگی
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="last_name"
+                    {...registerProfile("last_name")}
+                    className="glass-strong border-glass-border rounded-xl pr-10 focus:ring-primary focus:border-primary text-sm h-11"
+                  />
+                  <User className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                </div>
+                {errorsProfile.last_name && (
+                  <p className="text-xs text-destructive mt-1">{errorsProfile.last_name.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="phone_number" className="text-xs font-semibold text-foreground flex items-center justify-between">
+                  <span>شماره تلفن (نام کاربری)</span>
+                  <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                    <ShieldCheck className="size-3 text-emerald-500" />
+                    غیرقابل تغییر
+                  </span>
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="phone_number"
+                    {...registerProfile("phone_number")}
+                    className="glass border-glass-border rounded-xl pr-10 bg-muted/30 text-muted-foreground text-sm h-11 cursor-not-allowed"
+                    readOnly
+                    dir="ltr"
+                  />
+                  <Phone className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="student_number" className="text-xs font-semibold text-foreground">
+                  شماره دانشجویی
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="student_number"
+                    {...registerProfile("student_number")}
+                    className="glass-strong border-glass-border rounded-xl pr-10 focus:ring-primary focus:border-primary text-sm h-11"
+                    dir="ltr"
+                    placeholder="اختیاری"
+                  />
+                  <GraduationCap className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <Button
+                type="submit"
+                variant="brand"
+                disabled={isSubmitting}
+                className="w-full h-11 rounded-xl text-sm font-bold shadow-md cursor-pointer gap-2"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="size-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                    <span>در حال ذخیره...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="size-4" />
+                    <span>ذخیره تغییرات</span>
+                  </>
+                )}
+              </Button>
+            </div>
+          </form>
+        </div>
+
+        {/* Change Password Card */}
+        <div className="glass rounded-[1.75rem] p-5 sm:p-7 border border-glass-border space-y-5">
+          <div className="flex items-center gap-3 border-b border-glass-border pb-4">
+            <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-brand text-primary-foreground shadow-glow">
+              <KeyRound className="size-5" />
+            </div>
+            <div>
+              <h2 className="text-base sm:text-lg font-black text-foreground">تغییر رمز عبور</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                رمز عبور جدید باید حداقل ۸ کاراکتر داشته باشد
+              </p>
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmitPassword(onChangePassword)} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="currentPassword" className="text-xs font-semibold text-foreground">
+                رمز عبور فعلی
+              </Label>
+              <div className="relative">
+                <Input
+                  id="currentPassword"
+                  type="password"
+                  {...registerPassword("currentPassword")}
+                  className="glass-strong border-glass-border rounded-xl pr-10 focus:ring-primary focus:border-primary text-sm h-11"
+                  dir="ltr"
+                />
+                <Lock className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+              </div>
+              {errorsPassword.currentPassword && (
+                <p className="text-xs text-destructive mt-1">
+                  {errorsPassword.currentPassword.message}
+                </p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="newPassword" className="text-xs font-semibold text-foreground">
                   رمز عبور جدید
                 </Label>
                 <div className="relative">
-                  <Input id="newPassword" type="password" {...registerPassword("newPassword")} className="pr-10" />
-                  <Lock className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                  <Input
+                    id="newPassword"
+                    type="password"
+                    {...registerPassword("newPassword")}
+                    className="glass-strong border-glass-border rounded-xl pr-10 focus:ring-primary focus:border-primary text-sm h-11"
+                    dir="ltr"
+                  />
+                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
                 </div>
                 {errorsPassword.newPassword && (
-                  <p className="text-red-500 text-sm mt-1">{errorsPassword.newPassword.message}</p>
+                  <p className="text-xs text-destructive mt-1">
+                    {errorsPassword.newPassword.message}
+                  </p>
                 )}
               </div>
-              <div>
-                <Label htmlFor="confirmNewPassword" className="mb-2 block">
+
+              <div className="space-y-1.5">
+                <Label htmlFor="confirmNewPassword" className="text-xs font-semibold text-foreground">
                   تکرار رمز عبور جدید
                 </Label>
                 <div className="relative">
@@ -306,30 +412,42 @@ export default function EditProfile() {
                     id="confirmNewPassword"
                     type="password"
                     {...registerPassword("confirmNewPassword")}
-                    className="pr-10"
+                    className="glass-strong border-glass-border rounded-xl pr-10 focus:ring-primary focus:border-primary text-sm h-11"
+                    dir="ltr"
                   />
-                  <Lock className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
                 </div>
                 {errorsPassword.confirmNewPassword && (
-                  <p className="text-red-500 text-sm mt-1">{errorsPassword.confirmNewPassword.message}</p>
+                  <p className="text-xs text-destructive mt-1">
+                    {errorsPassword.confirmNewPassword.message}
+                  </p>
                 )}
               </div>
+            </div>
+
+            <div className="pt-2">
               <Button
                 type="submit"
-                className="w-full bg-[#F47B20] hover:bg-[#E06A10] text-white"
+                variant="brand"
                 disabled={isChangingPassword}
+                className="w-full h-11 rounded-xl text-sm font-bold shadow-md cursor-pointer gap-2"
               >
                 {isChangingPassword ? (
-                  <Lock className="mr-2 h-4 w-4 animate-spin" />
+                  <>
+                    <div className="size-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                    <span>در حال به‌روزرسانی رمز...</span>
+                  </>
                 ) : (
-                  <Lock className="mr-2 h-4 w-4" />
+                  <>
+                    <Lock className="size-4" />
+                    <span>تغییر رمز عبور</span>
+                  </>
                 )}
-                {isChangingPassword ? "در حال تغییر رمز عبور..." : "تغییر رمز عبور"}
               </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
+            </div>
+          </form>
+        </div>
+      </main>
     </div>
   )
 }

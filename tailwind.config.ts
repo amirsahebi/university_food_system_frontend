@@ -26,7 +26,11 @@ module.exports = {
         primary: {
           DEFAULT: "#f97316", // Hardcoded orange color as requested
           foreground: "hsl(var(--primary-foreground))",
+          glow: "var(--primary-glow)",
+          deep: "var(--primary-deep)",
         },
+        "primary-glow": "var(--primary-glow)",
+        "primary-deep": "var(--primary-deep)",
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
           foreground: "hsl(var(--secondary-foreground))",

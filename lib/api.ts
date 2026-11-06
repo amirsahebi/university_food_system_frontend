@@ -62,6 +62,10 @@ export const API_ROUTES = {
   // Voucher
   GET_VOUCHER_PRICE: '/core/voucher/price/',
   UPDATE_VOUCHER_PRICE: '/core/voucher/price/',
+  GET_VOUCHER_TYPES: '/core/voucher-types/',
+  ADD_VOUCHER_TYPE: '/core/voucher-types/',
+  UPDATE_VOUCHER_TYPE: (id: string | number) => `/core/voucher-types/${id}/`,
+  DELETE_VOUCHER_TYPE: (id: string | number) => `/core/voucher-types/${id}/`,
 
   // Reports
   GET_RESERVATION_LOGS: '/reports/orders/logs/',

@@ -7,6 +7,7 @@ import { format as formatGregorian } from "date-fns"
 import { motion, AnimatePresence } from "framer-motion"
 import Link from "next/link"
 import Image from "next/image"
+import { FoodImage } from "@/components/ui/food-image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -23,7 +24,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Switch } from "@/components/ui/switch"
 import {
   Utensils,
@@ -36,11 +37,24 @@ import {
   Plus,
   Edit,
   Trash,
+  Trash2,
   Menu,
   Home,
   Search,
+  Ticket,
+  CheckCircle2,
+  Sparkles,
+  RefreshCw,
+  Clock,
+  ChevronLeft,
+  ChevronRight,
+  Smartphone,
+  Activity,
+  AlertTriangle,
+  Check,
+  Coins,
+  Info,
 } from "lucide-react"
-import { ShieldCheck } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { toast, Toaster } from "react-hot-toast"
 import { Line } from "react-chartjs-2"
@@ -65,8 +79,24 @@ import { AxiosError } from "axios"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import {
+  toPersianDigits,
+  toEnglishDigits,
+  parsePersianInt,
+  formatPersianPrice,
+  normalizeForSearch,
+} from "@/lib/formatters"
 
 // Interfaces
+interface VoucherType {
+  id: number
+  code: string
+  name: string
+  discount_amount: number | string
+  is_active: boolean
+  description?: string
+}
+
 interface Food {
   id: string
   name: string
@@ -77,6 +107,7 @@ interface Food {
   category_name?: string | null
   created_at?: string
   updated_at?: string
+  allowed_vouchers?: VoucherType[]
   supports_extra_voucher?: boolean
 }
 
@@ -89,6 +120,7 @@ interface MenuItemSpec {
     image_url: string | null
     category_id?: number | null
     category_name?: string | null
+    allowed_vouchers?: VoucherType[]
     supports_extra_voucher?: boolean // Add this property to the food object
   }
   start_time: string
@@ -187,27 +219,71 @@ interface Student {
   created_at: string
 }
 
-// Dashboard Stats Card Component
+interface StatCardProps {
+  icon: React.ElementType
+  title: string
+  value: string | number
+  color?: string
+  gradient?: string
+  subtitle?: string
+  trend?: string
+  onClick?: () => void
+}
+
+// Elevated Dashboard Stats Card Component
 const StatCard = ({
   icon: Icon,
   title,
   value,
   color,
-}: { icon: React.ElementType; title: string; value: string; color: string }) => (
-  <Card className="backdrop-blur-md bg-white/80 border-0 shadow-md hover:shadow-lg transition-all duration-300 animate-fade-in">
-    <CardContent className="p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-500">{title}</p>
-          <h3 className="text-2xl font-bold mt-1">{value}</h3>
+  gradient = "from-[#F47B20] to-[#FB923C]",
+  subtitle,
+  trend,
+  onClick,
+}: StatCardProps) => {
+  const effectiveGradient = color && color.includes("from-") ? color : gradient
+  const displayValue =
+    typeof value === "number"
+      ? toPersianDigits(value.toLocaleString("en-US"))
+      : toPersianDigits(value)
+
+  return (
+    <Card
+      onClick={onClick}
+      className={`group relative overflow-hidden backdrop-blur-xl bg-white/90 border border-orange-100/70 shadow-xs hover:shadow-md hover:border-orange-200 transition-all duration-300 rounded-2xl ${
+        onClick ? "cursor-pointer" : ""
+      }`}
+    >
+      <div className={`h-1.5 w-full bg-gradient-to-r ${effectiveGradient}`} />
+      <CardContent className="p-5">
+        <div className="flex items-start justify-between">
+          <div className="space-y-1">
+            <p className="text-xs font-semibold text-gray-500 tracking-wide">{title}</p>
+            <h3 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
+              {displayValue}
+            </h3>
+            {subtitle && (
+              <p className="text-[11px] text-gray-400 font-normal pt-0.5">{toPersianDigits(subtitle)}</p>
+            )}
+          </div>
+          <div
+            className={`p-3.5 rounded-2xl bg-gradient-to-br ${effectiveGradient} text-white shadow-md shadow-orange-500/15 group-hover:scale-105 transition-transform duration-300`}
+          >
+            <Icon className="w-5 h-5 text-white" />
+          </div>
         </div>
-        <div className={`p-3 rounded-full ${color}`}>
-          <Icon className="w-6 h-6 text-white" />
-        </div>
-      </div>
-    </CardContent>
-  </Card>
-)
+        {trend && (
+          <div className="mt-3 pt-2.5 border-t border-gray-100 flex items-center justify-between text-[11px]">
+            <span className="text-gray-400">وضعیت</span>
+            <span className="font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-150">
+              {toPersianDigits(trend)}
+            </span>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, ChartTooltip, Legend)
 
@@ -249,7 +325,19 @@ export default function AdminDashboard() {
   const [foods, setFoods] = useState<Food[]>([])
   const [templateMenu, setTemplateMenu] = useState<TemplateMenuItem | null>(null)
   const [dailyMenu, setDailyMenu] = useState<DailyMenuItem | null>(null)
-  const [voucherPrice, setVoucherPrice] = useState(0)
+  const [voucherTypes, setVoucherTypes] = useState<VoucherType[]>([])
+  // Voucher Management state
+  const [voucherDialogOpen, setVoucherDialogOpen] = useState(false)
+  const [voucherDeleteDialogOpen, setVoucherDeleteDialogOpen] = useState(false)
+  const [currentVoucher, setCurrentVoucher] = useState<VoucherType | null>(null)
+  const [isVoucherSubmitting, setIsVoucherSubmitting] = useState(false)
+  const [voucherFormData, setVoucherFormData] = useState({
+    code: "",
+    name: "",
+    discount_amount: 50000,
+    description: "",
+    is_active: true,
+  })
   const [reservationLogs, setReservationLogs] = useState<ReservationLog[]>([])
   const [selectedDay, setSelectedDay] = useState<string>("")
   const [selectedMeal_type, setSelectedMeal_type] = useState<"lunch" | "dinner">("lunch")
@@ -295,12 +383,13 @@ export default function AdminDashboard() {
 
   const filteredStudents = useMemo(() => {
     if (!studentSearch.trim()) return students
-    const q = studentSearch.trim().toLowerCase()
+    const q = normalizeForSearch(studentSearch)
     return students.filter((s) => {
-      const name = (s.name || "").toLowerCase()
-      const sid = (s.student_id || "").toLowerCase()
-      const phone = (s.phone || "").toLowerCase()
-      return name.includes(q) || sid.includes(q) || phone.includes(q)
+      const name = normalizeForSearch(s.name)
+      const sid = normalizeForSearch(s.student_id)
+      const phone = normalizeForSearch(s.phone)
+      const dept = normalizeForSearch(s.department)
+      return name.includes(q) || sid.includes(q) || phone.includes(q) || dept.includes(q)
     })
   }, [students, studentSearch])
 
@@ -309,6 +398,85 @@ export default function AdminDashboard() {
   const [totalCategories, setTotalCategories] = useState(0)
   const [totalReservations, setTotalReservations] = useState(0)
   const [todayReservations, setTodayReservations] = useState(0)
+
+  // Filter & Search states
+  const [foodSearch, setFoodSearch] = useState("")
+  const [foodCategoryFilter, setFoodCategoryFilter] = useState("all")
+  const [categorySearch, setCategorySearch] = useState("")
+
+  const todayPersianDate = useMemo(() => {
+    try {
+      const raw = new DateObject({ calendar: persian, locale: persian_fa }).format("dddd DD MMMM YYYY")
+      return toPersianDigits(raw)
+    } catch {
+      return ""
+    }
+  }, [])
+
+  const filteredFoods = useMemo(() => {
+    const q = normalizeForSearch(foodSearch)
+    return foods.filter((f) => {
+      const matchesSearch =
+        !q ||
+        normalizeForSearch(f.name).includes(q) ||
+        normalizeForSearch(f.description).includes(q)
+      const matchesCategory =
+        foodCategoryFilter === "all" ||
+        (foodCategoryFilter === "uncategorized" && !f.category_id) ||
+        (f.category_id && f.category_id.toString() === foodCategoryFilter)
+      return matchesSearch && matchesCategory
+    })
+  }, [foods, foodSearch, foodCategoryFilter])
+
+  const filteredCategories = useMemo(() => {
+    const q = normalizeForSearch(categorySearch)
+    return categories.filter(
+      (c) =>
+        !q ||
+        normalizeForSearch(c.name).includes(q) ||
+        normalizeForSearch(c.description).includes(q),
+    )
+  }, [categories, categorySearch])
+
+  const navigationSections = useMemo(
+    () => [
+      {
+        title: "مرکز فرماندهی",
+        items: [
+          { id: "dashboard", label: "داشبورد و وضعیت", icon: Home },
+        ],
+      },
+      {
+        title: "منو و غذا",
+        items: [
+          { id: "food", label: "مدیریت غذاها", icon: Utensils, badge: totalFoods },
+          { id: "categories", label: "دسته‌بندی‌ها", icon: Clipboard, badge: totalCategories },
+          { id: "template-menu", label: "منوی الگو", icon: Calendar },
+          { id: "daily-menu", label: "منوی روزانه", icon: Sparkles },
+        ],
+      },
+      {
+        title: "ژتون و امور مالی",
+        items: [
+          {
+            id: "vouchers",
+            label: "مدیریت ژتون‌ها",
+            icon: Ticket,
+            badge: voucherTypes.filter((v) => v.is_active).length,
+          },
+          { id: "payments", label: "تراکنش‌ها و پرداخت", icon: DollarSign },
+        ],
+      },
+      {
+        title: "کاربران و سامانه",
+        items: [
+          { id: "students", label: "مدیریت دانشجویان", icon: User, badge: students.length },
+          { id: "analytics", label: "آمار و گزارشات", icon: BarChart2 },
+        ],
+      },
+    ],
+    [totalFoods, totalCategories, voucherTypes, students.length],
+  )
 
   // Payment inquiry function
   const inquirePayment = async (authority: string) => {
@@ -360,6 +528,7 @@ export default function AdminDashboard() {
       setPaymentLoading(true);
       const limit = pagination.pageSize;
       const offset = (page - 1) * limit;
+      const normalizedSearch = toEnglishDigits(search).trim()
       
       const response = await api.get<PaymentResponse>(
         createApiUrl(API_ROUTES.GET_ALL_PAYMENTS),
@@ -367,7 +536,7 @@ export default function AdminDashboard() {
           params: {
             limit,
             offset,
-            search,
+            search: normalizedSearch,
             status: status === 'all' ? undefined : status.toLowerCase()
           }
         }
@@ -544,14 +713,126 @@ export default function AdminDashboard() {
     }
   }, [selectedDate, selectedMeal_type])
 
-  const fetchVoucherPrice = useCallback(async () => {
+  const fetchVoucherTypes = useCallback(async () => {
     try {
-      const response = await api.get(createApiUrl(API_ROUTES.GET_VOUCHER_PRICE))
-      setVoucherPrice(response.data.price)
+      const response = await api.get(createApiUrl(API_ROUTES.GET_VOUCHER_TYPES))
+      setVoucherTypes(response.data)
     } catch (error) {
-      console.error("Error fetching voucher price:", error)
+      console.error("Error fetching voucher types:", error)
     }
   }, [])
+
+  const handleOpenAddVoucher = () => {
+    setCurrentVoucher(null)
+    setVoucherFormData({
+      code: `TYPE_${voucherTypes.length + 1}`,
+      name: "",
+      discount_amount: 50000,
+      description: "",
+      is_active: true,
+    })
+    setVoucherDialogOpen(true)
+  }
+
+  const handleOpenEditVoucher = (voucher: VoucherType) => {
+    setCurrentVoucher(voucher)
+    setVoucherFormData({
+      code: voucher.code,
+      name: voucher.name,
+      discount_amount: Number(voucher.discount_amount),
+      description: voucher.description || "",
+      is_active: voucher.is_active,
+    })
+    setVoucherDialogOpen(true)
+  }
+
+  const handleToggleVoucherActive = async (voucher: VoucherType) => {
+    try {
+      await api.patch(createApiUrl(API_ROUTES.UPDATE_VOUCHER_TYPE(voucher.id)), {
+        is_active: !voucher.is_active,
+      })
+      toast.success(`وضعیت ${voucher.name} به ${!voucher.is_active ? "فعال" : "غیرفعال"} تغییر یافت`)
+      await fetchVoucherTypes()
+    } catch (error) {
+      console.error("Error toggling voucher active:", error)
+      toast.error("خطا در تغییر وضعیت ژتون")
+    }
+  }
+
+  const handleSaveVoucher = async () => {
+    if (!voucherFormData.name.trim() || !voucherFormData.code.trim()) {
+      toast.error("لطفاً کد و نام ژتون را وارد کنید")
+      return
+    }
+    if (voucherFormData.discount_amount < 0) {
+      toast.error("مبلغ تخفیف نمی‌تواند منفی باشد")
+      return
+    }
+
+    setIsVoucherSubmitting(true)
+    try {
+      if (currentVoucher) {
+        await api.put(createApiUrl(API_ROUTES.UPDATE_VOUCHER_TYPE(currentVoucher.id)), {
+          code: voucherFormData.code,
+          name: voucherFormData.name,
+          discount_amount: voucherFormData.discount_amount,
+          description: voucherFormData.description,
+          is_active: voucherFormData.is_active,
+        })
+        toast.success("ژتون با موفقیت ویرایش شد")
+      } else {
+        await api.post(createApiUrl(API_ROUTES.ADD_VOUCHER_TYPE), {
+          code: voucherFormData.code,
+          name: voucherFormData.name,
+          discount_amount: voucherFormData.discount_amount,
+          description: voucherFormData.description,
+          is_active: voucherFormData.is_active,
+        })
+        toast.success("ژتون جدید با موفقیت ایجاد شد")
+      }
+      setVoucherDialogOpen(false)
+      await fetchVoucherTypes()
+      await fetchFoods()
+    } catch (error: unknown) {
+      console.error("Error saving voucher:", error)
+      let errMsg = "خطا در ذخیره‌سازی ژتون"
+      if (typeof error === "object" && error !== null && "response" in error) {
+        const respData = (error as { response?: { data?: Record<string, unknown> } }).response?.data
+        if (respData) {
+          if (Array.isArray(respData.code) && respData.code[0]) {
+            errMsg = String(respData.code[0])
+          } else if (typeof respData.error === "string") {
+            errMsg = respData.error
+          }
+        }
+      }
+      toast.error(errMsg)
+    } finally {
+      setIsVoucherSubmitting(false)
+    }
+  }
+
+  const handleOpenDeleteVoucher = (voucher: VoucherType) => {
+    setCurrentVoucher(voucher)
+    setVoucherDeleteDialogOpen(true)
+  }
+
+  const handleConfirmDeleteVoucher = async () => {
+    if (!currentVoucher) return
+    setIsVoucherSubmitting(true)
+    try {
+      await api.delete(createApiUrl(API_ROUTES.DELETE_VOUCHER_TYPE(currentVoucher.id)))
+      toast.success("ژتون با موفقیت حذف شد")
+      setVoucherDeleteDialogOpen(false)
+      await fetchVoucherTypes()
+      await fetchFoods()
+    } catch (error) {
+      console.error("Error deleting voucher:", error)
+      toast.error("خطا در حذف ژتون")
+    } finally {
+      setIsVoucherSubmitting(false)
+    }
+  }
 
   const fetchReservationLogs = useCallback(async () => {
     try {
@@ -607,7 +888,7 @@ export default function AdminDashboard() {
     fetchFoods()
     fetchTemplateMenu()
     fetchDailyMenu()
-    fetchVoucherPrice()
+    fetchVoucherTypes()
     fetchReservationLogs()
     fetchDailyOrderCounts()
     fetchCategories()
@@ -616,7 +897,7 @@ export default function AdminDashboard() {
     fetchFoods,
     fetchTemplateMenu,
     fetchDailyMenu,
-    fetchVoucherPrice,
+    fetchVoucherTypes,
     fetchReservationLogs,
     fetchDailyOrderCounts,
     fetchCategories,
@@ -662,7 +943,7 @@ export default function AdminDashboard() {
     const { name, value } = e.target
     setTrustScoreFormData({
       ...trustScoreFormData,
-      [name]: name === "points" || name === "user_id" ? Number.parseInt(value) || 0 : value,
+      [name]: name === "points" || name === "user_id" ? parsePersianInt(value) : value,
     })
   }
 
@@ -681,7 +962,7 @@ export default function AdminDashboard() {
 
     try {
       await api.post(createApiUrl(API_ROUTES.RECOVER_TRUST_SCORE), trustScoreFormData)
-      toast.success(`امتیاز اعتبار کاربر با موفقیت ${trustScoreFormData.points} واحد افزایش یافت`)
+      toast.success(`امتیاز اعتبار کاربر با موفقیت ${toPersianDigits(trustScoreFormData.points)} واحد افزایش یافت`)
       setTrustScoreDialogOpen(false)
       setTrustScoreFormData({
         user_id: 0,
@@ -774,12 +1055,18 @@ export default function AdminDashboard() {
 
     setIsStudentSubmitting(true)
 
+    const payload = {
+      ...studentFormData,
+      student_id: toEnglishDigits(studentFormData.student_id).trim(),
+      phone: toEnglishDigits(studentFormData.phone).trim(),
+    }
+
     try {
       if (currentStudent) {
-        await api.put(createApiUrl(API_ROUTES.UPDATE_STUDENT(currentStudent.id.toString())), studentFormData)
+        await api.put(createApiUrl(API_ROUTES.UPDATE_STUDENT(currentStudent.id.toString())), payload)
         toast.success("اطلاعات دانشجو با موفقیت به‌روزرسانی شد")
       } else {
-        await api.post(createApiUrl(API_ROUTES.ADD_STUDENT), studentFormData)
+        await api.post(createApiUrl(API_ROUTES.ADD_STUDENT), payload)
         toast.success("دانشجوی جدید با موفقیت اضافه شد")
       }
 
@@ -863,127 +1150,30 @@ export default function AdminDashboard() {
 
   const handleAddFood = useCallback(() => {
     openDialog(
-      <div className="space-y-4" dir="rtl">
-        <h2 className="text-lg font-bold">افزودن غذای جدید</h2>
-        <div className="space-y-1">
-          <Label htmlFor="food">نام غذا</Label>
-          <Input id="food" placeholder="نام غذا را وارد کنید" className="form-input-focus" />
-        </div>
-        <div className="space-y-1">
-          <Label htmlFor="foodDescription">توضیحات</Label>
-          <Input id="foodDescription" placeholder="توضیحات غذا را وارد کنید" className="form-input-focus" />
-        </div>
-        <div className="space-y-1">
-          <Label htmlFor="foodCategory">دسته‌بندی</Label>
-          <div className="flex">
-            <select
-              id="foodCategory"
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 form-input-focus"
-            >
-              <option value="">انتخاب دسته‌بندی</option>
-              {categories.map((category) => (
-                <option key={category.id} value={category.id.toString()}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
+      <div className="flex flex-col h-full" dir="rtl">
+        {/* Sticky Header */}
+        <div className="p-5 sm:p-6 pb-4 border-b border-orange-100/80 bg-white flex items-center gap-3.5">
+          <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-orange-500/10 to-amber-500/20 text-[#F47B20] border border-orange-200/50 flex items-center justify-center shrink-0 shadow-xs">
+            <Utensils className="w-5 h-5" />
+          </div>
+          <div>
+            <DialogTitle className="text-base sm:text-lg font-black text-gray-900 tracking-tight">افزودن غذای جدید</DialogTitle>
+            <DialogDescription className="text-xs text-gray-500 mt-0.5">مشخصات غذا، نرخ پایه و ژتون‌های مجاز را تعیین کنید</DialogDescription>
           </div>
         </div>
-        <div className="space-y-1">
-          <Label htmlFor="foodPrice">قیمت (تومان)</Label>
-          <Input id="foodPrice" type="number" placeholder="قیمت را وارد کنید" className="form-input-focus" />
-        </div>
-        <div className="space-y-1">
-          <Label htmlFor="foodImage">تصویر غذا</Label>
-          <Input id="foodImage" type="file" accept="image/*" className="form-input-focus" />
-        </div>
-        {/* Add extra voucher support toggle */}
-        <div className="flex items-center justify-between mt-4" dir="ltr">
-            <Switch
-              id="supports_extra_voucher"
-              name="supports_extra_voucher"
-              defaultChecked={false}
-            />
-            <Label htmlFor="supports_extra_voucher" className="flex flex-col gap-1" dir="rtl">
-              <span>پشتیبانی از ژتون اضافی</span>
-              <span className="font-normal leading-snug text-muted-foreground text-xs">
-                آیا این غذا از ژتون اضافی پشتیبانی می‌کند؟
-              </span>
-            </Label>
-          </div>
-        <Button
-          onClick={async () => {
-            const name = (document.getElementById("food") as HTMLInputElement).value
-            const description = (document.getElementById("foodDescription") as HTMLInputElement).value
-            const categorySelect = document.getElementById("foodCategory") as HTMLSelectElement
-            const category = categorySelect?.value || ""
-            const price = Number.parseInt((document.getElementById("foodPrice") as HTMLInputElement).value)
-            const imageFile = (document.getElementById("foodImage") as HTMLInputElement).files?.[0]
-            const switchElement = document.querySelector('button[role="switch"][id="supports_extra_voucher"]')
-            const supportsExtraVoucher = switchElement?.getAttribute('data-state') === 'checked'
 
-            if (!name || !price) {
-              toast.error("لطفاً تمام فیلدها را پر کنید")
-              return
-            }
-
-            const formData = new FormData()
-            formData.append("name", name)
-            if (description) {
-              formData.append("description", description)
-            }
-            formData.append("price", price.toString())
-            if (imageFile) {
-              formData.append("image", imageFile)
-            }
-            if (category) {
-              formData.append("category_id", category)
-              formData.append("category", category)
-            }
-            // Add supports_extra_voucher to form data
-            formData.append("supports_extra_voucher", supportsExtraVoucher.toString())
-
-            try {
-              await api.post(createApiUrl(API_ROUTES.ADD_FOOD), formData, {
-                headers: { "Content-Type": "multipart/form-data" },
-              })
-              await fetchFoods()
-              closeDialog()
-              toast.success("غذای جدید با موفقیت اضافه شد")
-            } catch (error) {
-              console.error("Error adding food:", error)
-              toast.error("خطا در افزودن غذای جدید")
-            }
-          }}
-          className="w-full bg-[#f97316] hover:bg-orange-600 btn-hover-effect"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          افزودن غذا
-        </Button>
-      </div>,
-    )
-  }, [openDialog, closeDialog, fetchFoods, categories])
-
-  const handleEditFood = useCallback(
-    (food: Food) => {
-      openDialog(
-        <div className="space-y-4" dir="rtl">
-          <h2 className="text-lg font-bold">ویرایش غذا</h2>
-          <div className="space-y-2">
-            <Label htmlFor="food">نام غذا</Label>
-            <Input id="food" defaultValue={food.name} className="form-input-focus" />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="foodDescription">توضیحات</Label>
-            <Input id="foodDescription" defaultValue={food.description} className="form-input-focus" />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="foodCategory">دسته‌بندی</Label>
-            <div className="flex">
+        {/* Scrollable Body */}
+        <div className="p-5 sm:p-6 pt-4 space-y-4 max-h-[calc(85vh-150px)] overflow-y-auto scrollbar-thin scrollbar-thumb-orange-200">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div className="space-y-1.5">
+              <Label htmlFor="food" className="text-xs font-bold text-gray-700">نام غذا <span className="text-rose-500">*</span></Label>
+              <Input id="food" placeholder="مثال: زرشک پلو با مرغ" className="form-input-focus rounded-xl h-11 text-sm bg-gray-50/50 hover:bg-white focus:bg-white transition-colors" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="foodCategory" className="text-xs font-bold text-gray-700">دسته‌بندی غذا <span className="text-rose-500">*</span></Label>
               <select
                 id="foodCategory"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 form-input-focus"
-                defaultValue={food.category_id?.toString() || ""}
+                className="flex h-11 w-full rounded-xl border border-input bg-gray-50/50 hover:bg-white focus:bg-white px-3.5 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[#F47B20] focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50 form-input-focus transition-colors"
               >
                 <option value="">انتخاب دسته‌بندی</option>
                 {categories.map((category) => (
@@ -994,57 +1184,97 @@ export default function AdminDashboard() {
               </select>
             </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="foodPrice">قیمت (تومان)</Label>
-            <Input id="foodPrice" type="number" defaultValue={food.price} className="form-input-focus" />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="foodImage">تصویر غذا</Label>
-            <Input id="foodImage" type="file" accept="image/*" className="form-input-focus" />
-          </div>
-          <div className="flex justify-center mb-4">
-            <div className="relative h-24 w-24">
-              <Image
-                src={food.image_url || "/placeholder.svg?height=96&width=96"}
-                alt={food.name}
-                fill
-                className="object-contain rounded-md"
-              />
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div className="space-y-1.5">
+              <Label htmlFor="foodPrice" className="text-xs font-bold text-gray-700">قیمت آزاد غذا <span className="text-rose-500">*</span></Label>
+              <div className="relative">
+                <Input id="foodPrice" type="text" inputMode="numeric" placeholder="مثال: ۷۵۰۰۰" className="form-input-focus rounded-xl h-11 font-mono text-sm pl-14 bg-gray-50/50 hover:bg-white focus:bg-white transition-colors" />
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-gray-400 pointer-events-none">تومان</span>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="foodImage" className="text-xs font-bold text-gray-700">تصویر غذا</Label>
+              <Input id="foodImage" type="file" accept="image/*" className="form-input-focus rounded-xl h-11 text-xs cursor-pointer bg-gray-50/50 hover:bg-white focus:bg-white file:cursor-pointer file:rounded-lg file:border-0 file:bg-orange-100/70 file:text-[#F47B20] file:font-bold file:text-xs file:py-1 file:px-2.5 hover:file:bg-orange-100 transition-colors" />
             </div>
           </div>
-          {/* Add extra voucher support toggle */}
-          <div className="flex items-center justify-between mt-4" dir="ltr">
+
+          <div className="space-y-1.5">
+            <Label htmlFor="foodDescription" className="text-xs font-bold text-gray-700">توضیحات و ترکیبات غذا (اختیاری)</Label>
+            <Input id="foodDescription" placeholder="مثال: برنج ایرانی اعلا به همراه ران مرغ سرخ‌شده و دورچین..." className="form-input-focus rounded-xl h-11 text-sm bg-gray-50/50 hover:bg-white focus:bg-white transition-colors" />
+          </div>
+
+          {/* Toggle for Extra Voucher */}
+          <div className="flex items-center justify-between p-3.5 rounded-2xl border border-orange-200/60 bg-gradient-to-r from-orange-50/60 to-amber-50/30">
+            <div className="space-y-0.5">
+              <Label htmlFor="supports_extra_voucher" className="text-xs font-bold text-gray-900 cursor-pointer flex items-center gap-1.5">
+                <Coins className="w-3.5 h-3.5 text-[#F47B20]" />
+                پشتیبانی از ژتون اضافی / آزاد
+              </Label>
+              <p className="text-[11px] text-gray-500">
+                امکان رزرو پرس دوم یا سهمیه مازاد دانشجویان با نرخ ژتون آزاد
+              </p>
+            </div>
             <Switch
               id="supports_extra_voucher"
               name="supports_extra_voucher"
-              defaultChecked={food.supports_extra_voucher || false}
+              defaultChecked={false}
             />
-            <Label htmlFor="supports_extra_voucher" className="flex flex-col gap-1" dir="rtl">
-              <span>پشتیبانی از ژتون اضافی</span>
-              <span className="font-normal leading-snug text-muted-foreground text-xs">
-                آیا این غذا از ژتون اضافی پشتیبانی می‌کند؟
-              </span>
-            </Label>
           </div>
+
+          {/* Allowed Vouchers Selection */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
+                <Ticket className="w-3.5 h-3.5 text-[#F47B20]" />
+                ژتون‌های مجاز برای خرید این غذا:
+              </Label>
+              <span className="text-[11px] text-gray-500 font-medium">({toPersianDigits(voucherTypes.length)} نوع ژتون فعال)</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-0.5">
+              {voucherTypes.map((vt) => (
+                <label
+                  key={vt.id}
+                  className="relative flex items-center justify-between p-2.5 rounded-xl border border-gray-200/90 hover:border-orange-300 hover:bg-orange-50/40 cursor-pointer text-xs transition-all bg-white has-[:checked]:border-[#F47B20] has-[:checked]:bg-orange-50/60 has-[:checked]:shadow-2xs group"
+                >
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      name="add_allowed_vouchers"
+                      value={vt.id}
+                      defaultChecked={true}
+                      className="rounded text-[#F47B20] focus:ring-[#F47B20] h-4 w-4 border-gray-300"
+                    />
+                    <span className="font-bold text-gray-800">{vt.name}</span>
+                  </div>
+                  <span className="text-emerald-700 font-extrabold text-[11px] bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200/60">
+                    {formatPersianPrice(vt.discount_amount)} ت
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Sticky Footer */}
+        <div className="p-4 sm:p-5 border-t border-gray-100 bg-gray-50/80 flex items-center justify-end gap-2.5 mt-auto">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={closeDialog}
+            className="rounded-xl border-gray-200 h-11 px-5 text-gray-700 hover:bg-gray-100 font-semibold text-xs"
+          >
+            انصراف
+          </Button>
           <Button
             onClick={async () => {
-              const foodElement = document.getElementById("food") as HTMLInputElement
-              const descriptionElement = document.getElementById("foodDescription") as HTMLInputElement
-              const categoryElement = document.getElementById("foodCategory") as HTMLSelectElement
-              const priceElement = document.getElementById("foodPrice") as HTMLInputElement
-              const imageElement = document.getElementById("foodImage") as HTMLInputElement
+              const name = (document.getElementById("food") as HTMLInputElement).value
+              const description = (document.getElementById("foodDescription") as HTMLInputElement).value
+              const categorySelect = document.getElementById("foodCategory") as HTMLSelectElement
+              const category = categorySelect?.value || ""
+              const price = parsePersianInt((document.getElementById("foodPrice") as HTMLInputElement).value)
+              const imageFile = (document.getElementById("foodImage") as HTMLInputElement).files?.[0]
               const switchElement = document.querySelector('button[role="switch"][id="supports_extra_voucher"]')
-
-              if (!foodElement || !descriptionElement || !priceElement) {
-                toast.error("خطا در دریافت مقادیر فرم")
-                return
-              }
-              
-              const name = foodElement.value
-              const description = descriptionElement.value
-              const category = categoryElement?.value
-              const price = Number.parseInt(priceElement.value)
-              const imageFile = imageElement?.files?.[0]
               const supportsExtraVoucher = switchElement?.getAttribute('data-state') === 'checked'
 
               if (!name || !price) {
@@ -1058,46 +1288,288 @@ export default function AdminDashboard() {
                 formData.append("description", description)
               }
               formData.append("price", price.toString())
+              if (imageFile) {
+                formData.append("image", imageFile)
+              }
               if (category) {
                 formData.append("category_id", category)
                 formData.append("category", category)
               }
-              if (imageFile) {
-                formData.append("image", imageFile)
-              }
+              const selectedVouchers = Array.from(document.querySelectorAll<HTMLInputElement>('input[name="add_allowed_vouchers"]:checked')).map(el => el.value)
+              selectedVouchers.forEach(id => formData.append("allowed_vouchers", id))
               formData.append("supports_extra_voucher", supportsExtraVoucher.toString())
 
               try {
-                await api.put(createApiUrl(API_ROUTES.UPDATE_FOOD(food.id)), formData, {
+                await api.post(createApiUrl(API_ROUTES.ADD_FOOD), formData, {
                   headers: { "Content-Type": "multipart/form-data" },
                 })
                 await fetchFoods()
                 closeDialog()
-                toast.success("تغییرات با موفقیت ذخیره شد")
+                toast.success("غذای جدید با موفقیت اضافه شد")
               } catch (error) {
-                console.error("Error updating food:", error)
-                toast.error("خطا در به‌روزرسانی غذا")
+                console.error("Error adding food:", error)
+                toast.error("خطا در افزودن غذای جدید")
               }
             }}
-            className="w-full bg-[#f97316] hover:bg-orange-600 btn-hover-effect"
+            className="bg-gradient-to-r from-[#F47B20] to-[#E06A10] hover:from-[#E06A10] hover:to-[#D05A00] text-white rounded-xl font-bold h-11 px-6 shadow-md shadow-orange-500/20 hover:shadow-lg hover:shadow-orange-500/30 transition-all flex items-center gap-2 text-xs"
           >
-            ذخیره تغییرات
+            <Plus className="w-4 h-4 ml-0.5" />
+            افزودن غذای جدید
           </Button>
+        </div>
+      </div>,
+    )
+  }, [openDialog, closeDialog, fetchFoods, categories, voucherTypes])
+
+  const handleEditFood = useCallback(
+    (food: Food) => {
+      openDialog(
+        <div className="flex flex-col h-full" dir="rtl">
+          {/* Sticky Header */}
+          <div className="p-5 sm:p-6 pb-4 border-b border-orange-100/80 bg-white flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-orange-500/10 to-amber-500/20 text-[#F47B20] border border-orange-200/50 flex items-center justify-center shrink-0 shadow-xs">
+              <Edit className="w-5 h-5" />
+            </div>
+            <div>
+              <DialogTitle className="text-base sm:text-lg font-black text-gray-900 tracking-tight">ویرایش غذا</DialogTitle>
+              <DialogDescription className="text-xs text-gray-500 mt-0.5">ویرایش اطلاعات، نرخ آزاد و ژتون‌های مجاز برای «{food.name}»</DialogDescription>
+            </div>
+          </div>
+
+          {/* Scrollable Body */}
+          <div className="p-5 sm:p-6 pt-4 space-y-4 max-h-[calc(85vh-150px)] overflow-y-auto scrollbar-thin scrollbar-thumb-orange-200">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div className="space-y-1.5">
+                <Label htmlFor="food" className="text-xs font-bold text-gray-700">نام غذا <span className="text-rose-500">*</span></Label>
+                <Input id="food" defaultValue={food.name} className="form-input-focus rounded-xl h-11 text-sm bg-gray-50/50 hover:bg-white focus:bg-white transition-colors" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="foodCategory" className="text-xs font-bold text-gray-700">دسته‌بندی غذا <span className="text-rose-500">*</span></Label>
+                <select
+                  id="foodCategory"
+                  className="flex h-11 w-full rounded-xl border border-input bg-gray-50/50 hover:bg-white focus:bg-white px-3.5 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[#F47B20] focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50 form-input-focus transition-colors"
+                  defaultValue={food.category_id?.toString() || ""}
+                >
+                  <option value="">انتخاب دسته‌بندی</option>
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.id.toString()}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div className="space-y-1.5">
+                <Label htmlFor="foodPrice" className="text-xs font-bold text-gray-700">قیمت آزاد غذا <span className="text-rose-500">*</span></Label>
+                <div className="relative">
+                  <Input id="foodPrice" type="text" inputMode="numeric" defaultValue={toPersianDigits(food.price)} className="form-input-focus rounded-xl h-11 font-mono text-sm pl-14 bg-gray-50/50 hover:bg-white focus:bg-white transition-colors" />
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-gray-400 pointer-events-none">تومان</span>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="foodImage" className="text-xs font-bold text-gray-700">تصویر غذا</Label>
+                <div className="flex items-center gap-2.5">
+                  <Input id="foodImage" type="file" accept="image/*" className="form-input-focus rounded-xl h-11 text-xs cursor-pointer bg-gray-50/50 hover:bg-white focus:bg-white file:cursor-pointer file:rounded-lg file:border-0 file:bg-orange-100/70 file:text-[#F47B20] file:font-bold file:text-xs file:py-1 file:px-2.5 hover:file:bg-orange-100 transition-colors" />
+                  {food.image_url && (
+                    <div className="relative h-11 w-11 shrink-0 rounded-xl overflow-hidden border border-orange-200 shadow-2xs">
+                      <FoodImage
+                        src={food.image_url}
+                        alt={food.name}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="foodDescription" className="text-xs font-bold text-gray-700">توضیحات و ترکیبات غذا (اختیاری)</Label>
+              <Input id="foodDescription" defaultValue={food.description} className="form-input-focus rounded-xl h-11 text-sm bg-gray-50/50 hover:bg-white focus:bg-white transition-colors" />
+            </div>
+
+            {/* Toggle for Extra Voucher */}
+            <div className="flex items-center justify-between p-3.5 rounded-2xl border border-orange-200/60 bg-gradient-to-r from-orange-50/60 to-amber-50/30">
+              <div className="space-y-0.5">
+                <Label htmlFor="supports_extra_voucher" className="text-xs font-bold text-gray-900 cursor-pointer flex items-center gap-1.5">
+                  <Coins className="w-3.5 h-3.5 text-[#F47B20]" />
+                  پشتیبانی از ژتون اضافی / آزاد
+                </Label>
+                <p className="text-[11px] text-gray-500">
+                  امکان رزرو پرس دوم یا سهمیه مازاد دانشجویان با نرخ ژتون آزاد
+                </p>
+              </div>
+              <Switch
+                id="supports_extra_voucher"
+                name="supports_extra_voucher"
+                defaultChecked={food.supports_extra_voucher || false}
+              />
+            </div>
+
+            {/* Multi-tier voucher selection */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
+                  <Ticket className="w-3.5 h-3.5 text-[#F47B20]" />
+                  ژتون‌های مجاز برای خرید این غذا:
+                </Label>
+                <span className="text-[11px] text-gray-500 font-medium">({toPersianDigits(voucherTypes.length)} نوع ژتون فعال)</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-0.5">
+                {voucherTypes.map((vt) => {
+                  const isChecked = food.allowed_vouchers?.some(v => v.id === vt.id) ?? true
+                  return (
+                    <label
+                      key={vt.id}
+                      className="relative flex items-center justify-between p-2.5 rounded-xl border border-gray-200/90 hover:border-orange-300 hover:bg-orange-50/40 cursor-pointer text-xs transition-all bg-white has-[:checked]:border-[#F47B20] has-[:checked]:bg-orange-50/60 has-[:checked]:shadow-2xs group"
+                    >
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          name="edit_allowed_vouchers"
+                          value={vt.id}
+                          defaultChecked={isChecked}
+                          className="rounded text-[#F47B20] focus:ring-[#F47B20] h-4 w-4 border-gray-300"
+                        />
+                        <span className="font-bold text-gray-800">{vt.name}</span>
+                      </div>
+                      <span className="text-emerald-700 font-extrabold text-[11px] bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200/60">
+                        {formatPersianPrice(vt.discount_amount)} ت
+                      </span>
+                    </label>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Sticky Footer */}
+          <div className="p-4 sm:p-5 border-t border-gray-100 bg-gray-50/80 flex items-center justify-end gap-2.5 mt-auto">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={closeDialog}
+              className="rounded-xl border-gray-200 h-11 px-5 text-gray-700 hover:bg-gray-100 font-semibold text-xs"
+            >
+              انصراف
+            </Button>
+            <Button
+              onClick={async () => {
+                const foodElement = document.getElementById("food") as HTMLInputElement
+                const descriptionElement = document.getElementById("foodDescription") as HTMLInputElement
+                const categoryElement = document.getElementById("foodCategory") as HTMLSelectElement
+                const priceElement = document.getElementById("foodPrice") as HTMLInputElement
+                const imageElement = document.getElementById("foodImage") as HTMLInputElement
+                const switchElement = document.querySelector('button[role="switch"][id="supports_extra_voucher"]')
+
+                if (!foodElement || !descriptionElement || !priceElement) {
+                  toast.error("خطا در دریافت مقادیر فرم")
+                  return
+                }
+                
+                const name = foodElement.value
+                const description = descriptionElement.value
+                const category = categoryElement?.value
+                const price = parsePersianInt(priceElement.value)
+                const imageFile = imageElement?.files?.[0]
+                const supportsExtraVoucher = switchElement?.getAttribute('data-state') === 'checked'
+
+                if (!name || !price) {
+                  toast.error("لطفاً تمام فیلدها را پر کنید")
+                  return
+                }
+
+                const formData = new FormData()
+                formData.append("name", name)
+                if (description) {
+                  formData.append("description", description)
+                }
+                formData.append("price", price.toString())
+                if (category) {
+                  formData.append("category_id", category)
+                  formData.append("category", category)
+                }
+                if (imageFile) {
+                  formData.append("image", imageFile)
+                }
+                const selectedVouchers = Array.from(document.querySelectorAll<HTMLInputElement>('input[name="edit_allowed_vouchers"]:checked')).map(el => el.value)
+                selectedVouchers.forEach(id => formData.append("allowed_vouchers", id))
+                formData.append("supports_extra_voucher", supportsExtraVoucher.toString())
+
+                try {
+                  await api.put(createApiUrl(API_ROUTES.UPDATE_FOOD(food.id)), formData, {
+                    headers: { "Content-Type": "multipart/form-data" },
+                  })
+                  await fetchFoods()
+                  closeDialog()
+                  toast.success("تغییرات با موفقیت ذخیره شد")
+                } catch (error) {
+                  console.error("Error updating food:", error)
+                  toast.error("خطا در به‌روزرسانی غذا")
+                }
+              }}
+              className="bg-gradient-to-r from-[#F47B20] to-[#E06A10] hover:from-[#E06A10] hover:to-[#D05A00] text-white rounded-xl font-bold h-11 px-6 shadow-md shadow-orange-500/20 hover:shadow-lg hover:shadow-orange-500/30 transition-all flex items-center gap-2 text-xs"
+            >
+              <Check className="w-4 h-4 ml-0.5" />
+              ذخیره تغییرات غذا
+            </Button>
+          </div>
         </div>,
       )
     },
-    [openDialog, closeDialog, fetchFoods, categories],
+    [openDialog, closeDialog, fetchFoods, categories, voucherTypes],
   )
 
   const handleDeleteFood = useCallback(
     (food: Food) => {
       openDialog(
-        <div className="space-y-4" dir="rtl">
-          <h2 className="text-lg font-bold">حذف غذا</h2>
-          <p className="text-sm text-gray-600">
-            آیا مطمئن هستید که می‌خواهید غذای &quot;{food.name}&quot; را حذف کنید؟ این عمل غیرقابل برگشت است.
-          </p>
-          <div className="flex justify-between space-x-4">
+        <div className="flex flex-col h-full" dir="rtl">
+          {/* Header */}
+          <div className="p-5 sm:p-6 pb-4 border-b border-rose-100 bg-white flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-rose-50 border border-rose-200/70 text-rose-600 flex items-center justify-center shrink-0 shadow-xs">
+              <Trash2 className="w-5 h-5" />
+            </div>
+            <div>
+              <DialogTitle className="text-base sm:text-lg font-black text-gray-900 tracking-tight">حذف غذا</DialogTitle>
+              <DialogDescription className="text-xs text-rose-600 font-medium mt-0.5">هشدار عملیات حساس و غیرقابل بازگشت</DialogDescription>
+            </div>
+          </div>
+
+          {/* Body */}
+          <div className="p-5 sm:p-6 space-y-4">
+            <div className="p-4 rounded-2xl bg-rose-50/80 border border-rose-200/80 flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+              <div className="text-xs text-rose-900 space-y-1">
+                <p className="font-bold">آیا از حذف این غذا از سیستم اطمینان دارید؟</p>
+                <p className="text-rose-700/90 leading-relaxed">
+                  با حذف غذای <strong className="text-rose-950 font-black">«{food.name}»</strong>، این غذا از تمام منوهای روزانه و الگو خارج شده و سوابق آن دیگر برای رزرو جدید در دسترس نخواهد بود.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 p-3.5 rounded-2xl border border-gray-200/70 bg-gray-50/60">
+              <div className="relative h-11 w-11 shrink-0 rounded-xl overflow-hidden border border-gray-200 shadow-2xs">
+                <FoodImage src={food.image_url} alt={food.name} fill className="object-cover" />
+              </div>
+              <div className="text-right">
+                <p className="text-xs font-bold text-gray-900">{food.name}</p>
+                <p className="text-[11px] text-gray-500 font-mono mt-0.5">{formatPersianPrice(food.price)} تومان</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="p-4 sm:p-5 border-t border-gray-100 bg-gray-50/80 flex items-center justify-end gap-2.5 mt-auto">
+            <Button
+              variant="outline"
+              onClick={closeDialog}
+              className="rounded-xl border-gray-200 h-11 px-5 text-gray-700 hover:bg-gray-100 font-semibold text-xs"
+            >
+              انصراف
+            </Button>
             <Button
               variant="destructive"
               onClick={async () => {
@@ -1111,12 +1583,10 @@ export default function AdminDashboard() {
                   toast.error("خطا در حذف غذا")
                 }
               }}
-              className="w-full"
+              className="rounded-xl font-bold bg-rose-600 hover:bg-rose-700 h-11 px-6 shadow-md shadow-rose-600/20 text-xs flex items-center gap-2"
             >
-              بله، حذف شود
-            </Button>
-            <Button variant="outline" onClick={closeDialog} className="w-full">
-              انصراف
+              <Trash2 className="w-4 h-4" />
+              حذف قطعی غذا
             </Button>
           </div>
         </div>,
@@ -1158,9 +1628,9 @@ export default function AdminDashboard() {
               food,
               start_time,
               end_time,
-              time_slot_count: Number.parseInt(time_slot_count),
-              time_slot_capacity: Number.parseInt(time_slot_capacity),
-              daily_capacity: Number.parseInt(daily_capacity),
+              time_slot_count: parsePersianInt(time_slot_count),
+              time_slot_capacity: parsePersianInt(time_slot_capacity),
+              daily_capacity: parsePersianInt(daily_capacity),
             }
 
             try {
@@ -1187,142 +1657,192 @@ export default function AdminDashboard() {
               toast.error("خطا در افزودن غذا به منو")
             }
           }}
-          className="space-y-4"
+          className="flex flex-col h-full"
           dir="rtl"
         >
-          <h2 className="text-lg font-bold">افزودن غذا به منو</h2>
+          {/* Sticky Header */}
+          <div className="p-5 sm:p-6 pb-4 border-b border-orange-100/80 bg-white flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-orange-500/10 to-amber-500/20 text-[#F47B20] border border-orange-200/50 flex items-center justify-center shrink-0 shadow-xs">
+              <Calendar className="w-5 h-5" />
+            </div>
+            <div>
+              <DialogTitle className="text-base sm:text-lg font-black text-gray-900 tracking-tight">
+                {isTemplate ? "افزودن غذا به منوی الگو" : "افزودن غذا به منوی روزانه"}
+              </DialogTitle>
+              <DialogDescription className="text-xs text-gray-500 mt-0.5">انتخاب غذا، زمان‌بندی توزیع و سقف ظرفیت رزرو</DialogDescription>
+            </div>
+          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="food">غذا</Label>
-            <div className="relative">
-              <div className="flex">
-                <Input
-                  id="foodSearch"
-                  type="text"
-                  placeholder="جستجو و انتخاب غذا..."
-                  className="form-input-focus w-full"
-                  onClick={() => {
-                    const foodList = document.getElementById("foodList")
-                    if (foodList) {
-                      foodList.classList.remove("hidden")
-                    }
-                  }}
-                  onChange={(e) => {
-                    const searchValue = e.target.value.toLowerCase()
-                    const foodList = document.getElementById("foodList")
-                    if (foodList) {
-                      foodList.classList.remove("hidden")
-                      const items = foodList.getElementsByTagName("div")
-                      let hasVisibleItems = false
-                      for (let i = 0; i < items.length; i++) {
-                        const foodName = items[i].textContent || ""
-                        if (foodName.toLowerCase().includes(searchValue)) {
-                          items[i].style.display = ""
-                          hasVisibleItems = true
-                        } else {
-                          items[i].style.display = "none"
-                        }
-                      }
-                      // If no items match the search, show a message
-                      const noResults = document.getElementById("noFoodResults")
-                      if (noResults) {
-                        noResults.style.display = hasVisibleItems ? "none" : "block"
-                      }
-                    }
-                  }}
-                  onBlur={() => {
-                    // Delay hiding to allow for click on options
-                    setTimeout(() => {
+          {/* Scrollable Body */}
+          <div className="p-5 sm:p-6 pt-4 space-y-4 max-h-[calc(85vh-150px)] overflow-y-auto scrollbar-thin scrollbar-thumb-orange-200">
+            <div className="space-y-1.5">
+              <Label htmlFor="foodSearch" className="text-xs font-bold text-gray-700">انتخاب غذا از فهرست <span className="text-rose-500">*</span></Label>
+              <div className="relative">
+                <div className="flex">
+                  <Input
+                    id="foodSearch"
+                    type="text"
+                    placeholder="جستجو و انتخاب غذا..."
+                    className="form-input-focus rounded-xl h-11 text-sm w-full bg-gray-50/50 hover:bg-white focus:bg-white transition-colors"
+                    onClick={() => {
                       const foodList = document.getElementById("foodList")
                       if (foodList) {
-                        foodList.classList.add("hidden")
-                      }
-                    }, 200)
-                  }}
-                />
-              </div>
-              <div
-                id="foodList"
-                className="hidden absolute z-50 w-full max-h-48 overflow-y-auto mt-1 rounded-md border border-gray-200 bg-white shadow-lg scrollbar-thin scrollbar-thumb-orange-200 scrollbar-track-transparent"
-                style={{ scrollbarWidth: "thin", scrollbarColor: "#fed7aa transparent" }}
-              >
-                {foods.map((food) => (
-                  <div
-                    key={food.id}
-                    className="p-2 cursor-pointer hover:bg-orange-100 transition-colors flex items-center gap-2"
-                    onMouseDown={() => {
-                      const hiddenInput = document.getElementById("food") as HTMLInputElement
-                      const searchInput = document.getElementById("foodSearch") as HTMLInputElement
-                      if (hiddenInput && searchInput) {
-                        hiddenInput.value = food.name
-                        searchInput.value = food.name
-                      }
-                      const foodList = document.getElementById("foodList")
-                      if (foodList) {
-                        foodList.classList.add("hidden")
+                        foodList.classList.remove("hidden")
                       }
                     }}
-                  >
-                    {food.image_url && (
-                      <div className="relative h-8 w-8 rounded overflow-hidden flex-shrink-0">
-                        <Image
-                          src={food.image_url || "/placeholder.svg?height=32&width=32"}
+                    onChange={(e) => {
+                      const searchValue = normalizeForSearch(e.target.value)
+                      const foodList = document.getElementById("foodList")
+                      if (foodList) {
+                        foodList.classList.remove("hidden")
+                        const items = foodList.getElementsByTagName("div")
+                        let hasVisibleItems = false
+                        for (let i = 0; i < items.length; i++) {
+                          const foodName = items[i].textContent || ""
+                          if (normalizeForSearch(foodName).includes(searchValue)) {
+                            items[i].style.display = ""
+                            hasVisibleItems = true
+                          } else {
+                            items[i].style.display = "none"
+                          }
+                        }
+                        const noResults = document.getElementById("noFoodResults")
+                        if (noResults) {
+                          noResults.style.display = hasVisibleItems ? "none" : "block"
+                        }
+                      }
+                    }}
+                    onBlur={() => {
+                      setTimeout(() => {
+                        const foodList = document.getElementById("foodList")
+                        if (foodList) {
+                          foodList.classList.add("hidden")
+                        }
+                      }, 200)
+                    }}
+                  />
+                </div>
+                <div
+                  id="foodList"
+                  className="hidden absolute z-50 w-full max-h-48 overflow-y-auto mt-1 rounded-2xl border border-orange-100 bg-white/95 backdrop-blur-md shadow-xl scrollbar-thin scrollbar-thumb-orange-200 scrollbar-track-transparent p-1.5"
+                  style={{ scrollbarWidth: "thin", scrollbarColor: "#fed7aa transparent" }}
+                >
+                  {foods.map((food) => (
+                    <div
+                      key={food.id}
+                      className="p-2.5 cursor-pointer hover:bg-orange-50/80 rounded-xl transition-colors flex items-center gap-2.5"
+                      onMouseDown={() => {
+                        const hiddenInput = document.getElementById("food") as HTMLInputElement
+                        const searchInput = document.getElementById("foodSearch") as HTMLInputElement
+                        if (hiddenInput && searchInput) {
+                          hiddenInput.value = food.name
+                          searchInput.value = food.name
+                        }
+                        const foodList = document.getElementById("foodList")
+                        if (foodList) {
+                          foodList.classList.add("hidden")
+                        }
+                      }}
+                    >
+                      <div className="relative h-8 w-8 rounded-lg overflow-hidden flex-shrink-0 border border-orange-100 shadow-2xs">
+                        <FoodImage
+                          src={food.image_url}
                           alt={food.name}
                           fill
                           className="object-cover"
                         />
                       </div>
-                    )}
-                    <span className="truncate">{food.name}</span>
-                    {/* Show extra voucher badge if food supports it */}
-                    {food.supports_extra_voucher && (
-                      <Badge variant="outline" className="ml-auto bg-blue-100 text-blue-700 text-xs">
-                        ژتون اضافی
-                      </Badge>
-                    )}
+                      <span className="truncate text-xs font-bold text-gray-800">{food.name}</span>
+                      {food.supports_extra_voucher && (
+                        <Badge variant="outline" className="mr-auto bg-blue-50 text-blue-700 text-[10px] border-blue-200">
+                          ژتون اضافی
+                        </Badge>
+                      )}
+                    </div>
+                  ))}
+                  <div id="noFoodResults" className="p-3 text-gray-400 text-center text-xs hidden">
+                    هیچ غذایی یافت نشد
                   </div>
-                ))}
-                <div id="noFoodResults" className="p-2 text-gray-500 text-center hidden">
-                  هیچ غذایی یافت نشد
+                </div>
+                <input type="hidden" id="food" name="food" required />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3.5">
+              <div className="space-y-1.5">
+                <Label htmlFor="start_time" className="text-xs font-bold text-gray-700">زمان شروع سرو <span className="text-rose-500">*</span></Label>
+                <div className="relative">
+                  <Input id="start_time" name="start_time" type="time" required className="form-input-focus rounded-xl h-11 font-mono text-sm pl-9 bg-gray-50/50 hover:bg-white focus:bg-white transition-colors" />
+                  <Clock className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
               </div>
-              <input type="hidden" id="food" name="food" required />
+              <div className="space-y-1.5">
+                <Label htmlFor="end_time" className="text-xs font-bold text-gray-700">زمان پایان سرو <span className="text-rose-500">*</span></Label>
+                <div className="relative">
+                  <Input id="end_time" name="end_time" type="time" required className="form-input-focus rounded-xl h-11 font-mono text-sm pl-9 bg-gray-50/50 hover:bg-white focus:bg-white transition-colors" />
+                  <Clock className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="time_slot_count" className="text-xs font-bold text-gray-700">تعداد بازه‌ها</Label>
+                <Input
+                  id="time_slot_count"
+                  name="time_slot_count"
+                  type="number"
+                  min={1}
+                  required
+                  placeholder="مثال: ۴"
+                  className="form-input-focus rounded-xl h-11 font-mono text-sm bg-gray-50/50 hover:bg-white focus:bg-white transition-colors"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="time_slot_capacity" className="text-xs font-bold text-gray-700">ظرفیت هر بازه</Label>
+                <Input
+                  id="time_slot_capacity"
+                  name="time_slot_capacity"
+                  type="number"
+                  min={1}
+                  required
+                  placeholder="مثال: ۵۰"
+                  className="form-input-focus rounded-xl h-11 font-mono text-sm bg-gray-50/50 hover:bg-white focus:bg-white transition-colors"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="daily_capacity" className="text-xs font-bold text-gray-700">ظرفیت کل روزانه</Label>
+                <Input
+                  id="daily_capacity"
+                  name="daily_capacity"
+                  type="number"
+                  min={1}
+                  required
+                  placeholder="مثال: ۲۰۰"
+                  className="form-input-focus rounded-xl h-11 font-mono text-sm bg-gray-50/50 hover:bg-white focus:bg-white transition-colors"
+                />
+              </div>
             </div>
           </div>
-          <Label htmlFor="start_time">زمان شروع</Label>
-          <Input id="start_time" name="start_time" type="time" required className="form-input-focus" />
-          <Label htmlFor="end_time">زمان پایان</Label>
-          <Input id="end_time" name="end_time" type="time" required className="form-input-focus" />
-          <Label htmlFor="time_slot_count">تعداد بازه‌های زمانی</Label>
-          <Input
-            id="time_slot_count"
-            name="time_slot_count"
-            type="number"
-            min={1}
-            required
-            className="form-input-focus"
-          />
-          <Label htmlFor="time_slot_capacity">ظرفیت هر بازه زمانی</Label>
-          <Input
-            id="time_slot_capacity"
-            name="time_slot_capacity"
-            type="number"
-            min={1}
-            required
-            className="form-input-focus"
-          />
-          <Label htmlFor="daily_capacity">ظرفیت روزانه</Label>
-          <Input
-            id="daily_capacity"
-            name="daily_capacity"
-            type="number"
-            min={1}
-            required
-            className="form-input-focus"
-          />
-          <Button type="submit" className="w-full bg-[#f97316] hover:bg-orange-600 btn-hover-effect">
-            افزودن غذا به منو
-          </Button>
+
+          {/* Sticky Footer */}
+          <div className="p-4 sm:p-5 border-t border-gray-100 bg-gray-50/80 flex items-center justify-end gap-2.5 mt-auto">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={closeDialog}
+              className="rounded-xl border-gray-200 h-11 px-5 text-gray-700 hover:bg-gray-100 font-semibold text-xs"
+            >
+              انصراف
+            </Button>
+            <Button
+              type="submit"
+              className="bg-gradient-to-r from-[#F47B20] to-[#E06A10] hover:from-[#E06A10] hover:to-[#D05A00] text-white rounded-xl font-bold h-11 px-6 shadow-md shadow-orange-500/20 hover:shadow-lg hover:shadow-orange-500/30 transition-all flex items-center gap-2 text-xs"
+            >
+              <Plus className="w-4 h-4 ml-0.5" />
+              افزودن به منو
+            </Button>
+          </div>
         </form>,
       )
     },
@@ -1355,10 +1875,10 @@ export default function AdminDashboard() {
               food,
               start_time,
               end_time,
-              time_slot_count: Number.parseInt(time_slot_count),
-              time_slot_capacity: Number.parseInt(time_slot_capacity),
-              daily_capacity: Number.parseInt(daily_capacity),
-              food_category_id: foodCategory ? Number(foodCategory) : null,
+              time_slot_count: parsePersianInt(time_slot_count),
+              time_slot_capacity: parsePersianInt(time_slot_capacity),
+              daily_capacity: parsePersianInt(daily_capacity),
+              food_category_id: foodCategory ? parsePersianInt(foodCategory) : null,
             }
 
             try {
@@ -1377,173 +1897,223 @@ export default function AdminDashboard() {
               toast.error("خطا در به‌روزرسانی غذای منو")
             }
           }}
-          className="space-y-4"
+          className="flex flex-col h-full"
           dir="rtl"
         >
-          <h2 className="text-lg font-bold">ویرایش غذای منو</h2>
-
-          <div className="space-y-2">
-            <Label htmlFor="food">غذا</Label>
-            <div className="relative">
-              <div className="flex">
-                <Input
-                  id="foodSearch"
-                  type="text"
-                  placeholder="جستجو و انتخاب غذا..."
-                  defaultValue={item.food?.name}
-                  className="form-input-focus w-full"
-                  onClick={() => {
-                    const foodList = document.getElementById("foodList")
-                    if (foodList) {
-                      foodList.classList.remove("hidden")
-                    }
-                  }}
-                  onChange={(e) => {
-                    const searchValue = e.target.value.toLowerCase()
-                    const foodList = document.getElementById("foodList")
-                    if (foodList) {
-                      foodList.classList.remove("hidden")
-                      const items = foodList.getElementsByTagName("div")
-                      let hasVisibleItems = false
-                      for (let i = 0; i < items.length; i++) {
-                        const foodName = items[i].textContent || ""
-                        if (foodName.toLowerCase().includes(searchValue)) {
-                          items[i].style.display = ""
-                          hasVisibleItems = true
-                        } else {
-                          items[i].style.display = "none"
-                        }
-                      }
-                      // If no items match the search, show a message
-                      const noResults = document.getElementById("noFoodResults")
-                      if (noResults) {
-                        noResults.style.display = hasVisibleItems ? "none" : "block"
-                      }
-                    }
-                  }}
-                  onBlur={() => {
-                    // Delay hiding to allow for click on options
-                    setTimeout(() => {
-                      const foodList = document.getElementById("foodList")
-                      if (foodList) {
-                        foodList.classList.add("hidden")
-                      }
-                    }, 200)
-                  }}
-                />
-              </div>
-              <div
-                id="foodList"
-                className="hidden absolute z-50 w-full max-h-48 overflow-y-auto mt-1 rounded-md border border-gray-200 bg-white shadow-lg scrollbar-thin scrollbar-thumb-orange-200 scrollbar-track-transparent"
-                style={{ scrollbarWidth: "thin", scrollbarColor: "#fed7aa transparent" }}
-              >
-                {foods.map((food) => (
-                  <div
-                    key={food.id}
-                    className="p-2 cursor-pointer hover:bg-orange-100 transition-colors flex items-center gap-2"
-                    onMouseDown={() => {
-                      const hiddenInput = document.getElementById("food") as HTMLInputElement
-                      const searchInput = document.getElementById("foodSearch") as HTMLInputElement
-                      if (hiddenInput && searchInput) {
-                        hiddenInput.value = food.name
-                        searchInput.value = food.name
-                      }
-                      const foodList = document.getElementById("foodList")
-                      if (foodList) {
-                        foodList.classList.add("hidden")
-                      }
-                    }}
-                  >
-                    {food.image_url && (
-                      <div className="relative h-8 w-8 rounded overflow-hidden flex-shrink-0">
-                        <Image
-                          src={food.image_url || "/placeholder.svg?height=32&width=32"}
-                          alt={food.name}
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
-                    )}
-                    <span className="truncate">{food.name}</span>
-                    {/* Show extra voucher badge if food supports it */}
-                    {food.supports_extra_voucher && (
-                      <Badge variant="outline" className="ml-auto bg-blue-100 text-blue-700 text-xs">
-                        ژتون اضافی
-                      </Badge>
-                    )}
-                  </div>
-                ))}
-                <div id="noFoodResults" className="p-2 text-gray-500 text-center hidden">
-                  هیچ غذایی یافت نشد
-                </div>
-              </div>
-              <input type="hidden" id="food" name="food" defaultValue={item.food?.name} required />
+          {/* Sticky Header */}
+          <div className="p-5 sm:p-6 pb-4 border-b border-orange-100/80 bg-white flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-orange-500/10 to-amber-500/20 text-[#F47B20] border border-orange-200/50 flex items-center justify-center shrink-0 shadow-xs">
+              <Edit className="w-5 h-5" />
+            </div>
+            <div>
+              <DialogTitle className="text-base sm:text-lg font-black text-gray-900 tracking-tight">ویرایش غذای منو</DialogTitle>
+              <DialogDescription className="text-xs text-gray-500 mt-0.5">ویرایش ساعت توزیع و سقف ظرفیت‌های رزرو</DialogDescription>
             </div>
           </div>
-          <Label htmlFor="foodCategory">دسته‌بندی</Label>
-          <Select name="foodCategory" defaultValue={item.food.category_id?.toString()}>
-            <SelectTrigger className="form-input-focus">
-              <SelectValue placeholder="انتخاب دسته‌بندی" />
-            </SelectTrigger>
-            <SelectContent dir="rtl">
-              {categories.map((category) => (
-                <SelectItem key={category.id} value={category.id.toString()}>
-                  {category.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Label htmlFor="start_time">زمان شروع</Label>
-          <Input
-            id="start_time"
-            name="start_time"
-            type="time"
-            defaultValue={item.start_time}
-            required
-            className="form-input-focus"
-          />
-          <Label htmlFor="end_time">زمان پایان</Label>
-          <Input
-            id="end_time"
-            name="end_time"
-            type="time"
-            defaultValue={item.end_time}
-            required
-            className="form-input-focus"
-          />
-          <Label htmlFor="time_slot_count">تعداد بازه‌های زمانی</Label>
-          <Input
-            id="time_slot_count"
-            name="time_slot_count"
-            type="number"
-            defaultValue={item.time_slot_count}
-            min={1}
-            required
-            className="form-input-focus"
-          />
-          <Label htmlFor="time_slot_capacity">ظرفیت هر بازه زمانی</Label>
-          <Input
-            id="time_slot_capacity"
-            name="time_slot_capacity"
-            type="number"
-            defaultValue={item.time_slot_capacity}
-            min={1}
-            required
-            className="form-input-focus"
-          />
-          <Label htmlFor="daily_capacity">ظرفیت روزانه</Label>
-          <Input
-            id="daily_capacity"
-            name="daily_capacity"
-            type="number"
-            defaultValue={item.daily_capacity}
-            min={1}
-            required
-            className="form-input-focus"
-          />
-          <Button type="submit" className="w-full bg-[#f97316] hover:bg-orange-600 btn-hover-effect">
-            ذخیره تغییرات
-          </Button>
+
+          {/* Scrollable Body */}
+          <div className="p-5 sm:p-6 pt-4 space-y-4 max-h-[calc(85vh-150px)] overflow-y-auto scrollbar-thin scrollbar-thumb-orange-200">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div className="space-y-1.5">
+                <Label htmlFor="foodSearch" className="text-xs font-bold text-gray-700">غذا <span className="text-rose-500">*</span></Label>
+                <div className="relative">
+                  <div className="flex">
+                    <Input
+                      id="foodSearch"
+                      type="text"
+                      placeholder="جستجو و انتخاب غذا..."
+                      defaultValue={item.food?.name}
+                      className="form-input-focus rounded-xl h-11 text-sm w-full bg-gray-50/50 hover:bg-white focus:bg-white transition-colors"
+                      onClick={() => {
+                        const foodList = document.getElementById("foodList")
+                        if (foodList) {
+                          foodList.classList.remove("hidden")
+                        }
+                      }}
+                      onChange={(e) => {
+                        const searchValue = normalizeForSearch(e.target.value)
+                        const foodList = document.getElementById("foodList")
+                        if (foodList) {
+                          foodList.classList.remove("hidden")
+                          const items = foodList.getElementsByTagName("div")
+                          let hasVisibleItems = false
+                          for (let i = 0; i < items.length; i++) {
+                            const foodName = items[i].textContent || ""
+                            if (normalizeForSearch(foodName).includes(searchValue)) {
+                              items[i].style.display = ""
+                              hasVisibleItems = true
+                            } else {
+                              items[i].style.display = "none"
+                            }
+                          }
+                          const noResults = document.getElementById("noFoodResults")
+                          if (noResults) {
+                            noResults.style.display = hasVisibleItems ? "none" : "block"
+                          }
+                        }
+                      }}
+                      onBlur={() => {
+                        setTimeout(() => {
+                          const foodList = document.getElementById("foodList")
+                          if (foodList) {
+                            foodList.classList.add("hidden")
+                          }
+                        }, 200)
+                      }}
+                    />
+                  </div>
+                  <div
+                    id="foodList"
+                    className="hidden absolute z-50 w-full max-h-48 overflow-y-auto mt-1 rounded-2xl border border-orange-100 bg-white/95 backdrop-blur-md shadow-xl scrollbar-thin scrollbar-thumb-orange-200 scrollbar-track-transparent p-1.5"
+                    style={{ scrollbarWidth: "thin", scrollbarColor: "#fed7aa transparent" }}
+                  >
+                    {foods.map((food) => (
+                      <div
+                        key={food.id}
+                        className="p-2.5 cursor-pointer hover:bg-orange-50/80 rounded-xl transition-colors flex items-center gap-2.5"
+                        onMouseDown={() => {
+                          const hiddenInput = document.getElementById("food") as HTMLInputElement
+                          const searchInput = document.getElementById("foodSearch") as HTMLInputElement
+                          if (hiddenInput && searchInput) {
+                            hiddenInput.value = food.name
+                            searchInput.value = food.name
+                          }
+                          const foodList = document.getElementById("foodList")
+                          if (foodList) {
+                            foodList.classList.add("hidden")
+                          }
+                        }}
+                      >
+                        <div className="relative h-8 w-8 rounded-lg overflow-hidden flex-shrink-0 border border-orange-100 shadow-2xs">
+                          <FoodImage
+                            src={food.image_url}
+                            alt={food.name}
+                            fill
+                            className="object-cover"
+                          />
+                        </div>
+                        <span className="truncate text-xs font-bold text-gray-800">{food.name}</span>
+                        {food.supports_extra_voucher && (
+                          <Badge variant="outline" className="mr-auto bg-blue-50 text-blue-700 text-[10px] border-blue-200">
+                            ژتون اضافی
+                          </Badge>
+                        )}
+                      </div>
+                    ))}
+                    <div id="noFoodResults" className="p-3 text-gray-400 text-center text-xs hidden">
+                      هیچ غذایی یافت نشد
+                    </div>
+                  </div>
+                  <input type="hidden" id="food" name="food" defaultValue={item.food?.name} required />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="foodCategory" className="text-xs font-bold text-gray-700">دسته‌بندی غذا</Label>
+                <Select name="foodCategory" defaultValue={item.food.category_id?.toString()}>
+                  <SelectTrigger className="form-input-focus rounded-xl h-11 text-sm bg-gray-50/50 hover:bg-white focus:bg-white transition-colors">
+                    <SelectValue placeholder="انتخاب دسته‌بندی" />
+                  </SelectTrigger>
+                  <SelectContent dir="rtl">
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id.toString()}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3.5">
+              <div className="space-y-1.5">
+                <Label htmlFor="start_time" className="text-xs font-bold text-gray-700">زمان شروع سرو <span className="text-rose-500">*</span></Label>
+                <div className="relative">
+                  <Input
+                    id="start_time"
+                    name="start_time"
+                    type="time"
+                    defaultValue={item.start_time}
+                    required
+                    className="form-input-focus rounded-xl h-11 font-mono text-sm pl-9 bg-gray-50/50 hover:bg-white focus:bg-white transition-colors"
+                  />
+                  <Clock className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="end_time" className="text-xs font-bold text-gray-700">زمان پایان سرو <span className="text-rose-500">*</span></Label>
+                <div className="relative">
+                  <Input
+                    id="end_time"
+                    name="end_time"
+                    type="time"
+                    defaultValue={item.end_time}
+                    required
+                    className="form-input-focus rounded-xl h-11 font-mono text-sm pl-9 bg-gray-50/50 hover:bg-white focus:bg-white transition-colors"
+                  />
+                  <Clock className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="time_slot_count" className="text-xs font-bold text-gray-700">تعداد بازه‌ها</Label>
+                <Input
+                  id="time_slot_count"
+                  name="time_slot_count"
+                  type="number"
+                  defaultValue={item.time_slot_count}
+                  min={1}
+                  required
+                  className="form-input-focus rounded-xl h-11 font-mono text-sm bg-gray-50/50 hover:bg-white focus:bg-white transition-colors"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="time_slot_capacity" className="text-xs font-bold text-gray-700">ظرفیت هر بازه</Label>
+                <Input
+                  id="time_slot_capacity"
+                  name="time_slot_capacity"
+                  type="number"
+                  defaultValue={item.time_slot_capacity}
+                  min={1}
+                  required
+                  className="form-input-focus rounded-xl h-11 font-mono text-sm bg-gray-50/50 hover:bg-white focus:bg-white transition-colors"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="daily_capacity" className="text-xs font-bold text-gray-700">ظرفیت کل روزانه</Label>
+                <Input
+                  id="daily_capacity"
+                  name="daily_capacity"
+                  type="number"
+                  defaultValue={item.daily_capacity}
+                  min={1}
+                  required
+                  className="form-input-focus rounded-xl h-11 font-mono text-sm bg-gray-50/50 hover:bg-white focus:bg-white transition-colors"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Sticky Footer */}
+          <div className="p-4 sm:p-5 border-t border-gray-100 bg-gray-50/80 flex items-center justify-end gap-2.5 mt-auto">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={closeDialog}
+              className="rounded-xl border-gray-200 h-11 px-5 text-gray-700 hover:bg-gray-100 font-semibold text-xs"
+            >
+              انصراف
+            </Button>
+            <Button
+              type="submit"
+              className="bg-gradient-to-r from-[#F47B20] to-[#E06A10] hover:from-[#E06A10] hover:to-[#D05A00] text-white rounded-xl font-bold h-11 px-6 shadow-md shadow-orange-500/20 hover:shadow-lg hover:shadow-orange-500/30 transition-all flex items-center gap-2 text-xs"
+            >
+              <Check className="w-4 h-4 ml-0.5" />
+              ذخیره تغییرات منو
+            </Button>
+          </div>
         </form>,
       )
     },
@@ -1570,36 +2140,6 @@ export default function AdminDashboard() {
     [fetchTemplateMenu, fetchDailyMenu],
   )
 
-  const handleUpdateVoucherPrice = useCallback(() => {
-    openDialog(
-      <div className="space-y-4" dir="rtl">
-        <h2 className="text-lg font-bold">به‌روزرسانی قیمت ژتون</h2>
-        <Label htmlFor="voucherPrice">قیمت جدید ژتون (تومان)</Label>
-        <Input id="voucherPrice" type="number" defaultValue={voucherPrice} className="form-input-focus" />
-        <Button
-          onClick={async () => {
-            const newPrice = Number.parseInt((document.getElementById("voucherPrice") as HTMLInputElement).value)
-            if (isNaN(newPrice) || newPrice <= 0) {
-              toast.error("لطفاً یک قیمت معتبر وارد کنید")
-              return
-            }
-            try {
-              await api.put(createApiUrl(API_ROUTES.UPDATE_VOUCHER_PRICE), { price: newPrice })
-              setVoucherPrice(newPrice)
-              closeDialog()
-              toast.success("قیمت ژتون با موفقیت به‌روزرسانی شد")
-            } catch (error) {
-              console.error("Error updating voucher price:", error)
-              toast.error("خطا در به‌روزرسانی قیمت ژتون")
-            }
-          }}
-          className="w-full bg-[#f97316] hover:bg-orange-600 btn-hover-effect"
-        >
-          به‌روزرسانی قیمت
-        </Button>
-      </div>,
-    )
-  }, [voucherPrice, openDialog, closeDialog])
 
   const handleToggleAvailability = useCallback(
     async (itemId: string, is_available: boolean) => {
@@ -1661,13 +2201,6 @@ export default function AdminDashboard() {
     }
   }, [selectedDate, selectedMeal_type, fetchDailyMenu])
 
-  const convertToPersianNumbers = (str: string) => {
-    const persianNumbers = ["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"]
-    return str.replace(/[0-9]/g, (match) => {
-      return persianNumbers[Number.parseInt(match)]
-    })
-  }
-
   const formatPersianDateTime = (isoDate: string) => {
     const date = new Date(isoDate)
     const persianDate = new DateObject(date).setCalendar(persian).setLocale(persian_fa)
@@ -1678,22 +2211,7 @@ export default function AdminDashboard() {
     const hours = date.getHours().toString().padStart(2, "0")
     const minutes = date.getMinutes().toString().padStart(2, "0")
 
-    // Convert numbers to Persian
-    const persianHours = convertToPersianNumbers(hours)
-    const persianMinutes = convertToPersianNumbers(minutes)
-
-    return `${convertToPersianNumbers(persianDateStr)} - ${persianHours}:${persianMinutes}`
-  }
-
-  const getStatusColor = (status: string) => {
-    const statusColors = {
-      waiting: "bg-yellow-500",
-      preparing: "bg-blue-500",
-      ready_to_pickup: "bg-green-500",
-      picked_up: "bg-green-600",
-      not_picked_up: "bg-red-500",
-    }
-    return statusColors[status as keyof typeof statusColors] || "bg-gray-500"
+    return `${toPersianDigits(persianDateStr)} - ${toPersianDigits(hours)}:${toPersianDigits(minutes)}`
   }
 
   const getStatusText = (status: string) => {
@@ -1707,44 +2225,29 @@ export default function AdminDashboard() {
     return statusTexts[status as keyof typeof statusTexts] || "وضعیت ناشناخته"
   }
 
+  const getStatusBadgeClass = (status: string) => {
+    switch (status) {
+      case "waiting":
+        return "bg-amber-50 text-amber-700 border-amber-200"
+      case "preparing":
+        return "bg-blue-50 text-blue-700 border-blue-200"
+      case "ready_to_pickup":
+        return "bg-emerald-50 text-emerald-700 border-emerald-200"
+      case "picked_up":
+        return "bg-green-50 text-green-700 border-green-200"
+      case "not_picked_up":
+        return "bg-rose-50 text-rose-700 border-rose-200"
+      default:
+        return "bg-gray-50 text-gray-700 border-gray-200"
+    }
+  }
+
   return (
-    <div className="min-h-screen relative overflow-hidden bg-pattern bg-pattern-animate rtl">
-      <div className="absolute inset-0">
-        <div className="absolute top-0 right-0 w-full h-full overflow-hidden">
-          <svg
-            className="absolute top-0 right-0 h-full w-full"
-            viewBox="0 0 900 600"
-            preserveAspectRatio="xMidYMid slice"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <g>
-              <path
-                className="blob-animate-1"
-                d="M0 486.7C-52.7 454 -105.4 421.3 -166.8 402.8C-228.3 384.3 -298.5 380 -344.2 344.2C-389.8 308.3 -410.9 241 -430.5 178.3C-450.2 115.7 -468.5 57.9 -486.7 0L0 0Z"
-                fill="url(#orange-gradient-1)"
-                transform="translate(900, 0)"
-              ></path>
-            </g>
-            <g>
-              <path
-                className="blob-animate-2"
-                d="M0 -486.7C59.2 -472.3 118.5 -457.9 181.4 -437.9C244.3 -417.9 311 -392.4 344.2 -344.2C377.4 -295.9 377.2 -224.9 395.4 -163.8C413.6 -102.6 450.2 -51.3 486.7 0L0 0Z"
-                fill="url(#orange-gradient-2)"
-                transform="translate(0, 600)"
-              ></path>
-            </g>
-            <defs>
-              <linearGradient id="orange-gradient-1" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#f97316" stopOpacity="0.3"></stop>
-                <stop offset="100%" stopColor="#fdba74" stopOpacity="0.2"></stop>
-              </linearGradient>
-              <linearGradient id="orange-gradient-2" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#fb923c" stopOpacity="0.3"></stop>
-                <stop offset="100%" stopColor="#fed7aa" stopOpacity="0.2"></stop>
-              </linearGradient>
-            </defs>
-          </svg>
-        </div>
+    <div className="min-h-screen relative overflow-hidden bg-[#FAF7F2] text-gray-900" dir="rtl">
+      {/* Ambient Brand Atmosphere (preserving signature orange glow & warm background) */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute -top-40 right-[-10%] w-[650px] h-[650px] rounded-full bg-gradient-to-br from-orange-400/15 via-amber-300/10 to-transparent blur-3xl blob-animate-1" />
+        <div className="absolute -bottom-40 left-[-10%] w-[650px] h-[650px] rounded-full bg-gradient-to-tr from-orange-500/15 via-rose-300/10 to-transparent blur-3xl blob-animate-2" />
       </div>
 
       <Toaster
@@ -1752,392 +2255,516 @@ export default function AdminDashboard() {
         toastOptions={{
           style: {
             background: "#FFF",
-            color: "#000",
-            borderRadius: "0.75rem",
+            color: "#1F2937",
+            borderRadius: "0.85rem",
+            boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
+            border: "1px solid rgba(244, 123, 32, 0.15)",
           },
         }}
       />
 
-      {/* Header */}
-      <header
-        className="sticky top-0 z-50 w-full backdrop-blur-md bg-white/80 shadow-md animate-slide-up"
-        style={{ animationDelay: "0.1s" }}
-      >
-        <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          <div className="flex items-center">
+      {/* Elevated Top Header */}
+      <header className="sticky top-0 z-40 w-full backdrop-blur-xl bg-white/85 border-b border-orange-100 shadow-xs">
+        <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6">
+          <div className="flex items-center gap-3">
+            {/* Mobile Sheet Menu */}
             <Sheet>
               <SheetTrigger asChild className="md:hidden">
-                <Button variant="ghost" size="icon" className="mr-2">
-                  <Menu className="h-5 w-5" />
+                <Button variant="ghost" size="icon" className="hover:bg-orange-50">
+                  <Menu className="h-5 w-5 text-gray-700" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-[240px] sm:w-[300px]">
-                <div className="flex flex-col h-full py-6">
-                  <div className="flex items-center mb-6">
-                    <div className="relative h-10 w-10 mr-3">
-                      <Image src="/images/javanfoods_logo.png" alt="رستوران جوان" fill className="object-contain" />
+              <SheetContent side="right" className="w-[300px] p-0" dir="rtl">
+                <div className="flex flex-col h-full bg-gradient-to-b from-orange-50/40 to-white">
+                  {/* Brand in Drawer */}
+                  <div className="p-5 border-b border-orange-100 flex items-center gap-3">
+                    <div className="relative h-10 w-10 rounded-xl bg-orange-100/60 p-1.5 flex items-center justify-center">
+                      <Image src="/images/javanfoods_logo.png" alt="رستوران جوان" fill sizes="40px" className="object-contain p-1" />
                     </div>
-                    <span className="text-lg font-bold">رستوران جوان</span>
+                    <div>
+                      <h3 className="font-bold text-gray-900 text-sm">رستوران جوان</h3>
+                      <p className="text-[11px] text-orange-600 font-medium">پنل مدیریت سامانه</p>
+                    </div>
                   </div>
-                  <div className="flex flex-col space-y-1">
-                    <Button
-                      variant={activeTab === "dashboard" ? "secondary" : "ghost"}
-                      className="justify-start"
-                      onClick={() => {
-                        setActiveTab("dashboard")
-                      }}
-                    >
-                      <Home className="ml-2 h-4 w-4" />
-                      داشبورد
-                    </Button>
-                    <Button
-                      variant={activeTab === "food" ? "secondary" : "ghost"}
-                      className="justify-start"
-                      onClick={() => {
-                        setActiveTab("food")
-                      }}
-                    >
-                      <Utensils className="ml-2 h-4 w-4" />
-                      مدیریت غذاها
-                    </Button>
-                    <Button
-                      variant={activeTab === "categories" ? "secondary" : "ghost"}
-                      className="justify-start"
-                      onClick={() => {
-                        setActiveTab("categories")
-                      }}
-                    >
-                      <Clipboard className="ml-2 h-4 w-4" />
-                      دسته‌بندی‌ها
-                    </Button>
-                    <Button
-                      variant={activeTab === "students" ? "secondary" : "ghost"}
-                      className="justify-start"
-                      onClick={() => {
-                        setActiveTab("students")
-                      }}
-                    >
-                      <User className="ml-2 h-4 w-4" />
-                      مدیریت دانشجویان
-                    </Button>
-                    <Button
-                      variant={activeTab === "template-menu" ? "secondary" : "ghost"}
-                      className="justify-start"
-                      onClick={() => {
-                        setActiveTab("template-menu")
-                      }}
-                    >
-                      <Calendar className="ml-2 h-4 w-4" />
-                      منوی الگو
-                    </Button>
-                    <Button
-                      variant={activeTab === "daily-menu" ? "secondary" : "ghost"}
-                      className="justify-start"
-                      onClick={() => {
-                        setActiveTab("daily-menu")
-                      }}
-                    >
-                      <Clipboard className="ml-2 h-4 w-4" />
-                      منوی روزانه
-                    </Button>
-                    <Button
-                      variant={activeTab === "payments" ? "secondary" : "ghost"}
-                      className="justify-start"
-                      onClick={() => {
-                        setActiveTab("payments")
-                      }}
-                    >
-                      <DollarSign className="ml-2 h-4 w-4" />
-                      مدیریت پرداخت‌ها
-                    </Button>
-                    <Button
-                      variant={activeTab === "voucher-price" ? "secondary" : "ghost"}
-                      className="justify-start"
-                      onClick={() => {
-                        setActiveTab("voucher-price")
-                      }}
-                    >
-                      <DollarSign className="ml-2 h-4 w-4" />
-                      قیمت ژتون
-                    </Button>
-                    <Button
-                      variant={activeTab === "analytics" ? "secondary" : "ghost"}
-                      className="justify-start"
-                      onClick={() => {
-                        setActiveTab("analytics")
-                      }}
-                    >
-                      <BarChart2 className="ml-2 h-4 w-4" />
-                      آمار و گزارشات
-                    </Button>
+
+                  {/* Nav in Drawer */}
+                  <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                    {navigationSections.map((sec) => (
+                      <div key={sec.title} className="space-y-1">
+                        <p className="text-[11px] font-semibold text-gray-400 px-3 uppercase tracking-wider">
+                          {sec.title}
+                        </p>
+                        {sec.items.map((item) => {
+                          const IconComp = item.icon
+                          const isActive = activeTab === item.id || (item.id === "vouchers" && activeTab === "voucher-price")
+                          return (
+                            <button
+                              key={item.id}
+                              onClick={() => setActiveTab(item.id)}
+                              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm transition-all duration-150 ${
+                                isActive
+                                  ? "bg-gradient-to-r from-[#F47B20] to-[#E06A10] text-white font-semibold shadow-md shadow-orange-500/20"
+                                  : "text-gray-600 hover:text-[#F47B20] hover:bg-orange-50 font-medium"
+                              }`}
+                            >
+                              <div className="flex items-center gap-2.5">
+                                <IconComp className={`h-4 w-4 ${isActive ? "text-white" : "text-gray-500"}`} />
+                                <span>{item.label}</span>
+                              </div>
+                              {item.badge !== undefined && (
+                                <span
+                                  className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                                    isActive ? "bg-white/20 text-white" : "bg-orange-100/80 text-orange-700"
+                                  }`}
+                                >
+                                  {toPersianDigits(item.badge)}
+                                </span>
+                              )}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    ))}
                   </div>
-                  <div className="mt-auto">
-                    <Button variant="ghost" className="justify-start w-full" onClick={handleLogout}>
+
+                  {/* Bottom Logout */}
+                  <div className="p-4 border-t border-orange-100">
+                    <Button
+                      variant="ghost"
+                      onClick={handleLogout}
+                      className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl"
+                    >
                       <LogOut className="ml-2 h-4 w-4" />
-                      خروج
+                      خروج از حساب کاربری
                     </Button>
                   </div>
                 </div>
               </SheetContent>
             </Sheet>
 
-            <Link href="/" className="flex items-center">
-              <div className="relative h-10 w-10 mr-3 transition-transform duration-300 hover:scale-110">
-                <Image src="/images/javanfoods_logo.png" alt="رستوران جوان" fill className="object-contain" priority />
+            {/* Brand Logo & Name */}
+            <Link href="/" className="flex items-center gap-3 group">
+              <div className="relative h-11 w-11 rounded-xl bg-orange-50 border border-orange-200/60 p-1 flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform duration-200">
+                <Image src="/images/javanfoods_logo.png" alt="رستوران جوان" fill sizes="44px" className="object-contain p-1" priority />
               </div>
               <div className="flex flex-col">
-                <span className="text-sm font-medium text-gray-600 hidden md:block">رستوران جوان</span>
-                <span className="text-lg md:text-xl font-bold text-[#f97316]">پنل مدیریت</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-base font-extrabold text-gray-900 tracking-tight">رستوران جوان</span>
+                  <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-100 text-[#F47B20] text-[10px] font-bold">
+                    پنل مدیریت
+                  </span>
+                </div>
+                <span className="text-xs text-gray-500 hidden sm:block">سامانه جامع تغذیه دانشگاهی</span>
               </div>
             </Link>
+
+            {/* System Status Indicator */}
+            <div className="hidden lg:flex items-center gap-2 mr-4 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200/60 text-emerald-700 text-xs font-medium">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span>سامانه متصل و فعال</span>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* Left Side Header Controls */}
+          <div className="flex items-center gap-3">
+            {todayPersianDate && (
+              <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50/70 border border-orange-100 text-xs text-orange-950 font-medium">
+                <Calendar className="w-3.5 h-3.5 text-[#F47B20]" />
+                <span>{todayPersianDate}</span>
+              </div>
+            )}
+
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src="/placeholder.svg?height=32&width=32" alt="مدیر سیستم" />
-                          <AvatarFallback>مدیر</AvatarFallback>
-                        </Avatar>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-56" align="end" forceMount>
-                      <DropdownMenuLabel className="font-normal">
-                        <div className="flex flex-col space-y-1">
-                          <p className="text-sm font-medium leading-none">مدیر سیستم</p>
-                          <p className="text-xs leading-none text-muted-foreground">admin@example.com</p>
-                        </div>
-                      </DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem>
-                        <User className="ml-2 h-4 w-4" />
-                        <span>پروفایل</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={handleLogout}>
-                        <LogOut className="ml-2 h-4 w-4" />
-                        <span>خروج</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      fetchFoods()
+                      fetchCategories()
+                      fetchVoucherTypes()
+                      fetchStudents()
+                      toast.success("اطلاعات بروزرسانی شد")
+                    }}
+                    className="h-9 w-9 rounded-xl text-gray-500 hover:text-[#F47B20] hover:bg-orange-50"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>پروفایل کاربری</p>
+                  <p>بروزرسانی داده‌ها</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
+
+            {/* Admin Profile Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative flex items-center gap-2.5 p-1.5 pr-2.5 rounded-xl hover:bg-orange-50/80">
+                  <div className="hidden sm:flex flex-col items-start text-right">
+                    <span className="text-xs font-bold text-gray-900 leading-tight">مدیر سیستم</span>
+                    <span className="text-[10px] text-orange-600 font-medium leading-tight mt-0.5">ادمین ارشد سلف</span>
+                  </div>
+                  <Avatar className="h-8 w-8 ring-2 ring-[#F47B20]/20">
+                    <AvatarImage src="/placeholder.svg?height=32&width=32" alt="مدیر سیستم" />
+                    <AvatarFallback className="bg-gradient-to-br from-[#F47B20] to-amber-500 text-white text-xs font-bold">
+                      مدیر
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="start" forceMount>
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-semibold leading-none text-gray-900">مدیر سیستم جوان</p>
+                    <p className="text-xs leading-none text-muted-foreground">admin@javanfoods.ir</p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setActiveTab("dashboard")}>
+                  <Home className="ml-2 h-4 w-4 text-gray-500" />
+                  <span>داشبورد اصلی</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push("/")}>
+                  <Utensils className="ml-2 h-4 w-4 text-gray-500" />
+                  <span>مشاهده صفحه دانشجویی</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent("open-whats-new"))
+                  }}
+                  className="cursor-pointer text-amber-600 focus:text-amber-700 focus:bg-amber-50"
+                >
+                  <Sparkles className="ml-2 h-4 w-4 text-amber-500" />
+                  <span>امکانات و تغییرات جدید</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent("open-pwa-install"))
+                  }}
+                  className="cursor-pointer text-orange-600 focus:text-orange-700 focus:bg-orange-50"
+                >
+                  <Smartphone className="ml-2 h-4 w-4 text-orange-500" />
+                  <span>نصب نسخه اپلیکیشن (PWA)</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600 focus:bg-red-50">
+                  <LogOut className="ml-2 h-4 w-4" />
+                  <span>خروج از حساب</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>
 
-      <div className="flex flex-row-reverse min-h-screen">
-        {/* Sidebar - Desktop only */}
-        <aside className="hidden md:flex flex-col w-64 p-4 animate-slide-left" style={{ animationDelay: "0.2s" }}>
-          <Card className="flex-1 backdrop-blur-md bg-white/80 border-0 shadow-md">
-            <CardContent className="p-4" dir="rtl">
-              <div className="space-y-1 mt-2">
+      {/* Main Layout Container */}
+      <div className="container mx-auto px-4 sm:px-6 py-6 flex flex-col md:flex-row gap-6 min-h-[calc(100vh-4rem)]">
+        {/* Sidebar - Desktop */}
+        <aside className="hidden md:flex flex-col w-64 lg:w-72 shrink-0">
+          <Card className="sticky top-24 flex-1 backdrop-blur-xl bg-white/90 border border-orange-100 shadow-sm rounded-2xl flex flex-col justify-between overflow-hidden">
+            <CardContent className="p-3.5 space-y-4">
+              {navigationSections.map((sec) => (
+                <div key={sec.title} className="space-y-1">
+                  <p className="text-[11px] font-semibold text-gray-400 px-3 uppercase tracking-wider">
+                    {sec.title}
+                  </p>
+                  <div className="space-y-0.5">
+                    {sec.items.map((item) => {
+                      const IconComp = item.icon
+                      const isActive = activeTab === item.id || (item.id === "vouchers" && activeTab === "voucher-price")
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => setActiveTab(item.id)}
+                          className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs lg:text-sm transition-all duration-150 ${
+                            isActive
+                              ? "bg-gradient-to-r from-[#F47B20] to-[#E06A10] text-white font-bold shadow-md shadow-orange-500/20"
+                              : "text-gray-600 hover:text-[#F47B20] hover:bg-orange-50/80 font-medium"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <IconComp className={`h-4 w-4 ${isActive ? "text-white" : "text-gray-500"}`} />
+                            <span>{item.label}</span>
+                          </div>
+                          {item.badge !== undefined && (
+                            <span
+                              className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                                isActive ? "bg-white/20 text-white" : "bg-orange-100/80 text-orange-700"
+                              }`}
+                            >
+                              {toPersianDigits(item.badge)}
+                            </span>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+
+            {/* Sidebar Bottom Card */}
+            <div className="p-3.5 border-t border-orange-100/80 bg-orange-50/30">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-lg bg-orange-100 text-[#F47B20] flex items-center justify-center font-bold text-xs">
+                    جوان
+                  </div>
+                  <div className="text-[11px]">
+                    <p className="font-bold text-gray-900 leading-tight">رستوران جوان</p>
+                    <p className="text-gray-400">نسخه ۲.۴.۰</p>
+                  </div>
+                </div>
                 <Button
-                  variant={activeTab === "dashboard" ? "secondary" : "ghost"}
-                  className="w-full justify-start"
-                  onClick={() => setActiveTab("dashboard")}
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleLogout}
+                  title="خروج"
+                  className="h-8 w-8 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50"
                 >
-                  <Home className="ml-2 h-4 w-4" />
-                  داشبورد
-                </Button>
-                <Button
-                  variant={activeTab === "food" ? "secondary" : "ghost"}
-                  className="w-full justify-start"
-                  onClick={() => setActiveTab("food")}
-                >
-                  <Utensils className="ml-2 h-4 w-4" />
-                  مدیریت غذاها
-                </Button>
-                <Button
-                  variant={activeTab === "categories" ? "secondary" : "ghost"}
-                  className="w-full justify-start"
-                  onClick={() => setActiveTab("categories")}
-                >
-                  <Clipboard className="ml-2 h-4 w-4" />
-                  دسته‌بندی‌ها
-                </Button>
-                <Button
-                  variant={activeTab === "students" ? "secondary" : "ghost"}
-                  className="w-full justify-start"
-                  onClick={() => setActiveTab("students")}
-                >
-                  <User className="ml-2 h-4 w-4" />
-                  مدیریت دانشجویان
-                </Button>
-                <Button
-                  variant={activeTab === "template-menu" ? "secondary" : "ghost"}
-                  className="w-full justify-start"
-                  onClick={() => setActiveTab("template-menu")}
-                >
-                  <Calendar className="ml-2 h-4 w-4" />
-                  منوی الگو
-                </Button>
-                <Button
-                  variant={activeTab === "daily-menu" ? "secondary" : "ghost"}
-                  className="w-full justify-start"
-                  onClick={() => setActiveTab("daily-menu")}
-                >
-                  <Clipboard className="ml-2 h-4 w-4" />
-                  منوی روزانه
-                </Button>
-                <Button
-                  variant={activeTab === "voucher-price" ? "secondary" : "ghost"}
-                  className="w-full justify-start"
-                  onClick={() => setActiveTab("voucher-price")}
-                >
-                  <DollarSign className="ml-2 h-4 w-4" />
-                  قیمت ژتون
-                </Button>
-                <Button
-                  variant={activeTab === "payments" ? "secondary" : "ghost"}
-                  className="w-full justify-start"
-                  onClick={() => setActiveTab("payments")}
-                >
-                  <DollarSign className="ml-2 h-4 w-4" />
-                  پرداخت‌ها
-                </Button>
-                <Button
-                  variant={activeTab === "analytics" ? "secondary" : "ghost"}
-                  className="w-full justify-start"
-                  onClick={() => setActiveTab("analytics")}
-                >
-                  <BarChart2 className="ml-2 h-4 w-4" />
-                  آمار و گزارشات
+                  <LogOut className="h-4 w-4" />
                 </Button>
               </div>
-            </CardContent>
+            </div>
           </Card>
         </aside>
 
-        {/* Main Content */}
-        <main className="flex-1 p-4 md:p-6 animate-fade-in" style={{ animationDelay: "0.3s" }}>
+        {/* Main Content Area */}
+        <main className="flex-1 min-w-0">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3 }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.2 }}
             >
               {/* Dashboard Tab */}
               {activeTab === "dashboard" && (
                 <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <StatCard icon={Utensils} title="تعداد غذاها" value={totalFoods.toString()} color="bg-[#f97316]" />
+                  {/* Hero Welcome Card */}
+                  <div className="relative overflow-hidden rounded-2xl bg-gradient-to-l from-orange-500/10 via-amber-500/5 to-white/60 border border-orange-200/60 p-6 backdrop-blur-md shadow-xs">
+                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-[#F47B20]/15 text-[#F47B20]">
+                            مرکز فرماندهی سامانه
+                          </span>
+                          <span className="text-xs text-gray-300">|</span>
+                          <span className="text-xs text-gray-500">{todayPersianDate}</span>
+                        </div>
+                        <h1 className="text-2xl font-black text-gray-900 mt-2">
+                          خوش آمدید، مدیر سیستم 👋
+                        </h1>
+                        <p className="text-xs sm:text-sm text-gray-600 mt-1">
+                          گزارش برخط وضعیت سفارشات، ظرفیت سلف‌ها و رزروهای رستوران جوان در یک نگاه
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2.5">
+                        <Button
+                          onClick={handleAddFood}
+                          className="bg-[#F47B20] hover:bg-[#E06A10] text-white shadow-sm flex items-center gap-1.5 rounded-xl text-xs font-semibold px-4 py-2"
+                        >
+                          <Plus className="w-4 h-4" />
+                          افزودن غذای جدید
+                        </Button>
+                        <Button
+                          onClick={() => setActiveTab("daily-menu")}
+                          variant="outline"
+                          className="bg-white/80 hover:bg-orange-50 border-orange-200 text-gray-800 rounded-xl text-xs font-semibold"
+                        >
+                          <Calendar className="w-4 h-4 ml-1.5 text-[#F47B20]" />
+                          تنظیم منوی روز
+                        </Button>
+                        <Button
+                          onClick={() => setActiveTab("vouchers")}
+                          variant="outline"
+                          className="bg-white/80 hover:bg-orange-50 border-orange-200 text-gray-800 rounded-xl text-xs font-semibold"
+                        >
+                          <Ticket className="w-4 h-4 ml-1.5 text-[#F47B20]" />
+                          مدیریت ژتون‌ها
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 4 StatCards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <StatCard
+                      icon={Utensils}
+                      title="غذاهای منو"
+                      value={totalFoods}
+                      gradient="from-[#F47B20] to-amber-500"
+                      subtitle="غذاهای تعریف‌شده در سیستم"
+                      trend="فعال در سلف"
+                      onClick={() => setActiveTab("food")}
+                    />
                     <StatCard
                       icon={Clipboard}
-                      title="تعداد دسته‌بندی‌ها"
-                      value={totalCategories.toString()}
-                      color="bg-[#f97316]"
+                      title="دسته‌بندی‌های فعال"
+                      value={totalCategories}
+                      gradient="from-amber-500 to-orange-400"
+                      subtitle="گروه‌بندی اقلام غذایی"
+                      trend="گروه فعال"
+                      onClick={() => setActiveTab("categories")}
                     />
-                    <StatCard icon={User} title="کل رزروها" value={totalReservations.toString()} color="bg-[#f97316]" />
                     <StatCard
                       icon={Calendar}
                       title="رزروهای امروز"
-                      value={todayReservations.toString()}
-                      color="bg-[#f97316]"
+                      value={todayReservations}
+                      gradient="from-emerald-500 to-teal-500"
+                      subtitle="سفارشات تحویل امروز"
+                      trend="آماده‌سازی سلف"
+                      onClick={() => setActiveTab("analytics")}
+                    />
+                    <StatCard
+                      icon={User}
+                      title="کل سفارشات ثبت‌شده"
+                      value={totalReservations}
+                      gradient="from-blue-500 to-indigo-500"
+                      subtitle="تاریخچه کلی رزروها"
+                      trend="کل تراکنش‌ها"
+                      onClick={() => setActiveTab("analytics")}
                     />
                   </div>
 
-                  <Card className="backdrop-blur-md bg-white/80 border-0 shadow-md">
-                    <CardHeader>
-                      <CardTitle>آمار سفارشات روزانه</CardTitle>
+                  {/* Order Chart */}
+                  <Card className="backdrop-blur-xl bg-white/90 border border-orange-100 shadow-sm rounded-2xl overflow-hidden">
+                    <CardHeader className="border-b border-orange-100/60 pb-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
+                            <Activity className="h-5 w-5 text-[#F47B20]" />
+                            آمار سفارشات و تحویل‌های روزانه (۷ روز اخیر)
+                          </CardTitle>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            روند تغییرات سفارشات دریافت شده در مقایسه با غذاهای تحویل داده شده به دانشجویان
+                          </p>
+                        </div>
+                        <Badge variant="outline" className="bg-orange-50 text-[#F47B20] border-orange-200 text-xs">
+                          بروزرسانی زنده
+                        </Badge>
+                      </div>
                     </CardHeader>
-                    <CardContent>
-                      <div className="w-full h-[300px]">
+                    <CardContent className="p-4 sm:p-6">
+                      <div className="w-full h-[320px]">
                         <Line data={getPast7DaysOrderData()} options={chartOptions} />
                       </div>
                     </CardContent>
                   </Card>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <Card className="backdrop-blur-md bg-white/80 border-0 shadow-md">
-                      <CardHeader>
-                        <CardTitle>غذاهای اخیر</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-4">
-                          {foods.slice(0, 5).map((food) => (
-                            <div
-                              key={food.id}
-                              className="flex items-center gap-3 p-2 rounded-lg hover:bg-orange-50 transition-colors"
-                            >
-                              <div className="relative h-12 w-12 rounded-md overflow-hidden">
-                                <Image
-                                  src={food.image_url || "/placeholder.svg?height=48&width=48"}
-                                  alt={food.name}
-                                  fill
-                                  className="object-cover"
-                                />
-                              </div>
-                              <div className="flex-1">
-                                <h4 className="font-medium">{food.name}</h4>
-                                <p className="text-sm text-gray-500">{food.price.toLocaleString()} تومان</p>
-                              </div>
-                              <div className="flex flex-col items-end gap-1">
-                                <Badge variant="outline">{food.category_name || "بدون دسته‌بندی"}</Badge>
-                                {food.supports_extra_voucher && (
-                                  <Badge variant="outline" className="bg-blue-100 text-blue-700 text-xs">
-                                    ژتون اضافی
-                                  </Badge>
-                                )}
-                              </div>
-                            </div>
-                          ))}
+                  {/* 2 Columns: Recent Foods + Recent Reservations */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Recent Foods */}
+                    <Card className="backdrop-blur-xl bg-white/90 border border-orange-100 shadow-sm rounded-2xl overflow-hidden">
+                      <CardHeader className="border-b border-orange-100/60 pb-3">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-base font-bold text-gray-900 flex items-center gap-2">
+                            <Utensils className="h-4 w-4 text-[#F47B20]" />
+                            جدیدترین غذاهای افزوده شده
+                          </CardTitle>
+                          <Badge variant="outline" className="text-xs font-normal">
+                            {toPersianDigits(foods.length)} غذا
+                          </Badge>
                         </div>
+                      </CardHeader>
+                      <CardContent className="p-4 space-y-3">
+                        {foods.slice(0, 5).map((food) => (
+                          <div
+                            key={food.id}
+                            className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-orange-50/70 border border-transparent hover:border-orange-100 transition-all duration-150"
+                          >
+                            <div className="relative h-12 w-12 rounded-xl overflow-hidden bg-orange-50 shrink-0 border border-orange-100 shadow-2xs">
+                              <FoodImage
+                                src={food.image_url}
+                                alt={food.name}
+                                fill
+                                className="object-cover"
+                              />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-bold text-sm text-gray-900 truncate">{food.name}</h4>
+                              <p className="text-xs font-medium text-emerald-600 mt-0.5">
+                                {formatPersianPrice(food.price)} تومان
+                              </p>
+                            </div>
+                            <div className="flex flex-col items-end gap-1 shrink-0">
+                              <Badge variant="outline" className="bg-orange-50/80 text-orange-800 text-[10px] border-orange-200">
+                                {food.category_name || "بدون گروه"}
+                              </Badge>
+                              {food.supports_extra_voucher && (
+                                <Badge variant="outline" className="bg-blue-50 text-blue-700 text-[10px] border-blue-200">
+                                  ژتون اضافی
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        ))}
                       </CardContent>
-                      <CardFooter>
+                      <CardFooter className="border-t border-orange-100/60 pt-3">
                         <Button
                           variant="ghost"
-                          className="w-full text-[#f97316] hover:text-orange-700"
+                          className="w-full text-[#F47B20] hover:text-[#E06A10] hover:bg-orange-50 font-bold text-xs"
                           onClick={() => setActiveTab("food")}
                         >
-                          مشاهده همه غذاها
+                          مشاهده و ویرایش همه غذاها ←
                         </Button>
                       </CardFooter>
                     </Card>
 
-                    <Card className="backdrop-blur-md bg-white/80 border-0 shadow-md">
-                      <CardHeader>
-                        <CardTitle>رزروهای اخیر</CardTitle>
+                    {/* Recent Reservations */}
+                    <Card className="backdrop-blur-xl bg-white/90 border border-orange-100 shadow-sm rounded-2xl overflow-hidden">
+                      <CardHeader className="border-b border-orange-100/60 pb-3">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-base font-bold text-gray-900 flex items-center gap-2">
+                            <Clock className="h-4 w-4 text-[#F47B20]" />
+                            آخرین رزروهای ثبت‌شده
+                          </CardTitle>
+                          <Badge variant="outline" className="text-xs font-normal">
+                            {toPersianDigits(reservationLogs.length)} ثبت شده
+                          </Badge>
+                        </div>
                       </CardHeader>
-                      <CardContent>
-                        <div className="space-y-4">
-                          {reservationLogs.slice(0, 5).map((log) => (
+                      <CardContent className="p-4 space-y-3">
+                        {reservationLogs.length === 0 ? (
+                          <div className="text-center py-8 text-gray-400 text-xs">
+                            هنوز هیچ رزروی ثبت نشده است
+                          </div>
+                        ) : (
+                          reservationLogs.slice(0, 5).map((log) => (
                             <div
                               key={log.id}
-                              className="flex items-center gap-3 p-2 rounded-lg hover:bg-orange-50 transition-colors"
+                              className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-orange-50/70 border border-transparent hover:border-orange-100 transition-all duration-150"
                             >
-                              <div className="relative h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center">
-                                <User className="h-5 w-5 text-[#f97316]" />
+                              <div className="relative h-10 w-10 rounded-xl bg-orange-100 text-[#F47B20] flex items-center justify-center shrink-0">
+                                <User className="h-5 w-5" />
                               </div>
-                              <div className="flex-1">
-                                <h4 className="font-medium">{log.student}</h4>
-                                <p className="text-sm text-gray-500">
-                                  {log.food} - {formatPersianDateTime(log.created_at)}
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-bold text-sm text-gray-900 truncate">{log.student}</h4>
+                                <p className="text-xs text-gray-500 mt-0.5 truncate">
+                                  {log.food} • {formatPersianDateTime(log.created_at)}
                                 </p>
                               </div>
-                              <Badge variant="outline" className={getStatusColor(log.status)}>
+                              <Badge variant="outline" className={`text-[10px] shrink-0 ${getStatusBadgeClass(log.status)}`}>
                                 {getStatusText(log.status)}
                               </Badge>
                             </div>
-                          ))}
-                        </div>
+                          ))
+                        )}
                       </CardContent>
-                      <CardFooter>
+                      <CardFooter className="border-t border-orange-100/60 pt-3">
                         <Button
                           variant="ghost"
-                          className="w-full text-[#f97316] hover:text-orange-700"
+                          className="w-full text-[#F47B20] hover:text-[#E06A10] hover:bg-orange-50 font-bold text-xs"
                           onClick={() => setActiveTab("analytics")}
                         >
-                          مشاهده همه رزروها
+                          مشاهده گزارش کامل رزروها ←
                         </Button>
                       </CardFooter>
                     </Card>
@@ -2147,744 +2774,1101 @@ export default function AdminDashboard() {
 
               {/* Food Management Tab */}
               {activeTab === "food" && (
-                <Card className="backdrop-blur-md bg-white/80 border-0 shadow-md">
-                  <CardHeader>
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                      <CardTitle>مدیریت غذاها</CardTitle>
-                      <Button onClick={handleAddFood} className="bg-[#f97316] hover:bg-orange-600 btn-hover-effect">
-                        <Plus className="w-4 h-4 ml-2" /> افزودن غذا
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>تصویر</TableHead>
-                            <TableHead>نام غذا</TableHead>
-                            <TableHead>دسته‌بندی</TableHead>
-                            <TableHead>توضیحات</TableHead>
-                            <TableHead>قیمت (تومان)</TableHead>
-                            <TableHead>ژتون اضافی</TableHead>
-                            <TableHead>عملیات</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {foods.length === 0 ? (
-                            <TableRow>
-                              <TableCell colSpan={7} className="text-center py-8 text-gray-500">
-                                هیچ غذایی یافت نشد
-                              </TableCell>
-                            </TableRow>
-                          ) : (
-                            foods.map((food) => (
-                              <TableRow key={food.id} className="hover:bg-orange-50/50 transition-colors">
-                                <TableCell>
-                                  <div className="relative h-12 w-12">
-                                    <Image
-                                      src={food.image_url || "/placeholder.svg?height=48&width=48"}
-                                      alt={food.name}
-                                      fill
-                                      className="object-contain rounded-md"
-                                    />
-                                  </div>
-                                </TableCell>
-                                <TableCell className="font-medium">{food.name}</TableCell>
-                                <TableCell>
-                                  <Badge variant="outline" className="bg-orange-50">
-                                    {food.category_name || "بدون دسته‌بندی"}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="max-w-[200px] truncate">{food.description}</TableCell>
-                                <TableCell>{food.price.toLocaleString()}</TableCell>
-                                <TableCell>
-                                  {food.supports_extra_voucher ? (
-                                    <Badge variant="outline" className="bg-blue-100 text-blue-700">
-                                      دارد
-                                    </Badge>
-                                  ) : (
-                                    <Badge variant="outline" className="bg-gray-100 text-gray-700">
-                                      ندارد
-                                    </Badge>
-                                  )}
-                                </TableCell>
-                                <TableCell>
-                                  <div className="flex space-x-2">
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => handleEditFood(food)}
-                                      className="btn-hover-effect"
-                                    >
-                                      <Edit className="w-4 h-4" />
-                                    </Button>
-                                    <Button
-                                      variant="destructive"
-                                      size="sm"
-                                      onClick={() => handleDeleteFood(food)}
-                                      className="btn-hover-effect"
-                                    >
-                                      <Trash className="w-4 h-4" />
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            ))
-                          )}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Categories Tab */}
-              {activeTab === "categories" && (
-                <Card className="backdrop-blur-md bg-white/80 border-0 shadow-md">
-                  <CardHeader>
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                      <CardTitle>مدیریت دسته‌بندی‌های غذا</CardTitle>
-                      <Button onClick={handleAddCategory} className="bg-[#f97316] hover:bg-orange-600 btn-hover-effect">
-                        <Plus className="w-4 h-4 ml-2" /> افزودن دسته‌بندی
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>نام دسته‌بندی</TableHead>
-                            <TableHead>توضیحات</TableHead>
-                            <TableHead>تاریخ ایجاد</TableHead>
-                            <TableHead>عملیات</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {categories.length === 0 ? (
-                            <TableRow>
-                              <TableCell colSpan={4} className="text-center py-8 text-gray-500">
-                                هیچ دسته‌بندی یافت نشد
-                              </TableCell>
-                            </TableRow>
-                          ) : (
-                            categories.map((category) => (
-                              <TableRow key={category.id} className="hover:bg-orange-50/50 transition-colors">
-                                <TableCell className="font-medium">{category.name}</TableCell>
-                                <TableCell>{category.description || "-"}</TableCell>
-                                <TableCell>{new Date(category.created_at).toLocaleDateString("fa-IR")}</TableCell>
-                                <TableCell>
-                                  <div className="flex space-x-2">
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => handleEditCategory(category)}
-                                      className="btn-hover-effect"
-                                    >
-                                      <Edit className="w-4 h-4" />
-                                    </Button>
-                                    <Button
-                                      variant="destructive"
-                                      size="sm"
-                                      onClick={() => handleDeleteCategory(category)}
-                                      className="btn-hover-effect"
-                                    >
-                                      <Trash className="w-4 h-4" />
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            ))
-                          )}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Template Menu Tab */}
-              {activeTab === "template-menu" && (
-                <Card className="backdrop-blur-md bg-white/80 border-0 shadow-md">
-                  <CardHeader>
-                    <CardTitle>مدیریت منوی الگو</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-col md:flex-row gap-4 mb-6">
-                      <Select value={selectedDay} onValueChange={setSelectedDay}>
-                        <SelectTrigger className="w-full md:w-[180px] form-input-focus">
-                          <SelectValue placeholder="انتخاب روز هفته" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {[
-                            { en: "Saturday", fa: "شنبه" },
-                            { en: "Sunday", fa: "یکشنبه" },
-                            { en: "Monday", fa: "دوشنبه" },
-                            { en: "Tuesday", fa: "سه‌شنبه" },
-                            { en: "Wednesday", fa: "چهارشنبه" },
-                            { en: "Thursday", fa: "پنج‌شنبه" },
-                            { en: "Friday", fa: "جمعه" },
-                          ].map((day) => (
-                            <SelectItem key={day.en} value={day.en}>
-                              {day.fa}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Select
-                        value={selectedMeal_type}
-                        onValueChange={(value: "lunch" | "dinner") => setSelectedMeal_type(value)}
-                      >
-                        <SelectTrigger className="w-full md:w-[180px] form-input-focus">
-                          <SelectValue placeholder="انتخاب نوع وعده" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="lunch">ناهار</SelectItem>
-                          <SelectItem value="dinner">شام</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Button
-                        onClick={() => handleAddMenuItem(true)}
-                        className="bg-[#f97316] hover:bg-orange-600 btn-hover-effect"
-                      >
-                        افزودن غذا به منو
-                      </Button>
-                    </div>
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>غذاها</TableHead>
-                            <TableHead>عملیات</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {!templateMenu || templateMenu.items.length === 0 ? (
-                            <TableRow>
-                              <TableCell colSpan={2} className="text-center py-8 text-gray-500">
-                                هیچ غذایی در منوی الگو برای این روز و وعده یافت نشد
-                              </TableCell>
-                            </TableRow>
-                          ) : (
-                            templateMenu.items.map((item: MenuItemSpec, index) => (
-                              <TableRow key={index} className="hover:bg-orange-50/50 transition-colors">
-                                <TableCell>
-                                  <div className="mb-2 p-2 rounded-lg">
-                                    <div className="flex items-center gap-2">
-                                      <span className="font-medium">{item.food?.name}</span>
-                                      {item.food.supports_extra_voucher && (
-                                        <Badge variant="outline" className="bg-blue-100 text-blue-700 text-xs">
-                                          ژتون اضافی
-                                        </Badge>
-                                      )}
-                                    </div>
-                                    <small className="text-gray-500">
-                                      {item.start_time} - {item.end_time}, ظرفیت: {item.daily_capacity}
-                                    </small>
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  <div className="flex space-x-2 mb-2">
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => handleEditMenuItem(item, true)}
-                                      className="btn-hover-effect"
-                                    >
-                                      <Edit className="w-4 h-4" />
-                                    </Button>
-                                    <Button
-                                      variant="destructive"
-                                      size="sm"
-                                      onClick={() => handleDeleteMenuItem(item.id, true)}
-                                      className="btn-hover-effect"
-                                    >
-                                      <Trash className="w-4 h-4" />
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            ))
-                          )}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Daily Menu Tab */}
-              {activeTab === "daily-menu" && (
-                <Card className="backdrop-blur-md bg-white/80 border-0 shadow-md">
-                  <CardHeader>
-                    <CardTitle>مدیریت منوی روزانه</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-col md:flex-row gap-4 mb-6">
-                      <DatePicker
-                        value={selectedDate}
-                        onChange={handleDateChange}
-                        calendar={persian}
-                        locale={persian_fa}
-                        calendarPosition="bottom-right"
-                        inputClass="w-full md:w-[180px] px-3 py-2 rounded-md border border-input bg-background text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 form-input-focus"
-                        containerClassName="w-full md:w-[180px]"
-                        placeholder="انتخاب تاریخ"
-                      />
-                      <Select
-                        value={selectedMeal_type}
-                        onValueChange={(value: "lunch" | "dinner") => setSelectedMeal_type(value)}
-                      >
-                        <SelectTrigger className="w-full md:w-[180px] form-input-focus">
-                          <SelectValue placeholder="انتخاب نوع وعده" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="lunch">ناهار</SelectItem>
-                          <SelectItem value="dinner">شام</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <Button
-                          onClick={() => handleAddMenuItem(false)}
-                          className="bg-[#f97316] hover:bg-orange-600 btn-hover-effect"
-                        >
-                          افزودن غذا به منو
-                        </Button>
-                        <Button
-                          onClick={handleUseTemplateForDaily}
-                          className="bg-[#f97316] hover:bg-orange-600 btn-hover-effect"
-                        >
-                          استفاده از منوی الگو
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>غذاها</TableHead>
-                            <TableHead>وضعیت</TableHead>
-                            <TableHead>عملیات</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {!dailyMenu || dailyMenu.items.length === 0 ? (
-                            <TableRow>
-                              <TableCell colSpan={3} className="text-center py-8 text-gray-500">
-                                هیچ غذایی در منوی روزانه برای این تاریخ و وعده یافت نشد
-                              </TableCell>
-                            </TableRow>
-                          ) : (
-                            dailyMenu.items.map((item: MenuItemSpec, index) => (
-                              <TableRow key={index} className="hover:bg-orange-50/50 transition-colors">
-                                <TableCell>
-                                  <div className="mb-2 p-2 rounded-lg">
-                                    <div className="flex items-center gap-2">
-                                      <span className="font-medium">{item.food?.name}</span>
-                                      {item.food.supports_extra_voucher && (
-                                        <Badge variant="outline" className="bg-blue-100 text-blue-700 text-xs">
-                                          ژتون اضافی
-                                        </Badge>
-                                      )}
-                                    </div>
-                                    <small className="text-gray-500">
-                                      {item.start_time} - {item.end_time}, ظرفیت: {item.daily_capacity}
-                                    </small>
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  <div className="flex items-center space-x-2 mb-2">
-                                    <Switch
-                                      checked={item.is_available}
-                                      onCheckedChange={(checked) => handleToggleAvailability(item.id, checked)}
-                                    />
-                                    <span className={item.is_available ? "text-green-600" : "text-red-500"}>
-                                      {item.is_available ? "فعال" : "غیرفعال"}
-                                    </span>
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  <div className="flex space-x-2 mb-2">
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => handleEditMenuItem(item, false)}
-                                      className="btn-hover-effect"
-                                    >
-                                      <Edit className="w-4 h-4" />
-                                    </Button>
-                                    <Button
-                                      variant="destructive"
-                                      size="sm"
-                                      onClick={() => handleDeleteMenuItem(item.id, false)}
-                                      className="btn-hover-effect"
-                                    >
-                                      <Trash className="w-4 h-4" />
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            ))
-                          )}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Students Management Tab */}
-              {activeTab === "students" && (
-                <Card className="backdrop-blur-md bg-white/80 border-0 shadow-md">
-                  <CardHeader>
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                      <CardTitle>مدیریت دانشجویان</CardTitle>
-                      <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto md:items-center">
-                        <Input
-                          value={studentSearch}
-                          onChange={(e) => setStudentSearch(e.target.value)}
-                          placeholder="جستجو دانشجو (نام، شماره دانشجویی، تلفن)"
-                          className="w-full md:w-80 form-input-focus"
-                          dir="rtl"
-                        />
-                        <Button onClick={handleAddStudent} className="bg-[#f97316] hover:bg-orange-600 btn-hover-effect">
-                          <Plus className="w-4 h-4 ml-2" /> افزودن دانشجو
-                        </Button>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>نام</TableHead>
-                            <TableHead>شماره دانشجویی</TableHead>
-                            <TableHead>تلفن</TableHead>
-                            <TableHead>امتیاز اعتبار</TableHead>
-                            <TableHead>وضعیت</TableHead>
-                            <TableHead>عملیات</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {filteredStudents.length === 0 ? (
-                            <TableRow>
-                              <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                                {studentSearch ? "نتیجه‌ای برای جستجو یافت نشد" : "هیچ دانشجویی یافت نشد"}
-                              </TableCell>
-                            </TableRow>
-                          ) : (
-                            filteredStudents.map((student) => (
-                              <TableRow key={student.id} className="hover:bg-orange-50/50 transition-colors">
-                                <TableCell className="font-medium">{student.name}</TableCell>
-                                <TableCell>{student.student_id}</TableCell>
-                                <TableCell>{student.phone || "-"}</TableCell>
-                                <TableCell>
-                                  <Badge
-                                    variant="outline"
-                                    className={
-                                      student.trust_score < 0
-                                        ? "bg-red-100 text-red-700"
-                                        : "bg-green-100 text-green-700"
-                                    }
-                                  >
-                                    {student.trust_score}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell>
-                                  <Badge
-                                    variant="outline"
-                                    className={
-                                      student.status === "active"
-                                        ? "bg-green-100 text-green-700"
-                                        : "bg-gray-100 text-gray-700"
-                                    }
-                                  >
-                                    {student.status === "active" ? "فعال" : "غیرفعال"}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell>
-                                  <div className="flex space-x-2">
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => handleEditStudent(student)}
-                                      className="btn-hover-effect"
-                                    >
-                                      <Edit className="w-4 h-4" />
-                                    </Button>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => handleRecoverTrustScore(student)}
-                                      className="btn-hover-effect bg-blue-50 hover:bg-blue-100"
-                                      title="بازیابی امتیاز اعتبار"
-                                      disabled={student.trust_score >= 0 || isTrustScoreSubmitting}
-                                    >
-                                      <ShieldCheck className="w-4 h-4 text-blue-600" />
-                                    </Button>
-                                    <Button
-                                      variant="destructive"
-                                      size="sm"
-                                      onClick={() => handleDeleteStudent(student)}
-                                      className="btn-hover-effect"
-                                    >
-                                      <Trash className="w-4 h-4" />
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            ))
-                          )}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Voucher Price Tab */}
-              {activeTab === "voucher-price" && (
-                <Card className="backdrop-blur-md bg-white/80 border-0 shadow-md">
-                  <CardHeader>
-                    <CardTitle>مدیریت قیمت ژتون</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-col md:flex-row justify-between items-center p-6 bg-orange-50/50 rounded-xl">
-                      <div className="flex items-center mb-4 md:mb-0">
-                        <div className="p-4 rounded-full bg-orange-100 mr-4">
-                          <DollarSign className="h-8 w-8 text-[#f97316]" />
-                        </div>
-                        <div>
-                          <h3 className="text-lg font-medium text-gray-700">قیمت فعلی ژتون</h3>
-                          <p className="text-2xl font-bold text-[#f97316]">{voucherPrice.toLocaleString()} تومان</p>
-                        </div>
-                      </div>
-                      <Button
-                        onClick={handleUpdateVoucherPrice}
-                        className="bg-[#f97316] hover:bg-orange-600 btn-hover-effect"
-                      >
-                        به‌روزرسانی قیمت
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Analytics Tab */}
-              {activeTab === "payments" && (
                 <div className="space-y-6">
-                  <Card className="backdrop-blur-md bg-white/80 border-0 shadow-md">
-                    <CardHeader>
-                      <CardTitle>مدیریت پرداخت‌ها</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <Tabs defaultValue="all" className="w-full">
-                        <TabsContent value="all" className="mt-4">
-                          <div className="space-y-4">
-                            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
-                              <div className="flex-1">
-                                <Input
-                                  type="text"
-                                  placeholder="جستجوی بر اساس شناسه پرداخت یا شماره کاربر"
-                                  className="w-full"
-                                  value={pagination.search}
-                                  onChange={(e) => {
-                                    setPagination(prev => ({
-                                      ...prev,
-                                      search: e.target.value
-                                    }))
-                                  }}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                      fetchPayments(1, pagination.search, pagination.status)
-                                    }
-                                  }}
-                                />
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Select
-                                  value={pagination.status}
-                                  onValueChange={(value: PaymentFilterStatus) => {
-                                    setPagination(prev => ({
-                                      ...prev,
-                                      status: value
-                                    }))
-                                    fetchPayments(1, pagination.search, value)
-                                  }}
-                                >
-                                  <SelectTrigger className="w-[180px]">
-                                    <SelectValue placeholder="وضعیت پرداخت" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="all">همه وضعیت‌ها</SelectItem>
-                                    <SelectItem value="pending">در انتظار پرداخت</SelectItem>
-                                    <SelectItem value="paid">پرداخت شده</SelectItem>
-                                    <SelectItem value="failed">ناموفق</SelectItem>
-                                    <SelectItem value="refunded">مسترد شده</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                <Button 
-                                  onClick={() => fetchPayments(1, pagination.search, pagination.status)}
-                                  disabled={paymentLoading}
-                                >
-                                  <Search className="ml-2 h-4 w-4" />
-                                  {paymentLoading ? 'در حال جستجو...' : 'جستجو'}
-                                </Button>
-                              </div>
-                            </div>
-                            <div className="rounded-md border">
-                              <Table>
-                                <TableHeader>
-                                  <TableRow>
-                                    <TableHead>شناسه پرداخت</TableHead>
-                                    <TableHead>کاربر</TableHead>
-                                    <TableHead>مبلغ (تومان)</TableHead>
-                                    <TableHead>وضعیت</TableHead>
-                                    <TableHead>تاریخ پرداخت</TableHead>
-                                    <TableHead>عملیات</TableHead>
-                                  </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                  {paymentLoading ? (
-                                    <TableRow>
-                                      <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                                        در حال بارگذاری اطلاعات پرداخت‌ها...
-                                      </TableCell>
-                                    </TableRow>
-                                  ) : payments.length === 0 ? (
-                                    <TableRow>
-                                      <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                                        موردی یافت نشد
-                                      </TableCell>
-                                    </TableRow>
-                                  ) : (
-                                    payments.map((payment) => (
-                                      <TableRow key={payment.id}>
-                                        <TableCell className="font-medium">{payment.id}</TableCell>
-                                        <TableCell>
-                                          <div>
-                                            <div>{payment.user.full_name}</div>
-                                            <div className="text-sm text-gray-500">{payment.user.phone_number}</div>
-                                          </div>
-                                        </TableCell>
-                                        <TableCell>{payment.amount.toLocaleString('fa-IR')} تومان</TableCell>
-                                        <TableCell>
-                                          <Badge 
-                                            variant={
-                                              payment.status === 'paid' ? 'default' : 
-                                              payment.status === 'pending' ? 'secondary' :
-                                              payment.status === 'refunded' ? 'outline' : 'destructive'
-                                            }
-                                          >
-                                            {payment.status === 'paid' ? 'پرداخت شده' :
-                                             payment.status === 'pending' ? 'در انتظار پرداخت' :
-                                             payment.status === 'refunded' ? 'مسترد شده' : 'ناموفق'}
-                                          </Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                          {new Date(payment.created_at).toLocaleString('fa-IR')}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                          <Button 
-                                            variant="outline" 
-                                            size="sm"
-                                            onClick={() => inquirePayment(payment.authority)}
-                                            disabled={paymentLoading}
-                                            className="ml-2"
-                                          >
-                                            استعلام وضعیت
-                                          </Button>
-                                        </TableCell>
-                                      </TableRow>
-                                    ))
-                                  )}
-                                </TableBody>
-                              </Table>
-                            </div>
-                            <div className="flex items-center justify-between px-2">
-                              <div className="text-sm text-muted-foreground">
-                                نمایش {(pagination.page - 1) * pagination.pageSize + 1} تا {
-                                  Math.min(pagination.page * pagination.pageSize, pagination.total)
-                                } از {pagination.total} مورد
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                <Button 
-                                  variant="outline" 
-                                  size="sm" 
-                                  onClick={() => fetchPayments(pagination.page - 1, pagination.search, pagination.status)}
-                                  disabled={!pagination.hasPrevious || paymentLoading}
-                                  className="px-3"
-                                >
-                                  <span className="mr-1">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                      <path d="m15 18-6-6 6-6"/>
-                                    </svg>
-                                  </span>
-                                  قبلی
-                                </Button>
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  onClick={() => fetchPayments(pagination.page + 1, pagination.search, pagination.status)}
-                                  disabled={!pagination.hasNext || paymentLoading}
-                                  className="px-3"
-                                >
-                                  بعدی
-                                  <span className="ml-1">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                      <path d="m9 18 6-6-6-6"/>
-                                    </svg>
-                                  </span>
-                                </Button>
-                              </div>
-                            </div>
+                  <Card className="backdrop-blur-xl bg-white/90 border border-orange-100 shadow-sm rounded-2xl overflow-hidden">
+                    <CardHeader className="border-b border-orange-100/60 pb-4">
+                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                        <div>
+                          <CardTitle className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                            <Utensils className="h-5 w-5 text-[#F47B20]" />
+                            مدیریت و فهرست غذاهای سلف
+                          </CardTitle>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            تعریف غذاهای جدید، تخصیص دسته‌بندی، قیمت‌گذاری و تعیین ژتون‌های مجاز برای هر غذا
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2.5">
+                          {/* Search Input */}
+                          <div className="relative w-full sm:w-64">
+                            <Search className="absolute right-3 top-2.5 h-4 w-4 text-gray-400" />
+                            <Input
+                              value={foodSearch}
+                              onChange={(e) => setFoodSearch(e.target.value)}
+                              placeholder="جستجوی نام یا توضیحات..."
+                              className="pr-9 rounded-xl form-input-focus text-xs h-9 bg-white"
+                            />
                           </div>
-                        </TabsContent>
-                      </Tabs>
+
+                          {/* Category Filter */}
+                          <Select value={foodCategoryFilter} onValueChange={setFoodCategoryFilter}>
+                            <SelectTrigger className="w-full sm:w-40 rounded-xl text-xs h-9 bg-white">
+                              <SelectValue placeholder="فیلتر دسته‌بندی" />
+                            </SelectTrigger>
+                            <SelectContent dir="rtl">
+                              <SelectItem value="all">همه دسته‌ها</SelectItem>
+                              <SelectItem value="uncategorized">بدون دسته‌بندی</SelectItem>
+                              {categories.map((c) => (
+                                <SelectItem key={c.id} value={c.id.toString()}>
+                                  {c.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+
+                          {/* Add Food Button */}
+                          <Button
+                            onClick={handleAddFood}
+                            className="bg-[#F47B20] hover:bg-[#E06A10] text-white shadow-sm flex items-center gap-1.5 rounded-xl text-xs font-semibold h-9 px-4"
+                          >
+                            <Plus className="w-4 h-4" /> افزودن غذای جدید
+                          </Button>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-orange-50/50 hover:bg-orange-50/50">
+                              <TableHead className="text-right font-bold text-gray-700 text-xs py-3.5 px-4">تصویر</TableHead>
+                              <TableHead className="text-right font-bold text-gray-700 text-xs py-3.5 px-4">نام غذا</TableHead>
+                              <TableHead className="text-right font-bold text-gray-700 text-xs py-3.5 px-4">دسته‌بندی</TableHead>
+                              <TableHead className="text-right font-bold text-gray-700 text-xs py-3.5 px-4">توضیحات</TableHead>
+                              <TableHead className="text-right font-bold text-gray-700 text-xs py-3.5 px-4">قیمت (تومان)</TableHead>
+                              <TableHead className="text-right font-bold text-gray-700 text-xs py-3.5 px-4">ژتون‌های مجاز</TableHead>
+                              <TableHead className="text-center font-bold text-gray-700 text-xs py-3.5 px-4">عملیات</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {filteredFoods.length === 0 ? (
+                              <TableRow>
+                                <TableCell colSpan={7} className="text-center py-12 text-gray-400">
+                                  <Utensils className="h-10 w-10 mx-auto text-gray-300 mb-2" />
+                                  <p className="text-sm">هیچ غذایی با این مشخصات یافت نشد</p>
+                                </TableCell>
+                              </TableRow>
+                            ) : (
+                              filteredFoods.map((food) => (
+                                <TableRow key={food.id} className="hover:bg-orange-50/40 transition-colors">
+                                  <TableCell className="py-3 px-4">
+                                    <div className="relative h-12 w-12 rounded-xl overflow-hidden bg-orange-50 border border-orange-100 shadow-xs">
+                                      <FoodImage
+                                        src={food.image_url}
+                                        alt={food.name}
+                                        fill
+                                        className="object-cover"
+                                      />
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="font-bold text-gray-900 py-3 px-4">
+                                    <div>{food.name}</div>
+                                    {food.supports_extra_voucher && (
+                                      <span className="inline-block mt-0.5 text-[10px] text-blue-600 bg-blue-50 px-2 py-0.2 rounded-full border border-blue-150">
+                                        پشتیبانی از ژتون اضافی
+                                      </span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="py-3 px-4">
+                                    <Badge variant="outline" className="bg-orange-50 text-orange-800 border-orange-200 text-xs">
+                                      {food.category_name || "بدون دسته‌بندی"}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="max-w-[200px] truncate text-xs text-gray-600 py-3 px-4">
+                                    {food.description || "-"}
+                                  </TableCell>
+                                  <TableCell className="font-bold text-gray-900 text-sm py-3 px-4">
+                                    {formatPersianPrice(food.price)}
+                                  </TableCell>
+                                  <TableCell className="py-3 px-4">
+                                    <div className="flex flex-wrap gap-1 max-w-[200px]">
+                                      {food.allowed_vouchers && food.allowed_vouchers.length > 0 ? (
+                                        food.allowed_vouchers.map((v) => (
+                                          <Badge
+                                            key={v.id}
+                                            variant="outline"
+                                            className="bg-orange-50 text-[#F47B20] border-orange-200 text-[10px] font-mono"
+                                          >
+                                            {v.code}
+                                          </Badge>
+                                        ))
+                                      ) : (
+                                        <span className="text-[11px] text-gray-400">همه ژتون‌ها</span>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="py-3 px-4 text-center">
+                                    <div className="flex items-center justify-center gap-1.5">
+                                      <Button
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => handleEditFood(food)}
+                                        title="ویرایش غذا"
+                                        className="h-8 w-8 rounded-lg text-blue-600 bg-blue-50/60 hover:bg-blue-100 hover:text-blue-700 border-blue-200/60"
+                                      >
+                                        <Edit className="w-3.5 h-3.5" />
+                                      </Button>
+                                      <Button
+                                        variant="destructive"
+                                        size="icon"
+                                        onClick={() => handleDeleteFood(food)}
+                                        title="حذف غذا"
+                                        className="h-8 w-8 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 hover:text-rose-700 border border-rose-200/60"
+                                      >
+                                        <Trash className="w-3.5 h-3.5" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
                     </CardContent>
                   </Card>
                 </div>
               )}
+
+              {/* Categories Tab */}
+              {activeTab === "categories" && (
+                <div className="space-y-6">
+                  <Card className="backdrop-blur-xl bg-white/90 border border-orange-100 shadow-sm rounded-2xl overflow-hidden">
+                    <CardHeader className="border-b border-orange-100/60 pb-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                          <CardTitle className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                            <Clipboard className="h-5 w-5 text-[#F47B20]" />
+                            مدیریت دسته‌بندی‌های منوی غذا
+                          </CardTitle>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            تعریف دسته‌بندی‌های غذایی (مانند خورش‌ها، کباب‌ها، خوراک و دسر) برای نظم‌بخشی به منوی سلف
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2.5">
+                          <div className="relative w-full sm:w-60">
+                            <Search className="absolute right-3 top-2.5 h-4 w-4 text-gray-400" />
+                            <Input
+                              value={categorySearch}
+                              onChange={(e) => setCategorySearch(e.target.value)}
+                              placeholder="جستجوی دسته‌بندی..."
+                              className="pr-9 rounded-xl form-input-focus text-xs h-9 bg-white"
+                            />
+                          </div>
+                          <Button
+                            onClick={handleAddCategory}
+                            className="bg-[#F47B20] hover:bg-[#E06A10] text-white shadow-sm flex items-center gap-1.5 rounded-xl text-xs font-semibold h-9 px-4 shrink-0"
+                          >
+                            <Plus className="w-4 h-4" /> افزودن دسته‌بندی
+                          </Button>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-orange-50/50 hover:bg-orange-50/50">
+                              <TableHead className="text-right font-bold text-gray-700 text-xs py-3.5 px-4">نام دسته‌بندی</TableHead>
+                              <TableHead className="text-right font-bold text-gray-700 text-xs py-3.5 px-4">توضیحات</TableHead>
+                              <TableHead className="text-right font-bold text-gray-700 text-xs py-3.5 px-4">تاریخ تعریف</TableHead>
+                              <TableHead className="text-center font-bold text-gray-700 text-xs py-3.5 px-4">عملیات</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {filteredCategories.length === 0 ? (
+                              <TableRow>
+                                <TableCell colSpan={4} className="text-center py-12 text-gray-400">
+                                  هیچ دسته‌بندی یافت نشد
+                                </TableCell>
+                              </TableRow>
+                            ) : (
+                              filteredCategories.map((category) => (
+                                <TableRow key={category.id} className="hover:bg-orange-50/40 transition-colors">
+                                  <TableCell className="font-bold text-gray-900 py-3.5 px-4 flex items-center gap-2">
+                                    <div className="h-7 w-7 rounded-lg bg-orange-100 text-[#F47B20] flex items-center justify-center font-bold text-xs">
+                                      {category.name[0]}
+                                    </div>
+                                    <span>{category.name}</span>
+                                  </TableCell>
+                                  <TableCell className="text-xs text-gray-600 py-3.5 px-4">{category.description || "-"}</TableCell>
+                                  <TableCell className="text-xs text-gray-500 py-3.5 px-4">
+                                    {toPersianDigits(new Date(category.created_at).toLocaleDateString("fa-IR"))}
+                                  </TableCell>
+                                  <TableCell className="py-3.5 px-4 text-center">
+                                    <div className="flex items-center justify-center gap-1.5">
+                                      <Button
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => handleEditCategory(category)}
+                                        title="ویرایش دسته‌بندی"
+                                        className="h-8 w-8 rounded-lg text-blue-600 bg-blue-50/60 hover:bg-blue-100 border-blue-200/60"
+                                      >
+                                        <Edit className="w-3.5 h-3.5" />
+                                      </Button>
+                                      <Button
+                                        variant="destructive"
+                                        size="icon"
+                                        onClick={() => handleDeleteCategory(category)}
+                                        title="حذف دسته‌بندی"
+                                        className="h-8 w-8 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200/60"
+                                      >
+                                        <Trash className="w-3.5 h-3.5" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
+              {/* Template Menu Tab */}
+              {activeTab === "template-menu" && (
+                <div className="space-y-6">
+                  <Card className="backdrop-blur-xl bg-white/90 border border-orange-100 shadow-sm rounded-2xl overflow-hidden">
+                    <CardHeader className="border-b border-orange-100/60 pb-4">
+                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                        <div>
+                          <CardTitle className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                            <Calendar className="h-5 w-5 text-[#F47B20]" />
+                            مدیریت منوی هفتگی الگو (پیش‌فرض)
+                          </CardTitle>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            تعریف برنامه غذایی ثابت هفتگی برای استفاده مکرر در روزهای سال بدون نیاز به تعریف مجدد
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2.5">
+                          <Select value={selectedDay} onValueChange={setSelectedDay}>
+                            <SelectTrigger className="w-full sm:w-36 rounded-xl text-xs h-9 bg-white">
+                              <SelectValue placeholder="انتخاب روز هفته" />
+                            </SelectTrigger>
+                            <SelectContent dir="rtl">
+                              {[
+                                { en: "Saturday", fa: "شنبه" },
+                                { en: "Sunday", fa: "یکشنبه" },
+                                { en: "Monday", fa: "دوشنبه" },
+                                { en: "Tuesday", fa: "سه‌شنبه" },
+                                { en: "Wednesday", fa: "چهارشنبه" },
+                                { en: "Thursday", fa: "پنج‌شنبه" },
+                                { en: "Friday", fa: "جمعه" },
+                              ].map((day) => (
+                                <SelectItem key={day.en} value={day.en}>
+                                  {day.fa}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+
+                          <Select
+                            value={selectedMeal_type}
+                            onValueChange={(value: "lunch" | "dinner") => setSelectedMeal_type(value)}
+                          >
+                            <SelectTrigger className="w-full sm:w-32 rounded-xl text-xs h-9 bg-white">
+                              <SelectValue placeholder="وعده غذایی" />
+                            </SelectTrigger>
+                            <SelectContent dir="rtl">
+                              <SelectItem value="lunch">ناهار</SelectItem>
+                              <SelectItem value="dinner">شام</SelectItem>
+                            </SelectContent>
+                          </Select>
+
+                          <Button
+                            onClick={() => handleAddMenuItem(true)}
+                            className="bg-[#F47B20] hover:bg-[#E06A10] text-white shadow-sm flex items-center gap-1.5 rounded-xl text-xs font-semibold h-9 px-4 shrink-0"
+                          >
+                            <Plus className="w-4 h-4" /> افزودن غذا به منوی الگو
+                          </Button>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-orange-50/50 hover:bg-orange-50/50">
+                              <TableHead className="text-right font-bold text-gray-700 text-xs py-3.5 px-4">عنوان غذا و جزئیات</TableHead>
+                              <TableHead className="text-right font-bold text-gray-700 text-xs py-3.5 px-4">بازه زمانی سرو</TableHead>
+                              <TableHead className="text-right font-bold text-gray-700 text-xs py-3.5 px-4">ظرفیت روزانه</TableHead>
+                              <TableHead className="text-center font-bold text-gray-700 text-xs py-3.5 px-4">عملیات</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {!templateMenu || templateMenu.items.length === 0 ? (
+                              <TableRow>
+                                <TableCell colSpan={4} className="text-center py-12 text-gray-400">
+                                  هیچ غذایی در منوی الگو برای این روز و وعده تنظیم نشده است
+                                </TableCell>
+                              </TableRow>
+                            ) : (
+                              templateMenu.items.map((item: MenuItemSpec, index) => (
+                                <TableRow key={index} className="hover:bg-orange-50/40 transition-colors">
+                                  <TableCell className="py-3 px-4">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-bold text-gray-900 text-sm">{item.food?.name}</span>
+                                      {item.food?.supports_extra_voucher && (
+                                        <Badge variant="outline" className="bg-blue-50 text-blue-700 text-[10px] border-blue-200">
+                                          ژتون اضافی
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    <p className="text-xs text-emerald-600 font-medium mt-0.5">
+                                      {formatPersianPrice(item.food?.price)} تومان
+                                    </p>
+                                  </TableCell>
+                                  <TableCell className="text-xs text-gray-600 py-3 px-4 font-mono dir-ltr text-right">
+                                    {toPersianDigits(item.start_time)} - {toPersianDigits(item.end_time)}
+                                  </TableCell>
+                                  <TableCell className="py-3 px-4">
+                                    <Badge variant="outline" className="bg-orange-50 text-[#F47B20] border-orange-200 font-bold text-xs">
+                                      {toPersianDigits(item.daily_capacity)} پرس
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="py-3 px-4 text-center">
+                                    <div className="flex items-center justify-center gap-1.5">
+                                      <Button
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => handleEditMenuItem(item, true)}
+                                        title="ویرایش آیتم"
+                                        className="h-8 w-8 rounded-lg text-blue-600 bg-blue-50/60 hover:bg-blue-100 border-blue-200/60"
+                                      >
+                                        <Edit className="w-3.5 h-3.5" />
+                                      </Button>
+                                      <Button
+                                        variant="destructive"
+                                        size="icon"
+                                        onClick={() => handleDeleteMenuItem(item.id, true)}
+                                        title="حذف آیتم"
+                                        className="h-8 w-8 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200/60"
+                                      >
+                                        <Trash className="w-3.5 h-3.5" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
+              {/* Daily Menu Tab */}
+              {activeTab === "daily-menu" && (
+                <div className="space-y-6">
+                  <Card className="backdrop-blur-xl bg-white/90 border border-orange-100 shadow-sm rounded-2xl overflow-hidden">
+                    <CardHeader className="border-b border-orange-100/60 pb-4">
+                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                        <div>
+                          <CardTitle className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                            <Sparkles className="h-5 w-5 text-[#F47B20]" />
+                            مدیریت منوی روزانه سلف
+                          </CardTitle>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            تنظیم غذاهای فعال برای هر روز تقویمی، مدیریت ظرفیت و فعال‌سازی سریع با منوی الگو
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2.5">
+                          <DatePicker
+                            value={selectedDate}
+                            onChange={handleDateChange}
+                            calendar={persian}
+                            locale={persian_fa}
+                            calendarPosition="bottom-right"
+                            inputClass="w-full sm:w-40 px-3 py-2 rounded-xl border border-input bg-white text-xs h-9 form-input-focus"
+                            containerClassName="w-full sm:w-40"
+                            placeholder="انتخاب تاریخ"
+                          />
+
+                          <Select
+                            value={selectedMeal_type}
+                            onValueChange={(value: "lunch" | "dinner") => setSelectedMeal_type(value)}
+                          >
+                            <SelectTrigger className="w-full sm:w-32 rounded-xl text-xs h-9 bg-white">
+                              <SelectValue placeholder="وعده غذایی" />
+                            </SelectTrigger>
+                            <SelectContent dir="rtl">
+                              <SelectItem value="lunch">ناهار</SelectItem>
+                              <SelectItem value="dinner">شام</SelectItem>
+                            </SelectContent>
+                          </Select>
+
+                          <Button
+                            onClick={() => handleAddMenuItem(false)}
+                            className="bg-[#F47B20] hover:bg-[#E06A10] text-white shadow-sm flex items-center gap-1.5 rounded-xl text-xs font-semibold h-9 px-4 shrink-0"
+                          >
+                            <Plus className="w-4 h-4" /> افزودن غذا
+                          </Button>
+
+                          <Button
+                            onClick={handleUseTemplateForDaily}
+                            variant="outline"
+                            className="bg-white hover:bg-orange-50 border-orange-200 text-gray-800 rounded-xl text-xs font-semibold h-9 px-3.5 shrink-0"
+                          >
+                            <Calendar className="w-4 h-4 ml-1.5 text-[#F47B20]" />
+                            استفاده از منوی الگو
+                          </Button>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-orange-50/50 hover:bg-orange-50/50">
+                              <TableHead className="text-right font-bold text-gray-700 text-xs py-3.5 px-4">عنوان غذا و جزئیات</TableHead>
+                              <TableHead className="text-right font-bold text-gray-700 text-xs py-3.5 px-4">بازه زمانی</TableHead>
+                              <TableHead className="text-right font-bold text-gray-700 text-xs py-3.5 px-4">ظرفیت کل</TableHead>
+                              <TableHead className="text-center font-bold text-gray-700 text-xs py-3.5 px-4">وضعیت فعال بودن</TableHead>
+                              <TableHead className="text-center font-bold text-gray-700 text-xs py-3.5 px-4">عملیات</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {!dailyMenu || dailyMenu.items.length === 0 ? (
+                              <TableRow>
+                                <TableCell colSpan={5} className="text-center py-12 text-gray-400">
+                                  هیچ غذایی در منوی روزانه برای این تاریخ و وعده تنظیم نشده است. با دکمه «استفاده از منوی الگو» به سرعت منو را پر کنید.
+                                </TableCell>
+                              </TableRow>
+                            ) : (
+                              dailyMenu.items.map((item: MenuItemSpec, index) => (
+                                <TableRow key={index} className="hover:bg-orange-50/40 transition-colors">
+                                  <TableCell className="py-3 px-4">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-bold text-gray-900 text-sm">{item.food?.name}</span>
+                                      {item.food?.supports_extra_voucher && (
+                                        <Badge variant="outline" className="bg-blue-50 text-blue-700 text-[10px] border-blue-200">
+                                          ژتون اضافی
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    <p className="text-xs text-emerald-600 font-medium mt-0.5">
+                                      {formatPersianPrice(item.food?.price)} تومان
+                                    </p>
+                                  </TableCell>
+                                  <TableCell className="text-xs text-gray-600 py-3 px-4 font-mono dir-ltr text-right">
+                                    {toPersianDigits(item.start_time)} - {toPersianDigits(item.end_time)}
+                                  </TableCell>
+                                  <TableCell className="py-3 px-4">
+                                    <Badge variant="outline" className="bg-orange-50 text-[#F47B20] border-orange-200 font-bold text-xs">
+                                      {toPersianDigits(item.daily_capacity)} پرس
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="py-3 px-4 text-center">
+                                    <div className="flex items-center justify-center gap-2">
+                                      <Switch
+                                        checked={item.is_available}
+                                        onCheckedChange={(checked) => handleToggleAvailability(item.id, checked)}
+                                      />
+                                      <span className={`text-xs font-bold ${item.is_available ? "text-emerald-600" : "text-rose-500"}`}>
+                                        {item.is_available ? "فعال در سلف" : "غیرفعال"}
+                                      </span>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="py-3 px-4 text-center">
+                                    <div className="flex items-center justify-center gap-1.5">
+                                      <Button
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => handleEditMenuItem(item, false)}
+                                        title="ویرایش آیتم"
+                                        className="h-8 w-8 rounded-lg text-blue-600 bg-blue-50/60 hover:bg-blue-100 border-blue-200/60"
+                                      >
+                                        <Edit className="w-3.5 h-3.5" />
+                                      </Button>
+                                      <Button
+                                        variant="destructive"
+                                        size="icon"
+                                        onClick={() => handleDeleteMenuItem(item.id, false)}
+                                        title="حذف آیتم"
+                                        className="h-8 w-8 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200/60"
+                                      >
+                                        <Trash className="w-3.5 h-3.5" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
+              {/* Vouchers Management Tab */}
+              {(activeTab === "vouchers" || activeTab === "voucher-price") && (
+                <div className="space-y-6">
+                  {/* Top Stats Overview */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <Card className="backdrop-blur-xl bg-white/90 border border-orange-100/70 shadow-xs hover:shadow-md transition-shadow rounded-2xl">
+                      <CardContent className="p-5 flex items-center justify-between">
+                        <div>
+                          <p className="text-xs text-muted-foreground font-semibold">انواع ژتون تعریف‌شده</p>
+                          <h3 className="text-2xl font-black text-gray-900 mt-1">
+                            {toPersianDigits(voucherTypes.length)} <span className="text-xs font-normal text-gray-500">نوع</span>
+                          </h3>
+                        </div>
+                        <div className="p-3 bg-gradient-to-br from-orange-400 to-[#F47B20] text-white rounded-2xl shadow-sm shadow-orange-500/20">
+                          <Ticket className="h-6 w-6" />
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="backdrop-blur-xl bg-white/90 border border-emerald-150 shadow-xs hover:shadow-md transition-shadow rounded-2xl">
+                      <CardContent className="p-5 flex items-center justify-between">
+                        <div>
+                          <p className="text-xs text-muted-foreground font-semibold">ژتون‌های فعال در سامانه</p>
+                          <h3 className="text-2xl font-black text-emerald-600 mt-1">
+                            {toPersianDigits(voucherTypes.filter((v) => v.is_active).length)} <span className="text-xs font-normal text-gray-500">مورد</span>
+                          </h3>
+                        </div>
+                        <div className="p-3 bg-gradient-to-br from-emerald-400 to-teal-500 text-white rounded-2xl shadow-sm shadow-emerald-500/20">
+                          <CheckCircle2 className="h-6 w-6" />
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="backdrop-blur-xl bg-white/90 border border-blue-150 shadow-xs hover:shadow-md transition-shadow rounded-2xl">
+                      <CardContent className="p-5 flex items-center justify-between">
+                        <div>
+                          <p className="text-xs text-muted-foreground font-semibold">بیشترین سقف یارانه</p>
+                          <h3 className="text-2xl font-black text-blue-600 mt-1">
+                            {voucherTypes.length > 0
+                              ? formatPersianPrice(Math.max(...voucherTypes.map((v) => Number(v.discount_amount))))
+                              : "۰"}{" "}
+                            <span className="text-xs font-normal text-gray-500">تومان</span>
+                          </h3>
+                        </div>
+                        <div className="p-3 bg-gradient-to-br from-blue-400 to-indigo-500 text-white rounded-2xl shadow-sm shadow-blue-500/20">
+                          <Sparkles className="h-6 w-6" />
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="backdrop-blur-xl bg-white/90 border border-purple-150 shadow-xs hover:shadow-md transition-shadow rounded-2xl">
+                      <CardContent className="p-5 flex items-center justify-between">
+                        <div>
+                          <p className="text-xs text-muted-foreground font-semibold">میانگین تخفیف ژتون</p>
+                          <h3 className="text-2xl font-black text-purple-600 mt-1">
+                            {voucherTypes.length > 0
+                              ? formatPersianPrice(
+                                  Math.round(
+                                    voucherTypes.reduce((acc, curr) => acc + Number(curr.discount_amount), 0) /
+                                      voucherTypes.length,
+                                  ),
+                                )
+                              : "۰"}{" "}
+                            <span className="text-xs font-normal text-gray-500">تومان</span>
+                          </h3>
+                        </div>
+                        <div className="p-3 bg-gradient-to-br from-purple-400 to-violet-500 text-white rounded-2xl shadow-sm shadow-purple-500/20">
+                          <DollarSign className="h-6 w-6" />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Main Vouchers Table Card */}
+                  <Card className="backdrop-blur-xl bg-white/90 border border-orange-100 shadow-sm rounded-2xl overflow-hidden">
+                    <CardHeader className="border-b border-orange-100/60 pb-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                          <CardTitle className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                            <Ticket className="h-5 w-5 text-[#F47B20]" />
+                            مدیریت انواع ژتون و تخفیف‌ها
+                          </CardTitle>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            تعریف ژتون‌های چندسطحی سامانه، مبالغ یارانه تخصیصی و فعال/غیرفعال کردن آنی برای سلف‌ها
+                          </p>
+                        </div>
+                        <Button
+                          onClick={handleOpenAddVoucher}
+                          className="bg-[#F47B20] hover:bg-[#E06A10] text-white shadow-sm flex items-center gap-1.5 rounded-xl text-xs font-semibold h-9 px-4"
+                        >
+                          <Plus className="h-4 w-4" />
+                          افزودن ژتون جدید
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-orange-50/50 hover:bg-orange-50/50">
+                              <TableHead className="text-right font-bold text-gray-700 text-xs py-3.5 px-4">کد شناسه</TableHead>
+                              <TableHead className="text-right font-bold text-gray-700 text-xs py-3.5 px-4">عنوان نمایشی</TableHead>
+                              <TableHead className="text-right font-bold text-gray-700 text-xs py-3.5 px-4">مبلغ یارانه / تخفیف</TableHead>
+                              <TableHead className="text-right font-bold text-gray-700 text-xs py-3.5 px-4">توضیحات و کاربرد</TableHead>
+                              <TableHead className="text-right font-bold text-gray-700 text-xs py-3.5 px-4">غذاهای مجاز</TableHead>
+                              <TableHead className="text-center font-bold text-gray-700 text-xs py-3.5 px-4">وضعیت فعال</TableHead>
+                              <TableHead className="text-center font-bold text-gray-700 text-xs py-3.5 px-4">عملیات</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {voucherTypes.length === 0 ? (
+                              <TableRow>
+                                <TableCell colSpan={7} className="text-center py-12 text-gray-400">
+                                  هیچ ژتونی تعریف نشده است. با دکمه «افزودن ژتون جدید» اولین ژتون را ایجاد کنید.
+                                </TableCell>
+                              </TableRow>
+                            ) : (
+                              voucherTypes.map((vt) => {
+                                const eligibleFoodsCount = foods.filter((f) =>
+                                  f.allowed_vouchers?.some((v) => v.id === vt.id),
+                                ).length
+
+                                return (
+                                  <TableRow key={vt.id} className="hover:bg-orange-50/40 transition-colors">
+                                    <TableCell className="py-3 px-4">
+                                      <Badge variant="outline" className="font-mono bg-orange-50 text-[#F47B20] border-orange-200 text-xs">
+                                        {toPersianDigits(vt.code)}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell className="font-bold text-gray-900 text-sm py-3 px-4">
+                                      {vt.name}
+                                    </TableCell>
+                                    <TableCell className="py-3 px-4">
+                                      <span className="font-extrabold text-emerald-600 text-sm">
+                                        {formatPersianPrice(vt.discount_amount)} تومان
+                                      </span>
+                                    </TableCell>
+                                    <TableCell className="text-xs text-gray-600 max-w-[200px] truncate py-3 px-4">
+                                      {vt.description || "-"}
+                                    </TableCell>
+                                    <TableCell className="py-3 px-4">
+                                      <Badge variant="outline" className="bg-gray-50 text-gray-700 text-xs border-gray-200">
+                                        {toPersianDigits(eligibleFoodsCount)} غذای مجاز
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell className="py-3 px-4 text-center">
+                                      <div className="flex items-center justify-center gap-2">
+                                        <Switch
+                                          checked={vt.is_active}
+                                          onCheckedChange={() => handleToggleVoucherActive(vt)}
+                                        />
+                                        <span className={`text-xs font-bold ${vt.is_active ? "text-emerald-600" : "text-gray-400"}`}>
+                                          {vt.is_active ? "فعال" : "غیرفعال"}
+                                        </span>
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="py-3 px-4 text-center">
+                                      <div className="flex items-center justify-center gap-1.5">
+                                        <Button
+                                          variant="outline"
+                                          size="icon"
+                                          onClick={() => handleOpenEditVoucher(vt)}
+                                          title="ویرایش ژتون"
+                                          className="h-8 w-8 rounded-lg text-blue-600 bg-blue-50/60 hover:bg-blue-100 border-blue-200/60"
+                                        >
+                                          <Edit className="w-3.5 h-3.5" />
+                                        </Button>
+                                        <Button
+                                          variant="destructive"
+                                          size="icon"
+                                          onClick={() => handleOpenDeleteVoucher(vt)}
+                                          title="حذف ژتون"
+                                          className="h-8 w-8 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200/60"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </Button>
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                )
+                              })
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
+              {/* Students Management Tab */}
+              {activeTab === "students" && (
+                <div className="space-y-6">
+                  <Card className="backdrop-blur-xl bg-white/90 border border-orange-100 shadow-sm rounded-2xl overflow-hidden">
+                    <CardHeader className="border-b border-orange-100/60 pb-4">
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                          <CardTitle className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                            <User className="h-5 w-5 text-[#F47B20]" />
+                            مدیریت و پرونده دانشجویان
+                          </CardTitle>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            مشاهده اطلاعات هویتی، امتیاز اعتبار، دانشکده و مدیریت سقف رزرو کاربران
+                          </p>
+                        </div>
+                        <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center">
+                          <div className="relative w-full sm:w-72">
+                            <Search className="absolute right-3 top-2.5 h-4 w-4 text-gray-400" />
+                            <Input
+                              value={studentSearch}
+                              onChange={(e) => setStudentSearch(e.target.value)}
+                              placeholder="جستجو (نام، شماره دانشجویی، تلفن)..."
+                              className="pr-9 rounded-xl form-input-focus text-xs h-9 bg-white"
+                              dir="rtl"
+                            />
+                          </div>
+                          <Button
+                            onClick={handleAddStudent}
+                            className="bg-[#F47B20] hover:bg-[#E06A10] text-white shadow-sm flex items-center gap-1.5 rounded-xl text-xs font-semibold h-9 px-4 shrink-0"
+                          >
+                            <Plus className="w-4 h-4 ml-1" /> افزودن دانشجو
+                          </Button>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-orange-50/50 hover:bg-orange-50/50">
+                              <TableHead className="text-right font-bold text-gray-700 text-xs py-3.5 px-4">دانشجو</TableHead>
+                              <TableHead className="text-right font-bold text-gray-700 text-xs py-3.5 px-4">شماره دانشجویی</TableHead>
+                              <TableHead className="text-right font-bold text-gray-700 text-xs py-3.5 px-4">دانشکده</TableHead>
+                              <TableHead className="text-right font-bold text-gray-700 text-xs py-3.5 px-4">اطلاعات تماس</TableHead>
+                              <TableHead className="text-center font-bold text-gray-700 text-xs py-3.5 px-4">امتیاز اعتبار</TableHead>
+                              <TableHead className="text-center font-bold text-gray-700 text-xs py-3.5 px-4">وضعیت</TableHead>
+                              <TableHead className="text-center font-bold text-gray-700 text-xs py-3.5 px-4">عملیات</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {filteredStudents.length === 0 ? (
+                              <TableRow>
+                                <TableCell colSpan={7} className="text-center py-12 text-gray-400">
+                                  هیچ دانشجویی یافت نشد
+                                </TableCell>
+                              </TableRow>
+                            ) : (
+                              filteredStudents.map((student) => (
+                                <TableRow key={student.id} className="hover:bg-orange-50/40 transition-colors">
+                                  <TableCell className="font-bold text-gray-900 py-3.5 px-4">
+                                    <div className="flex items-center gap-2.5">
+                                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-orange-100 to-amber-100 text-[#F47B20] flex items-center justify-center font-bold text-xs shrink-0">
+                                        {student.name[0]}
+                                      </div>
+                                      <span>{student.name}</span>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="font-mono text-xs text-gray-600 py-3.5 px-4">{toPersianDigits(student.student_id)}</TableCell>
+                                  <TableCell className="text-xs text-gray-600 py-3.5 px-4">{student.department}</TableCell>
+                                  <TableCell className="text-xs text-gray-500 py-3.5 px-4">
+                                    <div>{toPersianDigits(student.phone)}</div>
+                                    <div className="text-[10px] text-gray-400">{student.email}</div>
+                                  </TableCell>
+                                  <TableCell className="py-3.5 px-4 text-center">
+                                    <div className="flex items-center justify-center gap-1.5">
+                                      <Badge
+                                        variant="outline"
+                                        className={`font-bold text-xs ${
+                                          student.trust_score >= 80
+                                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                            : student.trust_score >= 50
+                                            ? "bg-amber-50 text-amber-700 border-amber-200"
+                                            : "bg-rose-50 text-rose-700 border-rose-200"
+                                        }`}
+                                      >
+                                        {toPersianDigits(student.trust_score)}
+                                      </Badge>
+                                      {student.trust_score < 100 && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => handleRecoverTrustScore(student)}
+                                          className="text-xs h-7 px-2 text-[#F47B20] hover:text-[#E06A10] hover:bg-orange-50"
+                                        >
+                                          بازیابی
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="py-3.5 px-4 text-center">
+                                    <Badge
+                                      variant="outline"
+                                      className={`text-[10px] ${
+                                        student.status === "active"
+                                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                          : "bg-gray-50 text-gray-500 border-gray-200"
+                                      }`}
+                                    >
+                                      {student.status === "active" ? "فعال" : "غیرفعال"}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="py-3.5 px-4 text-center">
+                                    <div className="flex items-center justify-center gap-1.5">
+                                      <Button
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => handleEditStudent(student)}
+                                        title="ویرایش دانشجو"
+                                        className="h-8 w-8 rounded-lg text-blue-600 bg-blue-50/60 hover:bg-blue-100 border-blue-200/60"
+                                      >
+                                        <Edit className="w-3.5 h-3.5" />
+                                      </Button>
+                                      <Button
+                                        variant="destructive"
+                                        size="icon"
+                                        onClick={() => handleDeleteStudent(student)}
+                                        title="حذف دانشجو"
+                                        className="h-8 w-8 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200/60"
+                                      >
+                                        <Trash className="w-3.5 h-3.5" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
+              {/* Payments Tab */}
+              {activeTab === "payments" && (
+                <div className="space-y-6">
+                  <Card className="backdrop-blur-xl bg-white/90 border border-orange-100 shadow-sm rounded-2xl overflow-hidden">
+                    <CardHeader className="border-b border-orange-100/60 pb-4">
+                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                        <div>
+                          <CardTitle className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                            <DollarSign className="h-5 w-5 text-[#F47B20]" />
+                            مدیریت تراکنش‌ها و پرداخت‌های بانکی
+                          </CardTitle>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            پیگیری وضعیت تراکنش‌ها، شماره پیگیری شاپرک و استعلام آنی درگاه
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2.5">
+                          <div className="relative w-full sm:w-64">
+                            <Search className="absolute right-3 top-2.5 h-4 w-4 text-gray-400" />
+                            <Input
+                              type="text"
+                              placeholder="شناسه پرداخت یا شماره کاربر..."
+                              className="pr-9 rounded-xl form-input-focus text-xs h-9 bg-white"
+                              value={pagination.search}
+                              onChange={(e) => {
+                                setPagination((prev) => ({
+                                  ...prev,
+                                  search: e.target.value,
+                                }))
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  fetchPayments(1, pagination.search, pagination.status)
+                                }
+                              }}
+                            />
+                          </div>
+                          <Select
+                            value={pagination.status}
+                            onValueChange={(value: PaymentFilterStatus) => {
+                              setPagination((prev) => ({
+                                ...prev,
+                                status: value,
+                              }))
+                              fetchPayments(1, pagination.search, value)
+                            }}
+                          >
+                            <SelectTrigger className="w-full sm:w-40 rounded-xl text-xs h-9 bg-white">
+                              <SelectValue placeholder="وضعیت تراکنش" />
+                            </SelectTrigger>
+                            <SelectContent dir="rtl">
+                              <SelectItem value="all">همه وضعیت‌ها</SelectItem>
+                              <SelectItem value="pending">در انتظار پرداخت</SelectItem>
+                              <SelectItem value="paid">پرداخت شده</SelectItem>
+                              <SelectItem value="failed">ناموفق</SelectItem>
+                              <SelectItem value="refunded">مسترد شده</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            onClick={() => fetchPayments(1, pagination.search, pagination.status)}
+                            disabled={paymentLoading}
+                            className="bg-[#F47B20] hover:bg-[#E06A10] text-white shadow-sm flex items-center gap-1.5 rounded-xl text-xs font-semibold h-9 px-4 shrink-0"
+                          >
+                            <Search className="h-4 w-4 ml-1" />
+                            {paymentLoading ? "در حال جستجو..." : "جستجو"}
+                          </Button>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-orange-50/50 hover:bg-orange-50/50">
+                              <TableHead className="text-right font-bold text-gray-700 text-xs py-3.5 px-4">شناسه پرداخت</TableHead>
+                              <TableHead className="text-right font-bold text-gray-700 text-xs py-3.5 px-4">دانشجو / کاربر</TableHead>
+                              <TableHead className="text-right font-bold text-gray-700 text-xs py-3.5 px-4">مبلغ (تومان)</TableHead>
+                              <TableHead className="text-center font-bold text-gray-700 text-xs py-3.5 px-4">وضعیت</TableHead>
+                              <TableHead className="text-right font-bold text-gray-700 text-xs py-3.5 px-4">تاریخ پرداخت</TableHead>
+                              <TableHead className="text-center font-bold text-gray-700 text-xs py-3.5 px-4">عملیات</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {paymentLoading ? (
+                              <TableRow>
+                                <TableCell colSpan={6} className="text-center py-12 text-gray-400">
+                                  در حال بارگذاری اطلاعات پرداخت‌ها...
+                                </TableCell>
+                              </TableRow>
+                            ) : payments.length === 0 ? (
+                              <TableRow>
+                                <TableCell colSpan={6} className="text-center py-12 text-gray-400">
+                                  هیچ تراکنشی یافت نشد
+                                </TableCell>
+                              </TableRow>
+                            ) : (
+                              payments.map((payment) => (
+                                <TableRow key={payment.id} className="hover:bg-orange-50/40 transition-colors">
+                                  <TableCell className="font-mono text-xs text-gray-700 py-3.5 px-4">{toPersianDigits(payment.id)}</TableCell>
+                                  <TableCell className="py-3.5 px-4">
+                                    <div className="font-bold text-gray-900 text-sm">{payment.user.full_name}</div>
+                                    <div className="text-xs text-gray-400">{toPersianDigits(payment.user.phone_number)}</div>
+                                  </TableCell>
+                                  <TableCell className="font-bold text-gray-900 text-sm py-3.5 px-4">
+                                    {formatPersianPrice(payment.amount)} تومان
+                                  </TableCell>
+                                  <TableCell className="py-3.5 px-4 text-center">
+                                    <Badge
+                                      variant="outline"
+                                      className={`text-xs ${
+                                        payment.status === "paid"
+                                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                          : payment.status === "pending"
+                                          ? "bg-amber-50 text-amber-700 border-amber-200"
+                                          : payment.status === "refunded"
+                                          ? "bg-blue-50 text-blue-700 border-blue-200"
+                                          : "bg-rose-50 text-rose-700 border-rose-200"
+                                      }`}
+                                    >
+                                      {payment.status === "paid"
+                                        ? "پرداخت شده"
+                                        : payment.status === "pending"
+                                        ? "در انتظار پرداخت"
+                                        : payment.status === "refunded"
+                                        ? "مسترد شده"
+                                        : "ناموفق"}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="text-xs text-gray-600 py-3.5 px-4">
+                                    {toPersianDigits(new Date(payment.created_at).toLocaleString("fa-IR"))}
+                                  </TableCell>
+                                  <TableCell className="py-3.5 px-4 text-center">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => inquirePayment(payment.authority)}
+                                      disabled={paymentLoading}
+                                      className="rounded-lg text-xs h-8 border-orange-200 hover:bg-orange-50 text-[#F47B20]"
+                                    >
+                                      استعلام وضعیت
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                      {/* Pagination Bar */}
+                      <div className="flex items-center justify-between p-4 border-t border-orange-100/60 bg-orange-50/20">
+                        <div className="text-xs text-muted-foreground">
+                          نمایش {toPersianDigits((pagination.page - 1) * pagination.pageSize + 1)} تا{" "}
+                          {toPersianDigits(Math.min(pagination.page * pagination.pageSize, pagination.total))} از {toPersianDigits(pagination.total)} تراکنش
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => fetchPayments(pagination.page - 1, pagination.search, pagination.status)}
+                            disabled={!pagination.hasPrevious || paymentLoading}
+                            className="rounded-lg text-xs h-8 px-3"
+                          >
+                            <ChevronRight className="w-4 h-4 ml-1" />
+                            قبلی
+                          </Button>
+                          <span className="text-xs font-bold text-gray-700 px-2">صفحه {toPersianDigits(pagination.page)}</span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => fetchPayments(pagination.page + 1, pagination.search, pagination.status)}
+                            disabled={!pagination.hasNext || paymentLoading}
+                            className="rounded-lg text-xs h-8 px-3"
+                          >
+                            بعدی
+                            <ChevronLeft className="w-4 h-4 mr-1" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
+              {/* Analytics Tab */}
               {activeTab === "analytics" && (
                 <div className="space-y-6">
-                  <Card className="backdrop-blur-md bg-white/80 border-0 shadow-md">
-                    <CardHeader>
-                      <CardTitle>آمار و گزارشات</CardTitle>
+                  <Card className="backdrop-blur-xl bg-white/90 border border-orange-100 shadow-sm rounded-2xl overflow-hidden">
+                    <CardHeader className="border-b border-orange-100/60 pb-4">
+                      <CardTitle className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                        <BarChart2 className="h-5 w-5 text-[#F47B20]" />
+                        آمار، گزارشات و تحلیل مصرف غذای دانشگاه
+                      </CardTitle>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        تحلیل نموداری سفارشات روزانه و فهرست کامل گزارش رزروهای دانشجویان
+                      </p>
                     </CardHeader>
-                    <CardContent>
-                      <Tabs defaultValue="reservation-logs">
-                        <TabsList className="mb-4">
-                          <TabsTrigger value="reservation-logs">گزارش رزروها</TabsTrigger>
-                          <TabsTrigger value="daily-orders">آمار سفارشات روزانه</TabsTrigger>
+                    <CardContent className="p-4 sm:p-6">
+                      <Tabs defaultValue="reservation-logs" className="w-full">
+                        <TabsList className="mb-4 bg-orange-50/60 p-1 rounded-xl">
+                          <TabsTrigger value="reservation-logs" className="rounded-lg text-xs">گزارش کلی رزروها</TabsTrigger>
+                          <TabsTrigger value="daily-orders" className="rounded-lg text-xs">نمودار سفارشات روزانه</TabsTrigger>
                         </TabsList>
                         <TabsContent value="reservation-logs">
-                          <div className="overflow-x-auto">
+                          <div className="overflow-x-auto rounded-xl border border-orange-100">
                             <Table>
                               <TableHeader>
-                                <TableRow>
-                                  <TableHead>شناسه کاربر</TableHead>
-                                  <TableHead>نام غذا</TableHead>
-                                  <TableHead>تاریخ و زمان رزرو</TableHead>
-                                  <TableHead>وضعیت</TableHead>
+                                <TableRow className="bg-orange-50/50 hover:bg-orange-50/50">
+                                  <TableHead className="text-right font-bold text-gray-700 text-xs py-3.5 px-4">شناسه / دانشجو</TableHead>
+                                  <TableHead className="text-right font-bold text-gray-700 text-xs py-3.5 px-4">نام غذا</TableHead>
+                                  <TableHead className="text-right font-bold text-gray-700 text-xs py-3.5 px-4">تاریخ و زمان رزرو</TableHead>
+                                  <TableHead className="text-center font-bold text-gray-700 text-xs py-3.5 px-4">وضعیت سفارش</TableHead>
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
                                 {reservationLogs.length === 0 ? (
                                   <TableRow>
-                                    <TableCell colSpan={4} className="text-center py-8 text-gray-500">
+                                    <TableCell colSpan={4} className="text-center py-12 text-gray-400">
                                       هیچ رزروی یافت نشد
                                     </TableCell>
                                   </TableRow>
                                 ) : (
                                   reservationLogs.map((log) => (
-                                    <TableRow key={log.id} className="hover:bg-orange-50/50 transition-colors">
-                                      <TableCell>{log.student}</TableCell>
-                                      <TableCell>{log.food}</TableCell>
-                                      <TableCell>{formatPersianDateTime(log.created_at)}</TableCell>
-                                      <TableCell>
-                                        <Badge variant="outline" className={getStatusColor(log.status)}>
+                                    <TableRow key={log.id} className="hover:bg-orange-50/40 transition-colors">
+                                      <TableCell className="font-bold text-gray-900 py-3.5 px-4">{log.student}</TableCell>
+                                      <TableCell className="text-sm text-gray-800 py-3.5 px-4">{log.food}</TableCell>
+                                      <TableCell className="text-xs text-gray-600 py-3.5 px-4">
+                                        {formatPersianDateTime(log.created_at)}
+                                      </TableCell>
+                                      <TableCell className="py-3.5 px-4 text-center">
+                                        <Badge variant="outline" className={`text-xs ${getStatusBadgeClass(log.status)}`}>
                                           {getStatusText(log.status)}
                                         </Badge>
                                       </TableCell>
@@ -2896,7 +3880,7 @@ export default function AdminDashboard() {
                           </div>
                         </TabsContent>
                         <TabsContent value="daily-orders">
-                          <div className="w-full h-[400px]">
+                          <div className="w-full h-[400px] p-2">
                             <Line data={getPast7DaysOrderData()} options={chartOptions} />
                           </div>
                         </TabsContent>
@@ -2911,150 +3895,204 @@ export default function AdminDashboard() {
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[425px] backdrop-blur-md bg-white/90 border-0 shadow-xl">
+        <DialogContent className="sm:max-w-[580px] p-0 overflow-hidden backdrop-blur-xl bg-white border border-orange-100/90 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.25)] rounded-3xl" dir="rtl">
           {dialogContent}
-          <DialogFooter>
-            <Button variant="outline" onClick={closeDialog}>
-              بستن
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
+      {/* Category Dialog */}
       <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
-        <DialogContent className="sm:max-w-[425px] backdrop-blur-md bg-white/90 border-0 shadow-xl">
-          <DialogHeader>
-            <DialogTitle>{currentCategory ? "ویرایش دسته‌بندی" : "افزودن دسته‌بندی جدید"}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4" dir="rtl">
-            <div className="space-y-2">
-              <Label htmlFor="name">نام دسته‌بندی</Label>
+        <DialogContent className="sm:max-w-[480px] p-0 overflow-hidden backdrop-blur-xl bg-white border border-orange-100/90 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.25)] rounded-3xl" dir="rtl">
+          <div className="p-5 sm:p-6 pb-4 border-b border-orange-100/80 bg-white flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-orange-500/10 to-amber-500/20 text-[#F47B20] border border-orange-200/50 flex items-center justify-center shrink-0 shadow-xs">
+              <Clipboard className="h-5 w-5" />
+            </div>
+            <div>
+              <DialogTitle className="text-base sm:text-lg font-black text-gray-900 tracking-tight">
+                {currentCategory ? "ویرایش دسته‌بندی" : "افزودن دسته‌بندی جدید"}
+              </DialogTitle>
+              <DialogDescription className="text-xs text-gray-500 mt-0.5">دسته‌بندی‌ها برای طبقه‌بندی غذاهای سلف به کار می‌روند</DialogDescription>
+            </div>
+          </div>
+          <div className="p-5 sm:p-6 space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="name" className="text-xs font-bold text-gray-700">نام دسته‌بندی <span className="text-rose-500">*</span></Label>
               <Input
                 id="name"
                 name="name"
                 value={categoryFormData.name}
                 onChange={handleCategoryInputChange}
-                placeholder="نام دسته‌بندی را وارد کنید"
-                className="form-input-focus"
+                placeholder="مثال: غذاهای سنتی و خورشت‌ها"
+                className="form-input-focus rounded-xl h-11 text-sm bg-gray-50/50 hover:bg-white focus:bg-white transition-colors"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="description">توضیحات (اختیاری)</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="description" className="text-xs font-bold text-gray-700">توضیحات (اختیاری)</Label>
               <Textarea
                 id="description"
                 name="description"
                 value={categoryFormData.description || ""}
                 onChange={handleCategoryInputChange}
-                placeholder="توضیحات دسته‌بندی را وارد کنید"
+                placeholder="توضیح کوتاه درباره این گروه غذایی..."
                 rows={3}
-                className="form-input-focus"
+                className="form-input-focus rounded-xl text-sm bg-gray-50/50 hover:bg-white focus:bg-white transition-colors"
               />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCategoryDialogOpen(false)} disabled={isCategorySubmitting}>
+          <div className="p-4 sm:p-5 border-t border-gray-100 bg-gray-50/80 flex items-center justify-end gap-2.5">
+            <Button
+              variant="outline"
+              onClick={() => setCategoryDialogOpen(false)}
+              disabled={isCategorySubmitting}
+              className="rounded-xl border-gray-200 h-11 px-5 text-gray-700 hover:bg-gray-100 font-semibold text-xs"
+            >
               انصراف
             </Button>
             <Button
               onClick={handleCategorySubmit}
-              className="bg-[#f97316] hover:bg-orange-600 btn-hover-effect"
+              className="bg-gradient-to-r from-[#F47B20] to-[#E06A10] hover:from-[#E06A10] hover:to-[#D05A00] text-white rounded-xl font-bold h-11 px-6 shadow-md shadow-orange-500/20 text-xs flex items-center gap-1.5"
               disabled={isCategorySubmitting}
             >
-              {isCategorySubmitting ? "در حال ذخیره..." : currentCategory ? "به‌روزرسانی" : "افزودن"}
+              <Check className="w-4 h-4 ml-0.5" />
+              {isCategorySubmitting ? "در حال ذخیره..." : currentCategory ? "به‌روزرسانی دسته‌بندی" : "افزودن دسته‌بندی"}
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 
+      {/* Category Delete Dialog */}
       <Dialog open={categoryDeleteDialogOpen} onOpenChange={setCategoryDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-[425px] backdrop-blur-md bg-white/90 border-0 shadow-xl">
-          <DialogHeader>
-            <DialogTitle>حذف دسته‌بندی</DialogTitle>
-          </DialogHeader>
-          <div className="py-4" dir="rtl">
-            <p>آیا از حذف دسته‌بندی &quot;{currentCategory?.name}&quot; اطمینان دارید؟</p>
-            <p className="text-sm text-red-500 mt-2">
-              توجه: اگر این دسته‌بندی به یک یا چند غذا اختصاص داده شده باشد، قابل حذف نخواهد بود.
-            </p>
+        <DialogContent className="sm:max-w-[440px] p-0 overflow-hidden backdrop-blur-xl bg-white border border-rose-100 shadow-[0_25px_60px_-15px_rgba(225,29,72,0.2)] rounded-3xl" dir="rtl">
+          <div className="p-5 sm:p-6 pb-4 border-b border-rose-100 bg-white flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-rose-50 border border-rose-200/70 text-rose-600 flex items-center justify-center shrink-0 shadow-xs">
+              <Trash2 className="h-5 w-5" />
+            </div>
+            <div>
+              <DialogTitle className="text-base sm:text-lg font-black text-rose-600 tracking-tight">
+                حذف دسته‌بندی
+              </DialogTitle>
+              <DialogDescription className="text-xs text-rose-600/80 font-medium mt-0.5">هشدار عملیات حذف گروه غذایی</DialogDescription>
+            </div>
           </div>
-          <DialogFooter>
+          <div className="p-5 sm:p-6 space-y-3.5">
+            <div className="p-4 rounded-2xl bg-rose-50/80 border border-rose-200/80 flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+              <div className="text-xs text-rose-900 space-y-1">
+                <p className="font-bold">آیا از حذف دسته‌بندی اطمینان دارید؟</p>
+                <p className="text-rose-700/90 leading-relaxed">
+                  آیا از حذف دسته‌بندی <strong className="text-rose-950 font-black">«{currentCategory?.name}»</strong> اطمینان دارید؟ اگر این دسته‌بندی به یک یا چند غذا اختصاص داشته باشد، سیستم اجازه حذف آن را نخواهد داد.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="p-4 sm:p-5 border-t border-gray-100 bg-gray-50/80 flex items-center justify-end gap-2.5">
             <Button
               variant="outline"
               onClick={() => setCategoryDeleteDialogOpen(false)}
               disabled={isCategorySubmitting}
+              className="rounded-xl border-gray-200 h-11 px-5 text-gray-700 hover:bg-gray-100 font-semibold text-xs"
             >
               انصراف
             </Button>
-            <Button variant="destructive" onClick={handleCategoryDelete} disabled={isCategorySubmitting}>
-              {isCategorySubmitting ? "در حال حذف..." : "حذف"}
+            <Button
+              variant="destructive"
+              onClick={handleCategoryDelete}
+              disabled={isCategorySubmitting}
+              className="rounded-xl font-bold bg-rose-600 hover:bg-rose-700 h-11 px-6 shadow-md shadow-rose-600/20 text-xs flex items-center gap-1.5"
+            >
+              <Trash2 className="w-4 h-4 ml-0.5" />
+              {isCategorySubmitting ? "در حال حذف..." : "حذف دسته‌بندی"}
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 
       {/* Recover Trust Score Confirm Dialog */}
       <Dialog open={recoverConfirmOpen} onOpenChange={setRecoverConfirmOpen}>
-        <DialogContent className="sm:max-w-[425px] backdrop-blur-md bg-white/90 border-0 shadow-xl">
-          <DialogHeader>
-            <DialogTitle>تایید بازیابی امتیاز اعتبار</DialogTitle>
-          </DialogHeader>
-          <div className="py-4 space-y-2" dir="rtl">
-            <p>
-              آیا از بازیابی امتیاز اعتبار برای دانشجو
-              {" "}
-              <span className="font-semibold">{recoverTarget?.name}</span>
-              {" "}
-              با شماره دانشجویی
-              {" "}
-              <span className="font-mono">{recoverTarget?.student_id}</span>
-              {" "}
-              مطمئن هستید؟
-            </p>
-            {recoverTarget && (
-              <p className="text-sm text-gray-600">امتیاز فعلی: {recoverTarget.trust_score}</p>
-            )}
+        <DialogContent className="sm:max-w-[440px] p-0 overflow-hidden backdrop-blur-xl bg-white border border-orange-100 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.25)] rounded-3xl" dir="rtl">
+          <div className="p-5 sm:p-6 pb-4 border-b border-orange-100/80 bg-white flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-orange-500/10 to-amber-500/20 text-[#F47B20] border border-orange-200/50 flex items-center justify-center shrink-0 shadow-xs">
+              <User className="h-5 w-5" />
+            </div>
+            <div>
+              <DialogTitle className="text-base sm:text-lg font-black text-gray-900 tracking-tight">
+                تایید بازیابی امتیاز اعتبار
+              </DialogTitle>
+              <DialogDescription className="text-xs text-gray-500 mt-0.5">افزایش و بازیابی نمره انضباطی دانشجو</DialogDescription>
+            </div>
           </div>
-          <DialogFooter>
+          <div className="p-5 sm:p-6 space-y-3.5">
+            <div className="p-4 rounded-2xl bg-orange-50/70 border border-orange-200/60 flex items-start gap-3">
+              <Info className="w-5 h-5 text-[#F47B20] shrink-0 mt-0.5" />
+              <div className="text-xs text-gray-800 space-y-1.5">
+                <p className="leading-relaxed">
+                  آیا از بازیابی امتیاز اعتبار برای دانشجو{" "}
+                  <strong className="text-gray-950 font-black">{recoverTarget?.name}</strong>{" "}
+                  با شماره دانشجویی{" "}
+                  <span className="font-mono bg-white px-2 py-0.5 rounded-lg text-orange-700 font-bold border border-orange-200 shadow-2xs">
+                    {toPersianDigits(recoverTarget?.student_id)}
+                  </span>{" "}
+                  مطمئن هستید؟
+                </p>
+                {recoverTarget && (
+                  <p className="text-gray-500 pt-1 border-t border-orange-100">
+                    امتیاز فعلی دانشجو: <strong className="text-gray-900 font-bold">{toPersianDigits(recoverTarget.trust_score)}</strong>
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="p-4 sm:p-5 border-t border-gray-100 bg-gray-50/80 flex items-center justify-end gap-2.5">
             <Button
               variant="outline"
               onClick={() => setRecoverConfirmOpen(false)}
               disabled={isTrustScoreSubmitting}
+              className="rounded-xl border-gray-200 h-11 px-5 text-gray-700 hover:bg-gray-100 font-semibold text-xs"
             >
               انصراف
             </Button>
             <Button
               onClick={confirmRecoverTrustScore}
-              className="bg-[#f97316] hover:bg-orange-600 btn-hover-effect"
+              className="bg-gradient-to-r from-[#F47B20] to-[#E06A10] hover:from-[#E06A10] hover:to-[#D05A00] text-white rounded-xl font-bold h-11 px-6 shadow-md shadow-orange-500/20 text-xs flex items-center gap-1.5"
               disabled={isTrustScoreSubmitting}
             >
+              <Check className="w-4 h-4 ml-0.5" />
               {isTrustScoreSubmitting ? "در حال انجام..." : "تایید بازیابی"}
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 
       {/* Trust Score Recovery Dialog */}
       <Dialog open={trustScoreDialogOpen} onOpenChange={setTrustScoreDialogOpen}>
-        <DialogContent className="sm:max-w-[425px] backdrop-blur-md bg-white/90 border-0 shadow-xl">
-          <DialogHeader>
-            <DialogTitle>بازیابی امتیاز اعتبار دانشجو</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4" dir="rtl">
-            <div className="space-y-2">
-              <Label htmlFor="user_id">شناسه دانشجو</Label>
+        <DialogContent className="sm:max-w-[480px] p-0 overflow-hidden backdrop-blur-xl bg-white border border-orange-100 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.25)] rounded-3xl" dir="rtl">
+          <div className="p-5 sm:p-6 pb-4 border-b border-orange-100/80 bg-white flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-orange-500/10 to-amber-500/20 text-[#F47B20] border border-orange-200/50 flex items-center justify-center shrink-0 shadow-xs">
+              <User className="h-5 w-5" />
+            </div>
+            <div>
+              <DialogTitle className="text-base sm:text-lg font-black text-gray-900 tracking-tight">
+                بازیابی امتیاز اعتبار دانشجو
+              </DialogTitle>
+              <DialogDescription className="text-xs text-gray-500 mt-0.5">افزایش دستی امتیاز اعتماد و حذف محدودیت رزرو</DialogDescription>
+            </div>
+          </div>
+          <div className="p-5 sm:p-6 space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="user_id" className="text-xs font-bold text-gray-700">شناسه کاربری دانشجو</Label>
               <Input
                 id="user_id"
                 name="user_id"
                 type="number"
                 value={trustScoreFormData.user_id || ""}
                 onChange={handleTrustScoreInputChange}
-                placeholder="شناسه دانشجو را وارد کنید"
-                className="form-input-focus"
+                placeholder="شناسه دانشجو"
+                className="form-input-focus rounded-xl h-11 font-mono text-sm bg-gray-50/50 hover:bg-white focus:bg-white transition-colors"
                 readOnly={trustScoreFormData.user_id > 0}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="points">تعداد امتیاز برای بازیابی</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="points" className="text-xs font-bold text-gray-700">تعداد امتیاز برای بازیابی <span className="text-rose-500">*</span></Label>
               <Input
                 id="points"
                 name="points"
@@ -3062,239 +4100,458 @@ export default function AdminDashboard() {
                 min="1"
                 value={trustScoreFormData.points}
                 onChange={handleTrustScoreInputChange}
-                placeholder="تعداد امتیاز را وارد کنید"
-                className="form-input-focus"
+                placeholder="تعداد امتیاز"
+                className="form-input-focus rounded-xl h-11 font-mono text-sm bg-gray-50/50 hover:bg-white focus:bg-white transition-colors"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="reason">دلیل بازیابی (اختیاری)</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="reason" className="text-xs font-bold text-gray-700">علت بازیابی امتیاز (اختیاری)</Label>
               <Textarea
                 id="reason"
                 name="reason"
                 value={trustScoreFormData.reason || ""}
                 onChange={handleTrustScoreInputChange}
-                placeholder="دلیل بازیابی امتیاز اعتبار را وارد کنید"
+                placeholder="علت افزایش یا بازیابی نمره اعتبار..."
                 rows={3}
-                className="form-input-focus"
+                className="form-input-focus rounded-xl text-sm bg-gray-50/50 hover:bg-white focus:bg-white transition-colors"
               />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setTrustScoreDialogOpen(false)} disabled={isTrustScoreSubmitting}>
+          <div className="p-4 sm:p-5 border-t border-gray-100 bg-gray-50/80 flex items-center justify-end gap-2.5">
+            <Button
+              variant="outline"
+              onClick={() => setTrustScoreDialogOpen(false)}
+              disabled={isTrustScoreSubmitting}
+              className="rounded-xl border-gray-200 h-11 px-5 text-gray-700 hover:bg-gray-100 font-semibold text-xs"
+            >
               انصراف
             </Button>
             <Button
               onClick={handleTrustScoreSubmit}
-              className="bg-[#f97316] hover:bg-orange-600 btn-hover-effect"
+              className="bg-gradient-to-r from-[#F47B20] to-[#E06A10] hover:from-[#E06A10] hover:to-[#D05A00] text-white rounded-xl font-bold h-11 px-6 shadow-md shadow-orange-500/20 text-xs flex items-center gap-1.5"
               disabled={isTrustScoreSubmitting}
             >
+              <Check className="w-4 h-4 ml-0.5" />
               {isTrustScoreSubmitting ? "در حال ذخیره..." : "بازیابی امتیاز"}
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 
       {/* Student Dialog */}
       <Dialog open={studentDialogOpen} onOpenChange={setStudentDialogOpen}>
-        <DialogContent className="sm:max-w-[425px] backdrop-blur-md bg-white/90 border-0 shadow-xl">
-          <DialogHeader>
-            <DialogTitle>{currentStudent ? "ویرایش اطلاعات دانشجو" : "افزودن دانشجوی جدید"}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4" dir="rtl">
-            <div className="space-y-2">
-              <Label htmlFor="name">نام و نام خانوادگی</Label>
+        <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden backdrop-blur-xl bg-white border border-orange-100 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.25)] rounded-3xl" dir="rtl">
+          <div className="p-5 sm:p-6 pb-4 border-b border-orange-100/80 bg-white flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-orange-500/10 to-amber-500/20 text-[#F47B20] border border-orange-200/50 flex items-center justify-center shrink-0 shadow-xs">
+              <User className="h-5 w-5" />
+            </div>
+            <div>
+              <DialogTitle className="text-base sm:text-lg font-black text-gray-900 tracking-tight">
+                {currentStudent ? "ویرایش اطلاعات دانشجو" : "افزودن دانشجوی جدید"}
+              </DialogTitle>
+              <DialogDescription className="text-xs text-gray-500 mt-0.5">مدیریت حساب و اطلاعات هویتی دانشجو در سلف</DialogDescription>
+            </div>
+          </div>
+          <div className="p-5 sm:p-6 space-y-4 max-h-[calc(85vh-150px)] overflow-y-auto scrollbar-thin scrollbar-thumb-orange-200">
+            <div className="space-y-1.5">
+              <Label htmlFor="name" className="text-xs font-bold text-gray-700">نام و نام خانوادگی <span className="text-rose-500">*</span></Label>
               <Input
                 id="name"
                 name="name"
                 value={studentFormData.name}
                 onChange={handleStudentInputChange}
-                placeholder="نام و نام خانوادگی دانشجو را وارد کنید"
-                className="form-input-focus"
+                placeholder="مثال: علی رضایی"
+                className="form-input-focus rounded-xl h-11 text-sm bg-gray-50/50 hover:bg-white focus:bg-white transition-colors"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="student_id">شماره دانشجویی</Label>
-              <Input
-                id="student_id"
-                name="student_id"
-                value={studentFormData.student_id}
-                onChange={handleStudentInputChange}
-                placeholder="شماره دانشجویی را وارد کنید"
-                className="form-input-focus"
-              />
+            <div className="grid grid-cols-2 gap-3.5">
+              <div className="space-y-1.5">
+                <Label htmlFor="student_id" className="text-xs font-bold text-gray-700">شماره دانشجویی <span className="text-rose-500">*</span></Label>
+                <Input
+                  id="student_id"
+                  name="student_id"
+                  value={studentFormData.student_id}
+                  onChange={handleStudentInputChange}
+                  placeholder="مثال: 40112345"
+                  className="form-input-focus rounded-xl h-11 font-mono text-sm bg-gray-50/50 hover:bg-white focus:bg-white transition-colors"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="phone" className="text-xs font-bold text-gray-700">شماره تماس همراه <span className="text-rose-500">*</span></Label>
+                <Input
+                  id="phone"
+                  name="phone"
+                  value={studentFormData.phone}
+                  onChange={handleStudentInputChange}
+                  placeholder="مثال: 09121111111"
+                  className="form-input-focus rounded-xl h-11 font-mono text-sm bg-gray-50/50 hover:bg-white focus:bg-white transition-colors"
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">ایمیل</Label>
+            <div className="grid grid-cols-2 gap-3.5">
+              <div className="space-y-1.5">
+                <Label htmlFor="department" className="text-xs font-bold text-gray-700">دانشکده</Label>
+                <Input
+                  id="department"
+                  name="department"
+                  value={studentFormData.department}
+                  onChange={handleStudentInputChange}
+                  placeholder="مثال: مهندسی کامپیوتر"
+                  className="form-input-focus rounded-xl h-11 text-sm bg-gray-50/50 hover:bg-white focus:bg-white transition-colors"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="status" className="text-xs font-bold text-gray-700">وضعیت حساب</Label>
+                <Select
+                  name="status"
+                  value={studentFormData.status}
+                  onValueChange={(value) =>
+                    setStudentFormData({ ...studentFormData, status: value as "active" | "inactive" })
+                  }
+                >
+                  <SelectTrigger className="form-input-focus rounded-xl h-11 text-sm bg-gray-50/50 hover:bg-white focus:bg-white transition-colors">
+                    <SelectValue placeholder="انتخاب وضعیت" />
+                  </SelectTrigger>
+                  <SelectContent dir="rtl">
+                    <SelectItem value="active">فعال</SelectItem>
+                    <SelectItem value="inactive">غیرفعال</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="email" className="text-xs font-bold text-gray-700">پست الکترونیکی (ایمیل)</Label>
               <Input
                 id="email"
                 name="email"
                 type="email"
                 value={studentFormData.email}
                 onChange={handleStudentInputChange}
-                placeholder="ایمیل دانشجو را وارد کنید"
-                className="form-input-focus"
+                placeholder="student@university.ac.ir"
+                className="form-input-focus rounded-xl h-11 font-mono text-left text-sm bg-gray-50/50 hover:bg-white focus:bg-white transition-colors"
+                dir="ltr"
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone">شماره تماس</Label>
-              <Input
-                id="phone"
-                name="phone"
-                value={studentFormData.phone}
-                onChange={handleStudentInputChange}
-                placeholder="شماره تماس دانشجو را وارد کنید"
-                className="form-input-focus"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="department">دانشکده</Label>
-              <Input
-                id="department"
-                name="department"
-                value={studentFormData.department}
-                onChange={handleStudentInputChange}
-                placeholder="دانشکده دانشجو را وارد کنید"
-                className="form-input-focus"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="status">وضعیت</Label>
-              <Select
-                name="status"
-                value={studentFormData.status}
-                onValueChange={(value) =>
-                  setStudentFormData({ ...studentFormData, status: value as "active" | "inactive" })
-                }
-              >
-                <SelectTrigger className="form-input-focus">
-                  <SelectValue placeholder="انتخاب وضعیت" />
-                </SelectTrigger>
-                <SelectContent dir="rtl">
-                  <SelectItem value="active">فعال</SelectItem>
-                  <SelectItem value="inactive">غیرفعال</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setStudentDialogOpen(false)} disabled={isStudentSubmitting}>
+          <div className="p-4 sm:p-5 border-t border-gray-100 bg-gray-50/80 flex items-center justify-end gap-2.5">
+            <Button
+              variant="outline"
+              onClick={() => setStudentDialogOpen(false)}
+              disabled={isStudentSubmitting}
+              className="rounded-xl border-gray-200 h-11 px-5 text-gray-700 hover:bg-gray-100 font-semibold text-xs"
+            >
               انصراف
             </Button>
             <Button
               onClick={handleStudentSubmit}
-              className="bg-[#f97316] hover:bg-orange-600 btn-hover-effect"
+              className="bg-gradient-to-r from-[#F47B20] to-[#E06A10] hover:from-[#E06A10] hover:to-[#D05A00] text-white rounded-xl font-bold h-11 px-6 shadow-md shadow-orange-500/20 text-xs flex items-center gap-1.5"
               disabled={isStudentSubmitting}
             >
-              {isStudentSubmitting ? "در حال ذخیره..." : currentStudent ? "به‌روزرسانی" : "افزودن"}
+              <Check className="w-4 h-4 ml-0.5" />
+              {isStudentSubmitting ? "در حال ذخیره..." : currentStudent ? "به‌روزرسانی اطلاعات" : "افزودن دانشجو"}
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 
       {/* Student Delete Dialog */}
       <Dialog open={studentDeleteDialogOpen} onOpenChange={setStudentDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-[425px] backdrop-blur-md bg-white/90 border-0 shadow-xl">
-          <DialogHeader>
-            <DialogTitle>حذف دانشجو</DialogTitle>
-          </DialogHeader>
-          <div className="py-4" dir="rtl">
-            <p>
-              آیا از حذف دانشجو &quot;{currentStudent?.name}&quot; با شماره دانشجویی &quot;{currentStudent?.student_id}
-              &quot; اطمینان دارید؟
-            </p>
-            <p className="text-sm text-red-500 mt-2">
-              توجه: این عمل غیرقابل بازگشت است و تمام اطلاعات مربوط به این دانشجو حذف خواهد شد.
-            </p>
+        <DialogContent className="sm:max-w-[440px] p-0 overflow-hidden backdrop-blur-xl bg-white border border-rose-100 shadow-[0_25px_60px_-15px_rgba(225,29,72,0.2)] rounded-3xl" dir="rtl">
+          <div className="p-5 sm:p-6 pb-4 border-b border-rose-100 bg-white flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-rose-50 border border-rose-200/70 text-rose-600 flex items-center justify-center shrink-0 shadow-xs">
+              <Trash2 className="h-5 w-5" />
+            </div>
+            <div>
+              <DialogTitle className="text-base sm:text-lg font-black text-rose-600 tracking-tight">
+                حذف پرونده دانشجو
+              </DialogTitle>
+              <DialogDescription className="text-xs text-rose-600/80 font-medium mt-0.5">هشدار حذف پرونده کاربری</DialogDescription>
+            </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setStudentDeleteDialogOpen(false)} disabled={isStudentSubmitting}>
+          <div className="p-5 sm:p-6 space-y-3.5">
+            <div className="p-4 rounded-2xl bg-rose-50/80 border border-rose-200/80 flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+              <div className="text-xs text-rose-900 space-y-1">
+                <p className="font-bold">آیا از حذف پرونده این دانشجو اطمینان دارید؟</p>
+                <p className="text-rose-700/90 leading-relaxed">
+                  دانشجو <strong className="text-rose-950 font-black">«{currentStudent?.name}»</strong> با شماره دانشجویی <span className="font-mono bg-white px-2 py-0.5 rounded-lg text-rose-700 font-bold border border-rose-200 shadow-2xs">{toPersianDigits(currentStudent?.student_id)}</span> برای همیشه از سیستم حذف خواهد شد.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="p-4 sm:p-5 border-t border-gray-100 bg-gray-50/80 flex items-center justify-end gap-2.5">
+            <Button
+              variant="outline"
+              onClick={() => setStudentDeleteDialogOpen(false)}
+              disabled={isStudentSubmitting}
+              className="rounded-xl border-gray-200 h-11 px-5 text-gray-700 hover:bg-gray-100 font-semibold text-xs"
+            >
               انصراف
             </Button>
-            <Button variant="destructive" onClick={handleStudentDelete} disabled={isStudentSubmitting}>
-              {isStudentSubmitting ? "در حال حذف..." : "حذف"}
+            <Button
+              variant="destructive"
+              onClick={handleStudentDelete}
+              disabled={isStudentSubmitting}
+              className="rounded-xl font-bold bg-rose-600 hover:bg-rose-700 h-11 px-6 shadow-md shadow-rose-600/20 text-xs flex items-center gap-1.5"
+            >
+              <Trash2 className="w-4 h-4 ml-0.5" />
+              {isStudentSubmitting ? "در حال حذف..." : "حذف پرونده"}
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 
       {/* Payment Inquiry Modal */}
       <Dialog open={isInquiryModalOpen} onOpenChange={setIsInquiryModalOpen}>
-        <DialogContent className="sm:max-w-[500px]" dir="rtl">
+        <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden backdrop-blur-xl bg-white border border-orange-100 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.25)] rounded-3xl" dir="rtl">
           {inquiryResult && (
             <>
-              <DialogHeader>
-                <DialogTitle className="text-right">نتیجه استعلام پرداخت</DialogTitle>
-                <DialogDescription className="text-right">
-                  جزئیات وضعیت پرداخت
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label className="text-right font-medium">وضعیت:</Label>
-                  <div className="col-span-3 text-right">
-                    <Badge 
-                      variant={
-                        inquiryResult.status === 'PAID' || inquiryResult.status === 'VERIFIED' ? 'default' :
-                        inquiryResult.status === 'FAILED' || inquiryResult.status === 'REVERSED' ? 'destructive' :
-                        'outline'
-                      }
-                      className="text-sm"
-                    >
-                      {formatStatus(inquiryResult.status)}
-                      {inquiryResult.reversed && ' (برگشت خودکار انجام شد)'}
-                    </Badge>
-                  </div>
+              <div className="p-5 sm:p-6 pb-4 border-b border-orange-100/80 bg-white flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-orange-500/10 to-amber-500/20 text-[#F47B20] border border-orange-200/50 flex items-center justify-center shrink-0 shadow-xs">
+                  <DollarSign className="h-5 w-5" />
+                </div>
+                <div>
+                  <DialogTitle className="text-base sm:text-lg font-black text-gray-900 tracking-tight">
+                    نتیجه استعلام برخط پرداخت
+                  </DialogTitle>
+                  <DialogDescription className="text-xs text-gray-500 mt-0.5">جزئیات تاییدیه تراکنش از درگاه بانکی</DialogDescription>
+                </div>
+              </div>
+              <div className="p-5 sm:p-6 space-y-3.5 text-xs sm:text-sm">
+                <div className="flex items-center justify-between p-3.5 rounded-2xl bg-gray-50 border border-gray-100">
+                  <span className="font-bold text-gray-700">وضعیت تراکنش:</span>
+                  <Badge 
+                    variant={
+                      inquiryResult.status === 'PAID' || inquiryResult.status === 'VERIFIED' ? 'default' :
+                      inquiryResult.status === 'FAILED' || inquiryResult.status === 'REVERSED' ? 'destructive' :
+                      'outline'
+                    }
+                    className="text-xs"
+                  >
+                    {formatStatus(inquiryResult.status)}
+                    {inquiryResult.reversed && ' (برگشت خودکار انجام شد)'}
+                  </Badge>
                 </div>
                 
                 {inquiryResult.payment && (
-                  <>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label className="text-right font-medium">مبلغ:</Label>
-                      <div className="col-span-3 text-right">
-                        {inquiryResult.payment.amount?.toLocaleString('fa-IR')} تومان
-                      </div>
+                  <div className="space-y-2.5 p-4 rounded-2xl bg-orange-50/50 border border-orange-100">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">مبلغ پرداختی:</span>
+                      <span className="font-extrabold text-emerald-600 text-sm">{formatPersianPrice(inquiryResult.payment.amount)} تومان</span>
                     </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label className="text-right font-medium">کاربر:</Label>
-                      <div className="col-span-3 text-right">
-                        {inquiryResult.payment.user?.full_name || 'نامشخص'}
-                        {inquiryResult.payment.user?.phone_number && (
-                          <div className="text-sm text-muted-foreground">
-                            {inquiryResult.payment.user.phone_number}
-                          </div>
-                        )}
-                      </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">کاربر پرداخت‌کننده:</span>
+                      <span className="font-bold text-gray-900">{inquiryResult.payment.user?.full_name || 'نامشخص'}</span>
                     </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label className="text-right font-medium">تاریخ پرداخت:</Label>
-                      <div className="col-span-3 text-right">
-                        {new Date(inquiryResult.payment.created_at).toLocaleString('fa-IR')}
-                      </div>
-                    </div>
-                    {inquiryResult.payment.ref_id && (
-                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label className="text-right font-medium">شماره پیگیری:</Label>
-                        <div className="col-span-3 text-right font-mono">
-                          {inquiryResult.payment.ref_id}
-                        </div>
+                    {inquiryResult.payment.user?.phone_number && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">شماره تماس:</span>
+                        <span className="font-mono text-gray-800">{toPersianDigits(inquiryResult.payment.user.phone_number)}</span>
                       </div>
                     )}
-                  </>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">تاریخ تراکنش:</span>
+                      <span className="text-gray-700">{toPersianDigits(new Date(inquiryResult.payment.created_at).toLocaleString('fa-IR'))}</span>
+                    </div>
+                    {inquiryResult.payment.ref_id && (
+                      <div className="flex justify-between items-center pt-2.5 border-t border-orange-200/60">
+                        <span className="text-gray-600 font-bold">شماره پیگیری شاپرک:</span>
+                        <span className="font-mono font-black text-[#F47B20] text-sm">{toPersianDigits(inquiryResult.payment.ref_id)}</span>
+                      </div>
+                    )}
+                  </div>
                 )}
                 
                 {inquiryResult.message && (
-                  <div className="mt-4 p-3 bg-muted/50 rounded-md">
-                    <p className="text-sm text-muted-foreground">{inquiryResult.message}</p>
+                  <div className="p-3 bg-muted/60 rounded-xl text-xs text-muted-foreground">
+                    <p>{inquiryResult.message}</p>
                   </div>
                 )}
               </div>
-              <DialogFooter>
-                <Button onClick={() => setIsInquiryModalOpen(false)}>
+              <div className="p-4 sm:p-5 border-t border-gray-100 bg-gray-50/80 flex items-center justify-end">
+                <Button onClick={() => setIsInquiryModalOpen(false)} className="bg-gradient-to-r from-[#F47B20] to-[#E06A10] hover:from-[#E06A10] hover:to-[#D05A00] text-white rounded-xl font-bold h-11 px-6 shadow-md shadow-orange-500/20 text-xs">
                   بستن
                 </Button>
-              </DialogFooter>
+              </div>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Voucher Add/Edit Dialog */}
+      <Dialog open={voucherDialogOpen} onOpenChange={setVoucherDialogOpen}>
+        <DialogContent className="sm:max-w-[480px] p-0 overflow-hidden backdrop-blur-xl bg-white border border-orange-100 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.25)] rounded-3xl" dir="rtl">
+          <div className="p-5 sm:p-6 pb-4 border-b border-orange-100/80 bg-white flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-orange-500/10 to-amber-500/20 text-[#F47B20] border border-orange-200/50 flex items-center justify-center shrink-0 shadow-xs">
+              <Ticket className="h-5 w-5" />
+            </div>
+            <div>
+              <DialogTitle className="text-base sm:text-lg font-black text-gray-900 tracking-tight">
+                {currentVoucher ? "ویرایش ژتون" : "افزودن ژتون جدید"}
+              </DialogTitle>
+              <DialogDescription className="text-xs text-gray-500 mt-0.5">
+                {currentVoucher ? "ویرایش اطلاعات و مبلغ تخفیف ژتون" : "مشخصات نوع ژتون جدید سامانه را وارد کنید"}
+              </DialogDescription>
+            </div>
+          </div>
+
+          <div className="p-5 sm:p-6 space-y-4 max-h-[calc(85vh-150px)] overflow-y-auto scrollbar-thin scrollbar-thumb-orange-200">
+            <div className="grid grid-cols-2 gap-3.5">
+              <div className="space-y-1.5">
+                <Label htmlFor="vCode" className="text-xs font-bold text-gray-700">کد شناسه (یکتا) <span className="text-rose-500">*</span></Label>
+                <Input
+                  id="vCode"
+                  value={voucherFormData.code}
+                  onChange={(e) => setVoucherFormData({ ...voucherFormData, code: e.target.value })}
+                  placeholder="مثال: TYPE_5"
+                  className="font-mono text-left dir-ltr form-input-focus rounded-xl h-11 text-sm bg-gray-50/50 hover:bg-white focus:bg-white transition-colors"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="vName" className="text-xs font-bold text-gray-700">عنوان نمایشی ژتون <span className="text-rose-500">*</span></Label>
+                <Input
+                  id="vName"
+                  value={voucherFormData.name}
+                  onChange={(e) => setVoucherFormData({ ...voucherFormData, name: e.target.value })}
+                  placeholder="مثال: ژتون کارمندی"
+                  className="form-input-focus rounded-xl h-11 text-sm bg-gray-50/50 hover:bg-white focus:bg-white transition-colors"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-center">
+                <Label htmlFor="vDiscount" className="text-xs font-bold text-gray-700">مبلغ تخفیف / یارانه (تومان) <span className="text-rose-500">*</span></Label>
+                <span className="text-xs font-extrabold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">
+                  {formatPersianPrice(voucherFormData.discount_amount || 0)} تومان
+                </span>
+              </div>
+              <div className="relative">
+                <Input
+                  id="vDiscount"
+                  type="text"
+                  inputMode="numeric"
+                  value={voucherFormData.discount_amount === 0 ? "" : toPersianDigits(voucherFormData.discount_amount)}
+                  onChange={(e) => setVoucherFormData({ ...voucherFormData, discount_amount: parsePersianInt(e.target.value) })}
+                  placeholder="مثال: ۵۰۰۰۰"
+                  className="form-input-focus font-mono rounded-xl h-11 text-sm pl-14 bg-gray-50/50 hover:bg-white focus:bg-white transition-colors"
+                />
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-gray-400 pointer-events-none">تومان</span>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="vDesc" className="text-xs font-bold text-gray-700">توضیحات و کاربرد (اختیاری)</Label>
+              <Input
+                id="vDesc"
+                value={voucherFormData.description}
+                onChange={(e) => setVoucherFormData({ ...voucherFormData, description: e.target.value })}
+                placeholder="توضیح کوتاه درباره جامعه هدف این ژتون"
+                className="form-input-focus rounded-xl h-11 text-sm bg-gray-50/50 hover:bg-white focus:bg-white transition-colors"
+              />
+            </div>
+
+            {/* Live Interactive Voucher Preview */}
+            <div className="p-3.5 rounded-2xl bg-gradient-to-br from-orange-50/80 to-amber-50/40 border border-orange-200/60 space-y-2">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="font-bold text-gray-700 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-[#F47B20]" />
+                  پیش‌نمایش کارت ژتون برای دانشجو:
+                </span>
+                <span className="font-mono text-[#F47B20] font-bold bg-white px-2 py-0.5 rounded-md border border-orange-200">
+                  {toPersianDigits(voucherFormData.code || "TYPE_1")}
+                </span>
+              </div>
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-white border border-orange-100 shadow-2xs">
+                <span className="text-xs font-bold text-gray-900">{voucherFormData.name || "عنوان ژتون"}</span>
+                <span className="text-xs font-extrabold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">
+                  {formatPersianPrice(voucherFormData.discount_amount || 0)} ت یارانه
+                </span>
+              </div>
+            </div>
+
+            {/* Status Switch Card */}
+            <div className="flex items-center justify-between p-3.5 rounded-2xl border border-orange-100/80 bg-orange-50/40">
+              <div className="space-y-0.5">
+                <Label htmlFor="vActive" className="text-xs font-bold text-gray-900 cursor-pointer flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  وضعیت فعال بودن در سلف
+                </Label>
+                <p className="text-[11px] text-gray-500">در صورت غیرفعال بودن، دانشجویان قادر به انتخاب آن نخواهند بود</p>
+              </div>
+              <Switch
+                id="vActive"
+                checked={voucherFormData.is_active}
+                onCheckedChange={(checked) => setVoucherFormData({ ...voucherFormData, is_active: checked })}
+              />
+            </div>
+          </div>
+
+          <div className="p-4 sm:p-5 border-t border-gray-100 bg-gray-50/80 flex items-center justify-end gap-2.5">
+            <Button
+              variant="outline"
+              onClick={() => setVoucherDialogOpen(false)}
+              disabled={isVoucherSubmitting}
+              className="rounded-xl border-gray-200 h-11 px-5 text-gray-700 hover:bg-gray-100 font-semibold text-xs"
+            >
+              انصراف
+            </Button>
+            <Button
+              onClick={handleSaveVoucher}
+              disabled={isVoucherSubmitting}
+              className="bg-gradient-to-r from-[#F47B20] to-[#E06A10] hover:from-[#E06A10] hover:to-[#D05A00] text-white rounded-xl font-bold h-11 px-6 shadow-md shadow-orange-500/20 text-xs flex items-center gap-1.5"
+            >
+              <Check className="w-4 h-4 ml-0.5" />
+              {isVoucherSubmitting ? "در حال ذخیره..." : currentVoucher ? "ذخیره تغییرات" : "ایجاد ژتون جدید"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Voucher Delete Confirmation Dialog */}
+      <Dialog open={voucherDeleteDialogOpen} onOpenChange={setVoucherDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-[440px] p-0 overflow-hidden backdrop-blur-xl bg-white border border-rose-100 shadow-[0_25px_60px_-15px_rgba(225,29,72,0.2)] rounded-3xl" dir="rtl">
+          <div className="p-5 sm:p-6 pb-4 border-b border-rose-100 bg-white flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-rose-50 border border-rose-200/70 text-rose-600 flex items-center justify-center shrink-0 shadow-xs">
+              <Trash2 className="h-5 w-5" />
+            </div>
+            <div>
+              <DialogTitle className="text-base sm:text-lg font-black text-rose-600 tracking-tight">
+                حذف ژتون
+              </DialogTitle>
+              <DialogDescription className="text-xs text-rose-600/80 font-medium mt-0.5">هشدار حذف نوع ژتون از سیستم</DialogDescription>
+            </div>
+          </div>
+          <div className="p-5 sm:p-6 space-y-3.5">
+            <div className="p-4 rounded-2xl bg-rose-50/80 border border-rose-200/80 flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+              <div className="text-xs text-rose-900 space-y-1">
+                <p className="font-bold">آیا از حذف این نوع ژتون اطمینان دارید؟</p>
+                <p className="text-rose-700/90 leading-relaxed">
+                  آیا از حذف ژتون <strong className="text-rose-950 font-black">«{currentVoucher?.name}»</strong> (کد: <span className="font-mono bg-white px-2 py-0.5 rounded-lg text-rose-700 font-bold border border-rose-200 shadow-2xs">{toPersianDigits(currentVoucher?.code)}</span>) اطمینان دارید؟ با حذف این ژتون، وابستگی آن از تمام غذاهایی که به آن متصل بودند حذف خواهد شد.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="p-4 sm:p-5 border-t border-gray-100 bg-gray-50/80 flex items-center justify-end gap-2.5">
+            <Button
+              variant="outline"
+              onClick={() => setVoucherDeleteDialogOpen(false)}
+              disabled={isVoucherSubmitting}
+              className="rounded-xl border-gray-200 h-11 px-5 text-gray-700 hover:bg-gray-100 font-semibold text-xs"
+            >
+              انصراف
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDeleteVoucher}
+              disabled={isVoucherSubmitting}
+              className="bg-rose-600 hover:bg-rose-700 rounded-xl font-bold h-11 px-6 shadow-md shadow-rose-600/20 text-xs flex items-center gap-1.5"
+            >
+              <Trash2 className="w-4 h-4 ml-0.5" />
+              {isVoucherSubmitting ? "در حال حذف..." : "حذف ژتون"}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
