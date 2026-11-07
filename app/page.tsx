@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -28,10 +28,23 @@ const loginSchema = z.object({
 type LoginForm = z.infer<typeof loginSchema>
 
 export default function LoginPage() {
-  const { login: authLogin } = useAuth()
+  const { login: authLogin, isAuthenticated, isLoading, user } = useAuth()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [loginError, setLoginError] = useState<string | null>(null)
+  const [isClient, setIsClient] = useState(false)
+  const [hasStoredToken, setHasStoredToken] = useState(false)
   const router = useRouter()
+
+  useEffect(() => {
+    setIsClient(true)
+    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
+    const cachedRole = typeof window !== 'undefined' ? localStorage.getItem('user_role') : null
+    if (token) {
+      setHasStoredToken(true)
+      router.replace(`/${cachedRole || user?.role || 'student'}-dashboard`)
+    }
+  }, [router, user])
+
   const {
     register,
     handleSubmit,
@@ -49,9 +62,11 @@ export default function LoginPage() {
       const { access_token, refresh_token, user } = response.data
       localStorage.setItem("access_token", access_token)
       localStorage.setItem("refresh_token", refresh_token)
+      localStorage.setItem("user_role", user.role)
+      localStorage.setItem("user_data", JSON.stringify(user))
       await authLogin(user)
       toast.success("ورود با موفقیت انجام شد")
-      router.push(`/${user.role}-dashboard`)
+      router.replace(`/${user.role}-dashboard`)
     } catch (error: unknown) {
       console.error("Login error:", error)
       const errorResponse = error as { response?: { data?: { message?: string } } }
@@ -61,6 +76,35 @@ export default function LoginPage() {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  // During initial mount or if user has an existing session / loading, show a seamless splash
+  if (!isClient || hasStoredToken || isAuthenticated || isLoading) {
+    return (
+      <div
+        className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden bg-pattern bg-pattern-animate select-none"
+        dir="rtl"
+      >
+        <div className="relative z-10 flex flex-col items-center space-y-4">
+          <div className="relative h-24 w-24 animate-pulse">
+            <Image
+              src="/images/javanfoods_logo.png"
+              alt="رستوران جوان"
+              fill
+              className="object-contain"
+              priority
+            />
+          </div>
+          <div className="flex flex-col items-center gap-2">
+            <h1 className="text-xl font-bold text-gray-800">رستوران جوان</h1>
+            <div className="h-1.5 w-36 bg-orange-100 rounded-full overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-orange-400 to-orange-600 rounded-full animate-pulse w-full" />
+            </div>
+            <p className="text-xs text-muted-foreground animate-pulse">در حال ورود به سامانه...</p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (

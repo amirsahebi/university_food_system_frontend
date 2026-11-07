@@ -36,22 +36,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const router = useRouter()
 
+  // Hydrate session immediately from localStorage on mount (0ms latency)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const token = localStorage.getItem('access_token')
+    const cachedUser = localStorage.getItem('user_data')
+    if (token && cachedUser) {
+      try {
+        const parsed = JSON.parse(cachedUser) as User
+        setUser(parsed)
+        setIsAuthenticated(true)
+        api.defaults.headers.common['Authorization'] = `Bearer ${token}`
+      } catch {
+        // Invalid json, will be re-fetched by checkAuth
+      }
+    }
+  }, [])
+
   const clearAuthState = useCallback(() => {
     setUser(null)
     setIsAuthenticated(false)
     localStorage.removeItem('access_token')
     localStorage.removeItem('refresh_token')
+    localStorage.removeItem('user_data')
+    localStorage.removeItem('user_role')
     delete api.defaults.headers.common['Authorization']
   }, [])
 
   const checkAuth = useCallback(async () => {
-    const token = localStorage.getItem('access_token')
+    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
     
     if (!token) {
       clearAuthState()
       const isPublicRoute = PUBLIC_ROUTES.includes(window.location.pathname)
       if (!isPublicRoute) {
-        router.push(LOGIN_ROUTE)
+        router.replace(LOGIN_ROUTE)
       }
       setIsLoading(false)
       return
@@ -59,8 +78,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const response = await api.get(createApiUrl(API_ROUTES.ME))
-      setUser(response.data)
+      const userData: User = response.data
+      setUser(userData)
       setIsAuthenticated(true)
+      localStorage.setItem('user_data', JSON.stringify(userData))
+      localStorage.setItem('user_role', userData.role)
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`
 
       // Prevent redirecting if already on a dashboard or protected route
@@ -69,7 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const isDashboardRoute = currentPath.includes(DASHBOARD_ROUTE_PREFIX)
       
       if (!isProtectedRoute && !isDashboardRoute) {
-        router.push(`/${response.data.role}${DASHBOARD_ROUTE_PREFIX}`)
+        router.replace(`/${userData.role}${DASHBOARD_ROUTE_PREFIX}`)
       }
     } catch (error) {
       console.error('Authentication check failed:', error)
@@ -77,7 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       const isPublicRoute = PUBLIC_ROUTES.includes(window.location.pathname)
       if (!isPublicRoute) {
-        router.push(LOGIN_ROUTE)
+        router.replace(LOGIN_ROUTE)
       }
     } finally {
       setIsLoading(false)
@@ -91,13 +113,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (userData: User) => {
     setUser(userData)
     setIsAuthenticated(true)
-    api.defaults.headers.common['Authorization'] = `Bearer ${localStorage.getItem('access_token')}`
-    router.push(`/${userData.role}${DASHBOARD_ROUTE_PREFIX}`)
+    localStorage.setItem('user_data', JSON.stringify(userData))
+    localStorage.setItem('user_role', userData.role)
+    const token = localStorage.getItem('access_token')
+    if (token) {
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`
+    }
+    router.replace(`/${userData.role}${DASHBOARD_ROUTE_PREFIX}`)
   }
 
   const logout = useCallback(() => {
     clearAuthState()
-    router.push(LOGIN_ROUTE)
+    router.replace(LOGIN_ROUTE)
   }, [router, clearAuthState])
 
   return (

@@ -134,12 +134,12 @@ export function InteractiveDateSlider({
       dir="rtl"
       className="glass flex items-center justify-between gap-1.5 rounded-full p-1.5 sm:min-w-80 select-none border border-glass-border shadow-xs"
     >
-      {/* 1. Right Button (فلش راست = روز بعد / آینده) */}
+      {/* 1. Right Button (در زبان فارسی / RTL: دکمه راست = روز قبل / گذشته) */}
       <button
         type="button"
-        aria-label="روز بعد"
-        title="روز بعد (آینده)"
-        onClick={goToNextDay}
+        aria-label="روز قبل"
+        title="روز قبل (گذشته)"
+        onClick={goToPrevDay}
         className="grid size-9 shrink-0 place-items-center rounded-full hover:bg-glass-strong active:scale-95 transition cursor-pointer text-muted-foreground hover:text-foreground"
       >
         <ChevronRight className="size-4" />
@@ -191,12 +191,12 @@ export function InteractiveDateSlider({
         )}
       />
 
-      {/* 3. Left Button (فلش چپ = روز قبل / گذشته) */}
+      {/* 3. Left Button (در زبان فارسی / RTL: دکمه چپ = روز بعد / آینده) */}
       <button
         type="button"
-        aria-label="روز قبل"
-        title="روز قبل (گذشته)"
-        onClick={goToPrevDay}
+        aria-label="روز بعد"
+        title="روز بعد (آینده)"
+        onClick={goToNextDay}
         className="grid size-9 shrink-0 place-items-center rounded-full hover:bg-glass-strong active:scale-95 transition cursor-pointer text-muted-foreground hover:text-foreground"
       >
         <ChevronLeft className="size-4" />

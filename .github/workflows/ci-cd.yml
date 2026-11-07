@@ -1,0 +1,88 @@
+name: Frontend CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # -------------------------------------------------------------
+  # Job 1: Quality Gate & Validation (Continuous Integration)
+  # -------------------------------------------------------------
+  quality-check:
+    name: Lint, Test & Build Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Static Type Checking (TypeScript)
+        run: npx tsc --noEmit
+
+      - name: Code Quality & Linting (ESLint)
+        run: npm run lint
+
+      - name: Automated Unit & Integration Tests
+        run: npm test
+
+      - name: Production Next.js Build Verification
+        run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+          NODE_ENV: production
+
+  # -------------------------------------------------------------
+  # Job 2: Automated Production Deployment (Continuous Deployment)
+  # -------------------------------------------------------------
+  deploy:
+    name: Production Server Deploy
+    needs: [quality-check]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH Key & Deploy to VPS
+        env:
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          HOST: ${{ secrets.SERVER_HOST || '91.212.174.163' }}
+          USER: ${{ secrets.SERVER_USER || 'root' }}
+        if: env.SSH_KEY != ''
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts
+
+          ssh -i ~/.ssh/id_ed25519 "$USER@$HOST" << 'EOF'
+            set -e
+            echo "🚀 Updating Frontend on Production Server..."
+            cd /opt/javanfoods/frontend
+            git pull origin main
+            npm install --omit=dev --legacy-peer-deps --registry=https://registry.npmmirror.com
+            npm run build
+            systemctl restart javanfoods-frontend.service
+            echo "✅ Deployment completed successfully!"
+          EOF
+
+      - name: Post-Deploy Health Check
+        run: |
+          echo "Verifying production HTTPS status..."
+          curl -s -o /dev/null -w "%{http_code}" https://javan-foods.ir/ | grep -E "200|301" || exit 1
+          echo "Health check passed!"
