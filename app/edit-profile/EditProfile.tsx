@@ -140,9 +140,22 @@ export default function EditProfile() {
         toast.success("رمز عبور با موفقیت تغییر یافت")
         resetPasswordForm()
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error changing password:", error)
-      const resData = error?.response?.data
+      const err = error as {
+        response?: {
+          data?: {
+            error?: string
+            message?: string
+            detail?: string
+            old_password?: string | string[]
+            new_password?: string | string[]
+            currentPassword?: string | string[]
+            newPassword?: string | string[]
+          }
+        }
+      }
+      const resData = err?.response?.data
       const errorMsg =
         resData?.error ||
         resData?.message ||
