@@ -23,7 +23,8 @@ function normalizeFoodImageUrl(url?: string | null): string | null {
   // bypassing next/image remotePatterns requirements and preventing Mixed-Content blocking.
   const mediaIdx = trimmed.indexOf("/media/")
   if (mediaIdx !== -1) {
-    return trimmed.substring(mediaIdx)
+    const rel = trimmed.substring(mediaIdx)
+    return rel.includes("?") ? `${rel}&v=opt2` : `${rel}?v=opt2`
   }
 
   // 2. If it's an insecure HTTP URL on HTTPS, upgrade protocol
