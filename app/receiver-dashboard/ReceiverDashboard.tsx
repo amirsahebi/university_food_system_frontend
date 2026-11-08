@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
+import { useAuth } from "@/lib/auth-context"
 import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
@@ -87,6 +88,7 @@ const getIranCurrentHour = () => {
 
 export default function ReceiverDashboard() {
   const router = useRouter()
+  const { logout } = useAuth()
   const [user] = useState<AppUser>({
     first_name: "تحویل‌دهنده",
     last_name: "receiver",
@@ -272,13 +274,8 @@ export default function ReceiverDashboard() {
 
   const handleLogout = async () => {
     try {
-      await api.post(createApiUrl(API_ROUTES.SIGNOUT), {
-        refresh_token: localStorage.getItem("refresh_token"),
-      })
-      localStorage.removeItem("access_token")
-      localStorage.removeItem("refresh_token")
+      await logout()
       toast.success("با موفقیت از حساب کاربری خارج شدید")
-      router.push("/")
     } catch (error) {
       console.error("Error logging out:", error)
       toast.error("خطا در خروج از حساب کاربری")

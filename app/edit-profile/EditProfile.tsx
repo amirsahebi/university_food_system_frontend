@@ -46,7 +46,7 @@ const changePasswordSchema = z
   })
 
 export default function EditProfile() {
-  const { isLoading } = useAuth()
+  const { isLoading, logout } = useAuth()
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isChangingPassword, setIsChangingPassword] = useState(false)
@@ -173,14 +173,8 @@ export default function EditProfile() {
 
   const handleLogout = async () => {
     try {
-      const refreshToken = localStorage.getItem("refresh_token")
-      if (refreshToken) {
-        await api.post(createApiUrl(API_ROUTES.SIGNOUT), { refresh_token: refreshToken })
-      }
-      localStorage.removeItem("access_token")
-      localStorage.removeItem("refresh_token")
+      await logout()
       toast.success("با موفقیت از حساب کاربری خارج شدید")
-      router.push("/")
     } catch (error) {
       console.error("Error logging out:", error)
       toast.error("خطا در خروج از حساب کاربری")

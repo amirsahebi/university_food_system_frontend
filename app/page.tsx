@@ -79,7 +79,8 @@ export default function LoginPage() {
   }
 
   // During initial mount or if user has an existing session / loading, show a seamless splash
-  if (!isClient || hasStoredToken || isAuthenticated || isLoading) {
+  const hasToken = typeof window !== 'undefined' ? !!localStorage.getItem('access_token') : false
+  if (!isClient || hasStoredToken || (hasToken && (isAuthenticated || isLoading))) {
     return (
       <div
         className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden bg-pattern bg-pattern-animate select-none"

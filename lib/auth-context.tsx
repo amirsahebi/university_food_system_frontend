@@ -17,7 +17,7 @@ interface User {
 interface AuthContextType {
   user: User | null
   login: (userData: User) => Promise<void>
-  logout: () => void
+  logout: () => Promise<void> | void
   isLoading: boolean
   isAuthenticated: boolean
 }
@@ -56,6 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const clearAuthState = useCallback(() => {
     setUser(null)
     setIsAuthenticated(false)
+    setIsLoading(false)
     localStorage.removeItem('access_token')
     localStorage.removeItem('refresh_token')
     localStorage.removeItem('user_data')
@@ -122,9 +123,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.replace(`/${userData.role}${DASHBOARD_ROUTE_PREFIX}`)
   }
 
-  const logout = useCallback(() => {
-    clearAuthState()
-    router.replace(LOGIN_ROUTE)
+  const logout = useCallback(async () => {
+    try {
+      const refreshToken = typeof window !== 'undefined' ? localStorage.getItem('refresh_token') : null
+      if (refreshToken) {
+        try {
+          await api.post(createApiUrl(API_ROUTES.SIGNOUT), { refresh_token: refreshToken })
+        } catch {
+          // ignore API error and proceed with local signout
+        }
+      }
+    } finally {
+      clearAuthState()
+      if (typeof window !== 'undefined') {
+        window.location.href = LOGIN_ROUTE
+      } else {
+        router.replace(LOGIN_ROUTE)
+      }
+    }
   }, [router, clearAuthState])
 
   return (
