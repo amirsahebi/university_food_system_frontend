@@ -51,6 +51,36 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'www.javanfoods.com',
         pathname: '/**',
+      },
+      {
+        protocol: 'http',
+        hostname: 'javan-foods.ir',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'javan-foods.ir',
+        pathname: '/**',
+      },
+      {
+        protocol: 'http',
+        hostname: 'www.javan-foods.ir',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'www.javan-foods.ir',
+        pathname: '/**',
+      },
+      {
+        protocol: 'http',
+        hostname: '91.212.174.163',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: '91.212.174.163',
+        pathname: '/**',
       }
     ],
     unoptimized: false,
