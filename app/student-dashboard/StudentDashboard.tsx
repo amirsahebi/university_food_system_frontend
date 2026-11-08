@@ -1227,25 +1227,27 @@ export default function StudentDashboard() {
               )}
             </div>
 
-            {/* Bottom Footer Separator - Exactly like stage 2: pt-2 border-t border-glass-border */}
-            <div className="shrink-0 flex items-center justify-between pt-2 px-5 pb-5 border-t border-glass-border" dir="rtl">
-              {/* Right Corner: Button */}
-              <Button
-                variant="brand"
-                disabled={!selectedTimeSlot}
-                onClick={handleConfirmSelection}
-                className="gap-1 h-11 rounded-xl px-5 text-sm font-bold shadow-md cursor-pointer"
-              >
-                <ChevronRight className="size-4" />
-                <span>ادامه به پرداخت</span>
-              </Button>
+            {/* Bottom Footer Separator - Floating/Sticky at bottom with inset separator matching stage 2 */}
+            <div className="shrink-0 px-5 pb-5 pt-2" dir="rtl">
+              <div className="flex items-center justify-between pt-2 border-t border-glass-border">
+                {/* Right Corner: Button */}
+                <Button
+                  variant="brand"
+                  disabled={!selectedTimeSlot}
+                  onClick={handleConfirmSelection}
+                  className="gap-1 h-11 rounded-xl px-5 text-sm font-bold shadow-md cursor-pointer"
+                >
+                  <ChevronRight className="size-4" />
+                  <span>ادامه به پرداخت</span>
+                </Button>
 
-              {/* Left Corner: Amount */}
-              <div className="text-left">
-                <div className="text-xs text-muted-foreground">مبلغ نهایی</div>
-                <div className="text-xl font-extrabold text-foreground">
-                  {formatPersianPrice(calculateTotalPrice())}{" "}
-                  <span className="text-xs font-normal text-muted-foreground">تومان</span>
+                {/* Left Corner: Amount */}
+                <div className="text-left">
+                  <div className="text-xs text-muted-foreground">مبلغ نهایی</div>
+                  <div className="text-xl font-extrabold text-foreground">
+                    {formatPersianPrice(calculateTotalPrice())}{" "}
+                    <span className="text-xs font-normal text-muted-foreground">تومان</span>
+                  </div>
                 </div>
               </div>
             </div>
