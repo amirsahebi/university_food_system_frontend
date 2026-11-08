@@ -58,6 +58,8 @@ export const FoodImage: React.FC<FoodImageProps> = ({
   return (
     <div className={cn("relative w-full h-full overflow-hidden flex items-center justify-center bg-orange-50/50", containerClassName)}>
       <Image
+        loading="lazy"
+        decoding="async"
         {...props}
         src={imageSource}
         alt={alt}
