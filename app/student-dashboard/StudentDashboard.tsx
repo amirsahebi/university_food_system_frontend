@@ -1227,9 +1227,10 @@ export default function StudentDashboard() {
               )}
             </div>
 
-            {/* Bottom Footer Separator - Sticky / Floating */}
-            <div className="shrink-0 border-t border-glass-border bg-glass-strong/95 backdrop-blur-md p-5">
+            {/* Bottom Footer Separator - Sticky / Floating (Exact GitHub Design & Background) */}
+            <div className="shrink-0 border-t border-glass-border bg-glass-strong/95 backdrop-blur-md px-5 py-4" dir="rtl">
               <div className="flex items-center justify-between">
+                {/* Right Corner (RTL start): Button */}
                 <Button
                   variant="brand"
                   disabled={!selectedTimeSlot}
@@ -1239,6 +1240,8 @@ export default function StudentDashboard() {
                   <ChevronRight className="size-4" />
                   <span>ادامه به پرداخت</span>
                 </Button>
+
+                {/* Left Corner (RTL end): Amount */}
                 <div className="text-left">
                   <div className="text-xs text-muted-foreground">مبلغ نهایی</div>
                   <div className="text-xl font-extrabold text-foreground">
