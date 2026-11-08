@@ -130,7 +130,9 @@ export default function EditProfile() {
     setIsChangingPassword(true)
     try {
       const response = await api.post(createApiUrl(API_ROUTES.CHANGE_PASSWORD), {
+        currentPassword: data.currentPassword,
         old_password: data.currentPassword,
+        newPassword: data.newPassword,
         new_password: data.newPassword,
       })
 
@@ -138,21 +140,17 @@ export default function EditProfile() {
         toast.success("رمز عبور با موفقیت تغییر یافت")
         resetPasswordForm()
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error changing password:", error)
-      const err = error as {
-        response?: {
-          data?: {
-            detail?: string
-            old_password?: string[]
-            message?: string
-          }
-        }
-      }
+      const resData = error?.response?.data
       const errorMsg =
-        err.response?.data?.detail ||
-        err.response?.data?.old_password?.[0] ||
-        err.response?.data?.message ||
+        resData?.error ||
+        resData?.message ||
+        resData?.detail ||
+        (Array.isArray(resData?.old_password) ? resData.old_password[0] : resData?.old_password) ||
+        (Array.isArray(resData?.new_password) ? resData.new_password[0] : resData?.new_password) ||
+        (Array.isArray(resData?.currentPassword) ? resData.currentPassword[0] : resData?.currentPassword) ||
+        (Array.isArray(resData?.newPassword) ? resData.newPassword[0] : resData?.newPassword) ||
         "خطا در تغییر رمز عبور"
       toast.error(errorMsg)
     } finally {
