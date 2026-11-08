@@ -300,6 +300,18 @@
   box-shadow: var(--shadow-glass);
 }
 
+/* Mobile high-performance optimizations: soften heavy blur shaders for buttery-smooth 60/120 FPS scrolling */
+@media (max-width: 768px) {
+  .glass {
+    backdrop-filter: blur(8px) saturate(130%);
+    -webkit-backdrop-filter: blur(8px) saturate(130%);
+  }
+  .glass-strong {
+    backdrop-filter: blur(12px) saturate(140%);
+    -webkit-backdrop-filter: blur(12px) saturate(140%);
+  }
+}
+
 .bg-glass {
   background-color: var(--glass);
 }
@@ -314,7 +326,13 @@
 
 .bg-page {
   background: var(--gradient-page);
-  background-attachment: fixed;
+  background-attachment: scroll; /* Scroll-friendly on mobile to prevent GPU repaint thrashing */
+}
+
+@media (min-width: 1024px) {
+  .bg-page {
+    background-attachment: fixed;
+  }
 }
 
 .bg-brand {
