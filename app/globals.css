@@ -70,6 +70,12 @@
   * {
     @apply border-border;
     @apply estedad-font;
+    -webkit-tap-highlight-color: transparent;
+  }
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+    touch-action: manipulation;
   }
   body {
     @apply bg-background text-foreground;
@@ -300,13 +306,22 @@
   box-shadow: var(--shadow-glass);
 }
 
-/* Mobile high-performance optimizations: soften heavy blur shaders for buttery-smooth 60/120 FPS scrolling */
+/* Mobile high-performance optimizations: remove heavy per-card GPU blur shaders for buttery-smooth 60/120 FPS scrolling */
 @media (max-width: 768px) {
   .glass {
-    backdrop-filter: blur(8px) saturate(130%);
-    -webkit-backdrop-filter: blur(8px) saturate(130%);
+    background: oklch(1 0 0 / 0.88);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
   .glass-strong {
+    background: oklch(1 0 0 / 0.94);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  /* Preserve high-end glass blur only on floating header and modal where it elevates visual design without scroll lag */
+  header .glass,
+  .modal-glass {
+    background: oklch(1 0 0 / 0.78);
     backdrop-filter: blur(12px) saturate(140%);
     -webkit-backdrop-filter: blur(12px) saturate(140%);
   }

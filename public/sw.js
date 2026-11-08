@@ -1,4 +1,4 @@
-const CACHE_NAME = 'javanfoods-pwa-v7';
+const CACHE_NAME = 'javanfoods-pwa-v8';
 const OFFLINE_URL = '/offline.html';
 
 const PRECACHE_ASSETS = [

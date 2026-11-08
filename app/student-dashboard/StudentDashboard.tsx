@@ -163,6 +163,20 @@ function Sheet({
   children: ReactNode
   className?: string
 }) {
+  // Lock body scroll when modal is open to prevent background bleed and lag
+  useEffect(() => {
+    if (open) {
+      const originalOverflow = document.body.style.overflow
+      const originalTouchAction = document.body.style.touchAction
+      document.body.style.overflow = "hidden"
+      document.body.style.touchAction = "none"
+      return () => {
+        document.body.style.overflow = originalOverflow
+        document.body.style.touchAction = originalTouchAction
+      }
+    }
+  }, [open])
+
   return (
     <AnimatePresence>
       {open && (
@@ -170,17 +184,18 @@ function Sheet({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.22, ease: "easeOut" }}
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-xs sm:items-center p-0 sm:p-4"
+          transition={{ duration: 0.18, ease: "easeOut" }}
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 sm:items-center p-0 sm:p-4 touch-none select-none"
           onClick={onClose}
         >
           <motion.div
-            initial={{ y: "100%", opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: "100%", opacity: 0 }}
-            transition={{ type: "spring", damping: 30, stiffness: 300 }}
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", damping: 32, stiffness: 350, mass: 0.8 }}
+            style={{ willChange: "transform", transform: "translateZ(0)" }}
             className={cn(
-              "glass-strong w-full max-h-[88vh] flex flex-col rounded-t-[2rem] sm:w-[460px] sm:rounded-[2rem] shadow-2xl border border-glass-border overflow-hidden",
+              "glass-strong w-full max-h-[88vh] flex flex-col rounded-t-[2.2rem] sm:w-[460px] sm:rounded-[2rem] shadow-2xl border border-glass-border overflow-hidden overscroll-contain",
               className
             )}
             onClick={(e) => e.stopPropagation()}
@@ -806,7 +821,7 @@ export default function StudentDashboard() {
                 return (
                   <article
                     key={item.id}
-                    className="glass group overflow-hidden rounded-[1.75rem] p-2 transition-transform duration-200 sm:hover:-translate-y-1 [content-visibility:auto] [contain-intrinsic-size:0_320px]"
+                    className="glass group overflow-hidden rounded-[1.75rem] p-2 transition-transform duration-200 sm:hover:-translate-y-1 [content-visibility:auto] [contain-intrinsic-size:0_320px] [contain:paint_layout] [transform:translateZ(0)]"
                   >
                     <div className="relative aspect-[4/3] overflow-hidden rounded-[1.4rem]">
                       <FoodImage
@@ -903,7 +918,7 @@ export default function StudentDashboard() {
                   : "زمان نامشخص"
 
                 return (
-                  <article key={o.id} className="glass rounded-[1.75rem] p-4">
+                  <article key={o.id} className="glass rounded-[1.75rem] p-4 [contain:paint_layout] [transform:translateZ(0)]">
                     <div className="flex gap-3">
                       <div className="relative size-20 shrink-0 overflow-hidden rounded-2xl">
                         <FoodImage
@@ -1044,7 +1059,7 @@ export default function StudentDashboard() {
             </div>
 
             {/* Scrollable Middle Body */}
-            <div className="flex-1 overflow-y-auto overscroll-contain p-5 space-y-5 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto overscroll-contain p-5 space-y-5 custom-scrollbar [touch-action:pan-y] [-webkit-overflow-scrolling:touch]">
               {/* Food Title & Base Price */}
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-extrabold text-foreground">{selectedFood.food.name}</h2>
@@ -1257,7 +1272,7 @@ export default function StudentDashboard() {
 
       {/* Payment Confirmation Sheet / Modal */}
       <Sheet open={isPaymentDialogOpen} onClose={() => setIsPaymentDialogOpen(false)}>
-        <div className="space-y-5 p-6 text-center overflow-y-auto custom-scrollbar">
+        <div className="space-y-5 p-6 text-center overflow-y-auto overscroll-contain custom-scrollbar [touch-action:pan-y] [-webkit-overflow-scrolling:touch]">
           <div className="mx-auto grid size-16 place-items-center rounded-3xl bg-brand text-primary-foreground shadow-glow">
             <CreditCard className="size-7" />
           </div>
