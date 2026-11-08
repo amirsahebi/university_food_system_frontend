@@ -1227,10 +1227,10 @@ export default function StudentDashboard() {
               )}
             </div>
 
-            {/* Bottom Footer Separator - Sticky / Floating (Exact GitHub Design & Background) */}
-            <div className="shrink-0 border-t border-glass-border bg-glass-strong/95 backdrop-blur-md px-5 py-4" dir="rtl">
+            {/* Bottom Footer Separator - Sticky / Floating (Transparent background identical to modal with exact GitHub separator) */}
+            <div className="shrink-0 border-t border-glass-border px-5 pt-4 pb-5" dir="rtl">
               <div className="flex items-center justify-between">
-                {/* Right Corner (RTL start): Button */}
+                {/* Right Corner: Button */}
                 <Button
                   variant="brand"
                   disabled={!selectedTimeSlot}
@@ -1241,7 +1241,7 @@ export default function StudentDashboard() {
                   <span>ادامه به پرداخت</span>
                 </Button>
 
-                {/* Left Corner (RTL end): Amount */}
+                {/* Left Corner: Amount */}
                 <div className="text-left">
                   <div className="text-xs text-muted-foreground">مبلغ نهایی</div>
                   <div className="text-xl font-extrabold text-foreground">
