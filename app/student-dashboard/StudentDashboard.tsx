@@ -1025,50 +1025,38 @@ export default function StudentDashboard() {
       <Sheet open={isDialogOpen && !isPaymentDialogOpen} onClose={() => setIsDialogOpen(false)}>
         {selectedFood && (
           <div className="flex flex-col h-full max-h-[88vh] overflow-hidden">
-            {/* Top Compact Image Banner */}
-            <div className="relative h-32 sm:h-40 w-full shrink-0 overflow-hidden bg-muted">
+            {/* Top Image Banner */}
+            <div className="relative h-44 sm:h-48 w-full shrink-0 overflow-hidden">
               <FoodImage
                 src={selectedFood.food.image_url}
                 alt={selectedFood.food.name}
                 fill
                 className="size-full object-cover"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-black/35 pointer-events-none" />
-
-              {/* Close Button */}
               <button
                 type="button"
                 aria-label="بستن"
                 onClick={() => setIsDialogOpen(false)}
-                className="absolute left-3 top-3 grid size-8 sm:size-9 place-items-center rounded-full bg-black/45 hover:bg-black/65 backdrop-blur-xs transition cursor-pointer text-white shadow-md z-10"
+                className="glass absolute left-4 top-4 grid size-9 place-items-center rounded-full hover:bg-glass-strong transition cursor-pointer text-foreground shadow-md z-10"
               >
                 <X className="size-4" />
               </button>
-
-              {/* Category tag */}
-              {selectedFood.food.category_name && (
-                <span className="absolute right-3 top-3 rounded-full bg-black/45 backdrop-blur-xs px-2.5 py-0.5 text-xs text-white border border-white/20">
-                  {selectedFood.food.category_name}
-                </span>
-              )}
-
-              {/* Food Title & Base Price on banner */}
-              <div className="absolute bottom-2.5 right-3 left-3 flex items-center justify-between text-white">
-                <h2 className="text-base sm:text-lg font-black drop-shadow-md truncate">
-                  {selectedFood.food.name}
-                </h2>
-                <span className="font-extrabold text-xs sm:text-sm text-white drop-shadow-md shrink-0 bg-black/45 backdrop-blur-xs px-2.5 py-0.5 rounded-full border border-white/20">
-                  قیمت پایه: {formatPersianPrice(selectedFood.food.price)} تومان
-                </span>
-              </div>
             </div>
 
             {/* Scrollable Middle Body */}
-            <div className="flex-1 overflow-y-auto overscroll-contain p-3.5 sm:p-5 space-y-4 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto overscroll-contain p-5 space-y-5 custom-scrollbar">
+              {/* Food Title & Base Price */}
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-extrabold text-foreground">{selectedFood.food.name}</h2>
+                <span className="font-bold text-base sm:text-lg text-primary whitespace-nowrap">
+                  {formatPersianPrice(selectedFood.food.price)} تومان
+                </span>
+              </div>
+
               {/* Time Slots */}
               <div>
-                <h4 className="mb-2 flex items-center gap-1.5 text-xs sm:text-sm font-bold text-foreground">
-                  <Clock className="size-3.5 sm:size-4 text-primary" />
+                <h4 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-foreground">
+                  <Clock className="size-4 text-primary" />
                   زمان تحویل
                 </h4>
                 {selectedFood.time_slots && selectedFood.time_slots.length > 0 ? (
@@ -1082,16 +1070,16 @@ export default function StudentDashboard() {
                           disabled={s.capacity !== undefined && s.capacity <= 0}
                           onClick={() => setSelectedTimeSlot(s.id)}
                           className={cn(
-                            "rounded-2xl border p-2.5 sm:p-3 text-center text-xs sm:text-sm transition disabled:opacity-40 cursor-pointer",
+                            "rounded-2xl border p-3 text-center text-sm transition disabled:opacity-40 cursor-pointer",
                             selectedTimeSlot === s.id
-                              ? "border-primary bg-primary/15 text-primary font-bold shadow-xs"
+                              ? "border-primary bg-accent text-accent-foreground font-semibold shadow-sm"
                               : "border-glass-border bg-glass hover:bg-glass-strong text-foreground"
                           )}
                         >
                           <div className="font-semibold" dir="ltr">
                             {toPersianDigits(s.start_time.slice(0, 5))} - {toPersianDigits(s.end_time.slice(0, 5))}
                           </div>
-                          <div className="text-[0.68rem] text-muted-foreground mt-0.5">
+                          <div className="text-[0.7rem] text-muted-foreground mt-0.5">
                             {s.capacity !== undefined
                               ? s.capacity > 0
                                 ? `${toPersianDigits(s.capacity)} ظرفیت`
@@ -1112,29 +1100,29 @@ export default function StudentDashboard() {
               {((selectedFood.food.allowed_vouchers && selectedFood.food.allowed_vouchers.length > 0) || voucherTypes.length > 0) && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <h4 className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-foreground">
-                      <Ticket className="size-3.5 sm:size-4 text-primary" />
+                    <h4 className="flex items-center gap-1.5 text-sm font-bold text-foreground">
+                      <Ticket className="size-4 text-primary" />
                       <span>انتخاب فیش / ژتون</span>
                     </h4>
-                    <span className="text-[0.65rem] sm:text-[0.7rem] text-muted-foreground">
-                      (اسکرول برای مشاهده گزینه‌ها)
+                    <span className="text-[0.7rem] text-muted-foreground">
+                      یک گزینه را انتخاب کنید
                     </span>
                   </div>
 
                   {userProfile?.trust_score !== undefined && userProfile.trust_score < 0 && (
-                    <div className="rounded-2xl bg-destructive-soft border border-destructive/20 p-2 text-xs text-destructive text-center">
+                    <div className="rounded-2xl bg-destructive-soft border border-destructive/20 p-2.5 text-xs text-destructive text-center">
                       به دلیل امتیاز اعتبار منفی، امکان استفاده از ژتون وجود ندارد
                     </div>
                   )}
 
-                  {/* Internal Scrollable Container for Voucher Options */}
-                  <div className="flex flex-col gap-2 w-full max-h-36 sm:max-h-44 overflow-y-auto pr-1 overscroll-contain custom-scrollbar">
+                  {/* Stacked and Justified Voucher List */}
+                  <div className="flex flex-col gap-2 w-full max-h-48 overflow-y-auto pr-1 overscroll-contain custom-scrollbar">
                     {/* Option: No Voucher */}
                     <button
                       type="button"
                       onClick={() => setSelectedVoucherId(null)}
                       className={cn(
-                        "w-full rounded-2xl p-2.5 sm:p-3 flex items-center justify-between transition-all cursor-pointer border text-right",
+                        "w-full rounded-2xl p-3 sm:p-3.5 flex items-center justify-between transition-all cursor-pointer border text-right",
                         selectedVoucherId === null
                           ? "border-primary bg-primary/10 shadow-xs"
                           : "border-glass-border bg-glass/60 hover:bg-glass-strong"
@@ -1143,7 +1131,7 @@ export default function StudentDashboard() {
                       <div className="flex items-center gap-2.5 min-w-0">
                         <div
                           className={cn(
-                            "size-4 sm:size-5 rounded-full border-2 flex items-center justify-center transition-colors shrink-0",
+                            "size-5 rounded-full border-2 flex items-center justify-center transition-colors shrink-0",
                             selectedVoucherId === null
                               ? "border-primary bg-primary"
                               : "border-muted-foreground/40 bg-transparent"
@@ -1164,7 +1152,7 @@ export default function StudentDashboard() {
                       </div>
 
                       <div className="shrink-0">
-                        <span className="rounded-full bg-glass px-2 py-0.5 text-[0.68rem] font-medium text-muted-foreground border border-glass-border">
+                        <span className="rounded-full bg-glass px-2.5 py-1 text-[0.7rem] font-medium text-muted-foreground border border-glass-border">
                           قیمت پایه
                         </span>
                       </div>
@@ -1187,7 +1175,7 @@ export default function StudentDashboard() {
                           disabled={isDisabled}
                           onClick={() => setSelectedVoucherId(vt.id)}
                           className={cn(
-                            "w-full rounded-2xl p-2.5 sm:p-3 flex items-center justify-between transition-all border text-right",
+                            "w-full rounded-2xl p-3 sm:p-3.5 flex items-center justify-between transition-all border text-right",
                             isDisabled
                               ? "opacity-45 cursor-not-allowed border-dashed border-glass-border bg-glass/30"
                               : isSelected
@@ -1198,7 +1186,7 @@ export default function StudentDashboard() {
                           <div className="flex items-center gap-2.5 min-w-0">
                             <div
                               className={cn(
-                                "size-4 sm:size-5 rounded-full border-2 flex items-center justify-center transition-colors shrink-0",
+                                "size-5 rounded-full border-2 flex items-center justify-center transition-colors shrink-0",
                                 isSelected
                                   ? "border-primary bg-primary"
                                   : "border-muted-foreground/40 bg-transparent"
@@ -1222,11 +1210,11 @@ export default function StudentDashboard() {
 
                           <div className="shrink-0">
                             {vt.discount_amount ? (
-                              <span className="rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-2 py-0.5 text-[0.68rem] font-bold">
+                              <span className="rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-2.5 py-1 text-[0.7rem] font-bold">
                                 {formatPersianPrice(vt.discount_amount)}− تومان
                               </span>
                             ) : (
-                              <span className="rounded-full bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 text-[0.68rem] font-bold">
+                              <span className="rounded-full bg-primary/10 text-primary border border-primary/20 px-2.5 py-1 text-[0.7rem] font-bold">
                                 رایگان
                               </span>
                             )}
@@ -1239,32 +1227,26 @@ export default function StudentDashboard() {
               )}
             </div>
 
-            {/* Sticky / Fixed Bottom Footer (Always Visible Without Scrolling!) */}
-            <div className="shrink-0 border-t border-glass-border bg-white/95 dark:bg-card/95 backdrop-blur-md px-4 py-3 sm:px-5 sm:py-3.5 shadow-lg">
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-[0.68rem] text-muted-foreground font-medium">مبلغ نهایی قابل پرداخت</div>
-                  <div className="text-lg sm:text-xl font-black text-primary">
-                    {formatPersianPrice(calculateTotalPrice())}{" "}
-                    <span className="text-xs font-normal text-muted-foreground">تومان</span>
-                  </div>
-                </div>
-
+            {/* Bottom Footer Separator - Sticky / Floating */}
+            <div className="shrink-0 border-t border-glass-border bg-glass-strong/95 backdrop-blur-md p-5">
+              <div className="flex items-center justify-between">
                 <Button
                   variant="brand"
                   disabled={!selectedTimeSlot}
                   onClick={handleConfirmSelection}
-                  className="h-11 px-5 sm:px-6 rounded-xl text-sm font-bold shadow-glow cursor-pointer shrink-0 gap-1.5 disabled:opacity-50"
+                  className="gap-1 h-11 rounded-xl px-5 text-sm font-bold shadow-md cursor-pointer"
                 >
-                  <span>ادامه پرداخت</span>
-                  <ChevronLeft className="size-4" />
+                  <ChevronRight className="size-4" />
+                  <span>ادامه به پرداخت</span>
                 </Button>
+                <div className="text-left">
+                  <div className="text-xs text-muted-foreground">مبلغ نهایی</div>
+                  <div className="text-xl font-extrabold text-foreground">
+                    {formatPersianPrice(calculateTotalPrice())}{" "}
+                    <span className="text-xs font-normal text-muted-foreground">تومان</span>
+                  </div>
+                </div>
               </div>
-              {!selectedTimeSlot && (
-                <p className="text-[0.68rem] text-amber-600 dark:text-amber-400 mt-1.5 text-center font-medium">
-                  لطفاً برای ادامه، یکی از بازه‌های زمانی تحویل بالا را انتخاب کنید
-                </p>
-              )}
             </div>
           </div>
         )}
