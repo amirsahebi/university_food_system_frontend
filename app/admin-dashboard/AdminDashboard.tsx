@@ -249,14 +249,14 @@ const StatCard = ({
       : toPersianDigits(value)
 
   return (
-    <Card
+    <div
       onClick={onClick}
-      className={`group relative overflow-hidden backdrop-blur-xl bg-white/90 border border-orange-100/70 shadow-xs hover:shadow-md hover:border-orange-200 transition-all duration-300 rounded-2xl ${
+      className={`group relative overflow-hidden glass rounded-2xl border border-glass-border shadow-glass hover:shadow-glow hover:border-orange-300/60 transition-all duration-300 ${
         onClick ? "cursor-pointer" : ""
       }`}
     >
       <div className={`h-1.5 w-full bg-gradient-to-r ${effectiveGradient}`} />
-      <CardContent className="p-3 sm:p-5">
+      <div className="p-3.5 sm:p-5">
         <div className="flex items-start justify-between gap-1.5">
           <div className="space-y-0.5 sm:space-y-1 min-w-0">
             <p className="text-[11px] sm:text-xs font-semibold text-gray-500 tracking-wide truncate">{title}</p>
@@ -274,15 +274,15 @@ const StatCard = ({
           </div>
         </div>
         {trend && (
-          <div className="mt-2 sm:mt-3 pt-2 sm:pt-2.5 border-t border-gray-100 flex items-center justify-between text-[10px] sm:text-[11px]">
+          <div className="mt-2 sm:mt-3 pt-2 sm:pt-2.5 border-t border-glass-border flex items-center justify-between text-[10px] sm:text-[11px]">
             <span className="text-gray-400 hidden sm:inline">وضعیت</span>
-            <span className="font-medium text-emerald-700 bg-emerald-50 px-1.5 sm:px-2 py-0.5 rounded-full border border-emerald-150 truncate">
+            <span className="font-semibold text-emerald-700 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 truncate">
               {toPersianDigits(trend)}
             </span>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }
 
@@ -2241,42 +2241,44 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-[#FAF7F2] text-gray-900" dir="rtl">
-      {/* Ambient Brand Atmosphere (preserving signature orange glow & warm background) */}
+    <div className="min-h-screen relative overflow-hidden bg-page text-gray-900" dir="rtl">
+      {/* Ambient Brand Atmosphere (signature warm radial gradients & soft orange glow) */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-40 right-[-10%] w-[650px] h-[650px] rounded-full bg-gradient-to-br from-orange-400/15 via-amber-300/10 to-transparent blur-3xl blob-animate-1" />
-        <div className="absolute -bottom-40 left-[-10%] w-[650px] h-[650px] rounded-full bg-gradient-to-tr from-orange-500/15 via-rose-300/10 to-transparent blur-3xl blob-animate-2" />
+        <div className="absolute -top-40 right-[-10%] w-[650px] h-[650px] rounded-full bg-gradient-to-br from-orange-400/20 via-amber-300/15 to-transparent blur-3xl blob-animate-1" />
+        <div className="absolute -bottom-40 left-[-10%] w-[650px] h-[650px] rounded-full bg-gradient-to-tr from-orange-500/20 via-rose-300/15 to-transparent blur-3xl blob-animate-2" />
       </div>
 
       <Toaster
         position="top-center"
         toastOptions={{
           style: {
-            background: "#FFF",
+            background: "rgba(255, 255, 255, 0.9)",
             color: "#1F2937",
-            borderRadius: "0.85rem",
-            boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
-            border: "1px solid rgba(244, 123, 32, 0.15)",
+            borderRadius: "1rem",
+            backdropFilter: "blur(16px)",
+            WebkitBackdropFilter: "blur(16px)",
+            boxShadow: "0 12px 32px -4px rgba(244, 123, 32, 0.15), 0 4px 12px rgba(0, 0, 0, 0.05)",
+            border: "1px solid rgba(255, 255, 255, 0.8)",
           },
         }}
       />
 
-      {/* Elevated Top Header */}
-      <header className="sticky top-0 z-40 w-full backdrop-blur-xl bg-white/85 border-b border-orange-100 shadow-xs">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6">
-          <div className="flex items-center gap-3">
+      {/* Floating Glass Top Header */}
+      <header className="sticky top-0 z-40 w-full px-2.5 sm:px-6 pt-2.5 sm:pt-3">
+        <div className="glass-strong mx-auto flex h-16 max-w-7xl items-center justify-between rounded-2xl px-3.5 sm:px-6 shadow-glass border border-glass-border">
+          <div className="flex items-center gap-2.5 sm:gap-3">
             {/* Mobile Sheet Menu */}
             <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
               <SheetTrigger asChild className="md:hidden">
-                <Button variant="ghost" size="icon" className="hover:bg-orange-50">
-                  <Menu className="h-5 w-5 text-gray-700" />
+                <Button variant="ghost" size="icon" className="hover:bg-white/60 rounded-xl h-9 w-9 text-gray-700">
+                  <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-[300px] p-0" dir="rtl">
-                <div className="flex flex-col h-full bg-gradient-to-b from-orange-50/40 to-white">
+              <SheetContent side="right" className="w-[300px] p-0 border-l border-glass-border shadow-2xl" dir="rtl">
+                <div className="flex flex-col h-full bg-gradient-to-b from-white/95 via-orange-50/40 to-white/95 backdrop-blur-2xl">
                   {/* Brand in Drawer */}
-                  <div className="p-5 border-b border-orange-100 flex items-center gap-3">
-                    <div className="relative h-10 w-10 rounded-xl bg-orange-100/60 p-1.5 flex items-center justify-center">
+                  <div className="p-5 border-b border-glass-border flex items-center gap-3">
+                    <div className="relative h-10 w-10 rounded-xl bg-white/70 border border-white/80 p-1.5 flex items-center justify-center shadow-xs">
                       <Image src="/images/javanfoods_logo.png" alt="رستوران جوان" fill sizes="40px" className="object-contain p-1" />
                     </div>
                     <div>
@@ -2304,8 +2306,8 @@ export default function AdminDashboard() {
                               }}
                               className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm transition-all duration-150 ${
                                 isActive
-                                  ? "bg-gradient-to-r from-[#F47B20] to-[#E06A10] text-white font-semibold shadow-md shadow-orange-500/20"
-                                  : "text-gray-600 hover:text-[#F47B20] hover:bg-orange-50 font-medium"
+                                  ? "bg-gradient-to-r from-[#F47B20] to-[#E06A10] text-white font-bold shadow-md shadow-orange-500/25"
+                                  : "text-gray-600 hover:text-[#F47B20] hover:bg-white/60 font-medium"
                               }`}
                             >
                               <div className="flex items-center gap-2.5">
@@ -2329,14 +2331,14 @@ export default function AdminDashboard() {
                   </div>
 
                   {/* Bottom Logout */}
-                  <div className="p-4 border-t border-orange-100">
+                  <div className="p-4 border-t border-glass-border">
                     <Button
                       variant="ghost"
                       onClick={() => {
                         setMobileNavOpen(false)
                         handleLogout()
                       }}
-                      className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl"
+                      className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50/80 rounded-xl"
                     >
                       <LogOut className="ml-2 h-4 w-4" />
                       خروج از حساب کاربری
@@ -2347,23 +2349,23 @@ export default function AdminDashboard() {
             </Sheet>
 
             {/* Brand Logo & Name */}
-            <Link href="/" className="flex items-center gap-3 group">
-              <div className="relative h-11 w-11 rounded-xl bg-orange-50 border border-orange-200/60 p-1 flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform duration-200">
+            <Link href="/" className="flex items-center gap-2.5 sm:gap-3 group">
+              <div className="relative h-10 sm:h-11 w-10 sm:w-11 rounded-xl bg-white/70 border border-white/90 p-1 flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform duration-200">
                 <Image src="/images/javanfoods_logo.png" alt="رستوران جوان" fill sizes="44px" className="object-contain p-1" priority />
               </div>
               <div className="flex flex-col">
                 <div className="flex items-center gap-2">
                   <span className="text-base font-extrabold text-gray-900 tracking-tight">رستوران جوان</span>
-                  <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-100 text-[#F47B20] text-[10px] font-bold">
+                  <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-orange-500/10 text-[#F47B20] border border-orange-500/20 text-[10px] font-bold">
                     پنل مدیریت
                   </span>
                 </div>
-                <span className="text-xs text-gray-500 hidden sm:block">سامانه جامع تغذیه دانشگاهی</span>
+                <span className="text-[11px] text-gray-500 hidden sm:block">سامانه جامع تغذیه دانشگاهی</span>
               </div>
             </Link>
 
             {/* System Status Indicator */}
-            <div className="hidden lg:flex items-center gap-2 mr-4 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200/60 text-emerald-700 text-xs font-medium">
+            <div className="hidden lg:flex items-center gap-2 mr-4 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 text-xs font-semibold backdrop-blur-md">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
@@ -2373,9 +2375,9 @@ export default function AdminDashboard() {
           </div>
 
           {/* Left Side Header Controls */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             {todayPersianDate && (
-              <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50/70 border border-orange-100 text-xs text-orange-950 font-medium">
+              <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-500/10 border border-orange-500/20 text-xs text-orange-950 font-semibold backdrop-blur-md">
                 <Calendar className="w-3.5 h-3.5 text-[#F47B20]" />
                 <span>{todayPersianDate}</span>
               </div>
@@ -2394,7 +2396,7 @@ export default function AdminDashboard() {
                       fetchStudents()
                       toast.success("اطلاعات بروزرسانی شد")
                     }}
-                    className="h-9 w-9 rounded-xl text-gray-500 hover:text-[#F47B20] hover:bg-orange-50"
+                    className="h-9 w-9 rounded-xl text-gray-600 hover:text-[#F47B20] hover:bg-white/60"
                   >
                     <RefreshCw className="h-4 w-4" />
                   </Button>
@@ -2408,12 +2410,12 @@ export default function AdminDashboard() {
             {/* Admin Profile Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative flex items-center gap-2.5 p-1.5 pr-2.5 rounded-xl hover:bg-orange-50/80">
+                <Button variant="ghost" className="relative flex items-center gap-2.5 p-1.5 pr-2.5 rounded-xl hover:bg-white/60">
                   <div className="hidden sm:flex flex-col items-start text-right">
                     <span className="text-xs font-bold text-gray-900 leading-tight">مدیر سیستم</span>
-                    <span className="text-[10px] text-orange-600 font-medium leading-tight mt-0.5">ادمین ارشد سلف</span>
+                    <span className="text-[10px] text-orange-600 font-semibold leading-tight mt-0.5">ادمین ارشد سلف</span>
                   </div>
-                  <Avatar className="h-8 w-8 ring-2 ring-[#F47B20]/20">
+                  <Avatar className="h-8 w-8 ring-2 ring-[#F47B20]/30 shadow-xs">
                     <AvatarImage src="/placeholder.svg?height=32&width=32" alt="مدیر سیستم" />
                     <AvatarFallback className="bg-gradient-to-br from-[#F47B20] to-amber-500 text-white text-xs font-bold">
                       مدیر
@@ -2421,28 +2423,28 @@ export default function AdminDashboard() {
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="start" forceMount>
-                <DropdownMenuLabel className="font-normal">
+              <DropdownMenuContent className="w-56 glass-strong border border-glass-border shadow-glass rounded-2xl p-1.5" align="start" forceMount>
+                <DropdownMenuLabel className="font-normal px-2.5 py-2">
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-semibold leading-none text-gray-900">مدیر سیستم جوان</p>
+                    <p className="text-sm font-bold leading-none text-gray-900">مدیر سیستم جوان</p>
                     <p className="text-xs leading-none text-muted-foreground">admin@javanfoods.ir</p>
                   </div>
                 </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setActiveTab("dashboard")}>
+                <DropdownMenuSeparator className="bg-glass-border" />
+                <DropdownMenuItem onClick={() => setActiveTab("dashboard")} className="rounded-xl cursor-pointer">
                   <Home className="ml-2 h-4 w-4 text-gray-500" />
                   <span>داشبورد اصلی</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => router.push("/")}>
+                <DropdownMenuItem onClick={() => router.push("/")} className="rounded-xl cursor-pointer">
                   <Utensils className="ml-2 h-4 w-4 text-gray-500" />
                   <span>مشاهده صفحه دانشجویی</span>
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
+                <DropdownMenuSeparator className="bg-glass-border" />
                 <DropdownMenuItem
                   onClick={() => {
                     window.dispatchEvent(new CustomEvent("open-whats-new"))
                   }}
-                  className="cursor-pointer text-amber-600 focus:text-amber-700 focus:bg-amber-50"
+                  className="rounded-xl cursor-pointer text-amber-600 focus:text-amber-700 focus:bg-amber-500/10"
                 >
                   <Sparkles className="ml-2 h-4 w-4 text-amber-500" />
                   <span>امکانات و تغییرات جدید</span>
@@ -2451,13 +2453,13 @@ export default function AdminDashboard() {
                   onClick={() => {
                     window.dispatchEvent(new CustomEvent("open-pwa-install"))
                   }}
-                  className="cursor-pointer text-orange-600 focus:text-orange-700 focus:bg-orange-50"
+                  className="rounded-xl cursor-pointer text-orange-600 focus:text-orange-700 focus:bg-orange-500/10"
                 >
                   <Smartphone className="ml-2 h-4 w-4 text-orange-500" />
                   <span>نصب نسخه اپلیکیشن (PWA)</span>
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600 focus:bg-red-50">
+                <DropdownMenuSeparator className="bg-glass-border" />
+                <DropdownMenuItem onClick={handleLogout} className="rounded-xl cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-500/10">
                   <LogOut className="ml-2 h-4 w-4" />
                   <span>خروج از حساب</span>
                 </DropdownMenuItem>
@@ -2468,11 +2470,11 @@ export default function AdminDashboard() {
       </header>
 
       {/* Main Layout Container */}
-      <div className="container mx-auto px-3 sm:px-6 py-4 sm:py-6 flex flex-col md:flex-row gap-6 min-h-[calc(100vh-4rem)] pb-24 md:pb-6">
+      <div className="container mx-auto px-3 sm:px-6 py-4 sm:py-6 flex flex-col md:flex-row gap-6 min-h-[calc(100vh-5rem)] pb-28 md:pb-8">
         {/* Sidebar - Desktop */}
         <aside className="hidden md:flex flex-col w-64 lg:w-72 shrink-0">
-          <Card className="sticky top-24 flex-1 backdrop-blur-xl bg-white/90 border border-orange-100 shadow-sm rounded-2xl flex flex-col justify-between overflow-hidden">
-            <CardContent className="p-3.5 space-y-4">
+          <div className="sticky top-24 flex-1 glass rounded-2xl border border-glass-border shadow-glass flex flex-col justify-between overflow-hidden">
+            <div className="p-3.5 space-y-4">
               {navigationSections.map((sec) => (
                 <div key={sec.title} className="space-y-1">
                   <p className="text-[11px] font-semibold text-gray-400 px-3 uppercase tracking-wider">
@@ -2488,8 +2490,8 @@ export default function AdminDashboard() {
                           onClick={() => setActiveTab(item.id)}
                           className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs lg:text-sm transition-all duration-150 ${
                             isActive
-                              ? "bg-gradient-to-r from-[#F47B20] to-[#E06A10] text-white font-bold shadow-md shadow-orange-500/20"
-                              : "text-gray-600 hover:text-[#F47B20] hover:bg-orange-50/80 font-medium"
+                              ? "bg-gradient-to-r from-[#F47B20] to-[#E06A10] text-white font-bold shadow-md shadow-orange-500/25"
+                              : "text-gray-600 hover:text-[#F47B20] hover:bg-white/60 font-medium"
                           }`}
                         >
                           <div className="flex items-center gap-2.5">
@@ -2511,13 +2513,13 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               ))}
-            </CardContent>
+            </div>
 
             {/* Sidebar Bottom Card */}
-            <div className="p-3.5 border-t border-orange-100/80 bg-orange-50/30">
+            <div className="p-3.5 border-t border-glass-border bg-glass/60">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="h-8 w-8 rounded-lg bg-orange-100 text-[#F47B20] flex items-center justify-center font-bold text-xs">
+                  <div className="h-8 w-8 rounded-lg bg-orange-500/15 border border-orange-500/20 text-[#F47B20] flex items-center justify-center font-bold text-xs">
                     جوان
                   </div>
                   <div className="text-[11px]">
@@ -2530,13 +2532,13 @@ export default function AdminDashboard() {
                   size="icon"
                   onClick={handleLogout}
                   title="خروج"
-                  className="h-8 w-8 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50"
+                  className="h-8 w-8 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-500/10"
                 >
                   <LogOut className="h-4 w-4" />
                 </Button>
               </div>
             </div>
-          </Card>
+          </div>
         </aside>
 
         {/* Main Content Area */}
@@ -2553,15 +2555,15 @@ export default function AdminDashboard() {
               {activeTab === "dashboard" && (
                 <div className="space-y-6">
                   {/* Hero Welcome Card */}
-                  <div className="relative overflow-hidden rounded-2xl bg-gradient-to-l from-orange-500/10 via-amber-500/5 to-white/60 border border-orange-200/60 p-6 backdrop-blur-md shadow-xs">
+                  <div className="relative overflow-hidden rounded-3xl glass-strong border border-glass-border p-6 shadow-glass">
                     <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-[#F47B20]/15 text-[#F47B20]">
+                          <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-[#F47B20]/15 text-[#F47B20] border border-orange-500/20">
                             مرکز فرماندهی سامانه
                           </span>
                           <span className="text-xs text-gray-300">|</span>
-                          <span className="text-xs text-gray-500">{todayPersianDate}</span>
+                          <span className="text-xs text-gray-500 font-medium">{todayPersianDate}</span>
                         </div>
                         <h1 className="text-2xl font-black text-gray-900 mt-2">
                           خوش آمدید، مدیر سیستم 👋
@@ -2581,7 +2583,7 @@ export default function AdminDashboard() {
                         <Button
                           onClick={() => setActiveTab("daily-menu")}
                           variant="outline"
-                          className="bg-white/80 hover:bg-orange-50 border-orange-200 text-gray-800 rounded-xl text-xs font-semibold flex items-center justify-center h-10 sm:h-9"
+                          className="glass hover:bg-glass-strong border-glass-border text-gray-800 rounded-xl text-xs font-semibold flex items-center justify-center h-10 sm:h-9"
                         >
                           <Calendar className="w-4 h-4 ml-1.5 text-[#F47B20]" />
                           تنظیم منوی روز
@@ -2589,7 +2591,7 @@ export default function AdminDashboard() {
                         <Button
                           onClick={() => setActiveTab("vouchers")}
                           variant="outline"
-                          className="bg-white/80 hover:bg-orange-50 border-orange-200 text-gray-800 rounded-xl text-xs font-semibold flex items-center justify-center h-10 sm:h-9"
+                          className="glass hover:bg-glass-strong border-glass-border text-gray-800 rounded-xl text-xs font-semibold flex items-center justify-center h-10 sm:h-9"
                         >
                           <Ticket className="w-4 h-4 ml-1.5 text-[#F47B20]" />
                           مدیریت ژتون‌ها
@@ -2639,8 +2641,8 @@ export default function AdminDashboard() {
                   </div>
 
                   {/* Order Chart */}
-                  <Card className="backdrop-blur-xl bg-white/90 border border-orange-100 shadow-sm rounded-2xl overflow-hidden">
-                    <CardHeader className="border-b border-orange-100/60 pb-4">
+                  <Card className="glass rounded-2xl border border-glass-border shadow-glass overflow-hidden">
+                    <CardHeader className="border-b border-glass-border pb-4">
                       <div className="flex items-center justify-between">
                         <div>
                           <CardTitle className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
@@ -2666,8 +2668,8 @@ export default function AdminDashboard() {
                   {/* 2 Columns: Recent Foods + Recent Reservations */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Recent Foods */}
-                    <Card className="backdrop-blur-xl bg-white/90 border border-orange-100 shadow-sm rounded-2xl overflow-hidden">
-                      <CardHeader className="border-b border-orange-100/60 pb-3">
+                    <Card className="glass rounded-2xl border border-glass-border shadow-glass overflow-hidden">
+                      <CardHeader className="border-b border-glass-border pb-3">
                         <div className="flex items-center justify-between">
                           <CardTitle className="text-base font-bold text-gray-900 flex items-center gap-2">
                             <Utensils className="h-4 w-4 text-[#F47B20]" />
@@ -2711,7 +2713,7 @@ export default function AdminDashboard() {
                           </div>
                         ))}
                       </CardContent>
-                      <CardFooter className="border-t border-orange-100/60 pt-3">
+                      <CardFooter className="border-t border-glass-border pt-3">
                         <Button
                           variant="ghost"
                           className="w-full text-[#F47B20] hover:text-[#E06A10] hover:bg-orange-50 font-bold text-xs"
@@ -2723,8 +2725,8 @@ export default function AdminDashboard() {
                     </Card>
 
                     {/* Recent Reservations */}
-                    <Card className="backdrop-blur-xl bg-white/90 border border-orange-100 shadow-sm rounded-2xl overflow-hidden">
-                      <CardHeader className="border-b border-orange-100/60 pb-3">
+                    <Card className="glass rounded-2xl border border-glass-border shadow-glass overflow-hidden">
+                      <CardHeader className="border-b border-glass-border pb-3">
                         <div className="flex items-center justify-between">
                           <CardTitle className="text-base font-bold text-gray-900 flex items-center gap-2">
                             <Clock className="h-4 w-4 text-[#F47B20]" />
@@ -2762,7 +2764,7 @@ export default function AdminDashboard() {
                           ))
                         )}
                       </CardContent>
-                      <CardFooter className="border-t border-orange-100/60 pt-3">
+                      <CardFooter className="border-t border-glass-border pt-3">
                         <Button
                           variant="ghost"
                           className="w-full text-[#F47B20] hover:text-[#E06A10] hover:bg-orange-50 font-bold text-xs"
@@ -2779,8 +2781,8 @@ export default function AdminDashboard() {
               {/* Food Management Tab */}
               {activeTab === "food" && (
                 <div className="space-y-6">
-                  <Card className="backdrop-blur-xl bg-white/90 border border-orange-100 shadow-sm rounded-2xl overflow-hidden">
-                    <CardHeader className="border-b border-orange-100/60 pb-4">
+                  <Card className="glass rounded-2xl border border-glass-border shadow-glass overflow-hidden">
+                    <CardHeader className="border-b border-glass-border pb-4">
                       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                         <div>
                           <CardTitle className="text-lg font-bold text-gray-900 flex items-center gap-2">
@@ -3011,8 +3013,8 @@ export default function AdminDashboard() {
               {/* Categories Tab */}
               {activeTab === "categories" && (
                 <div className="space-y-6">
-                  <Card className="backdrop-blur-xl bg-white/90 border border-orange-100 shadow-sm rounded-2xl overflow-hidden">
-                    <CardHeader className="border-b border-orange-100/60 pb-4">
+                  <Card className="glass rounded-2xl border border-glass-border shadow-glass overflow-hidden">
+                    <CardHeader className="border-b border-glass-border pb-4">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div>
                           <CardTitle className="text-lg font-bold text-gray-900 flex items-center gap-2">
@@ -3160,8 +3162,8 @@ export default function AdminDashboard() {
               {/* Template Menu Tab */}
               {activeTab === "template-menu" && (
                 <div className="space-y-6">
-                  <Card className="backdrop-blur-xl bg-white/90 border border-orange-100 shadow-sm rounded-2xl overflow-hidden">
-                    <CardHeader className="border-b border-orange-100/60 pb-4">
+                  <Card className="glass rounded-2xl border border-glass-border shadow-glass overflow-hidden">
+                    <CardHeader className="border-b border-glass-border pb-4">
                       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                         <div>
                           <CardTitle className="text-lg font-bold text-gray-900 flex items-center gap-2">
@@ -3350,8 +3352,8 @@ export default function AdminDashboard() {
               {/* Daily Menu Tab */}
               {activeTab === "daily-menu" && (
                 <div className="space-y-6">
-                  <Card className="backdrop-blur-xl bg-white/90 border border-orange-100 shadow-sm rounded-2xl overflow-hidden">
-                    <CardHeader className="border-b border-orange-100/60 pb-4">
+                  <Card className="glass rounded-2xl border border-glass-border shadow-glass overflow-hidden">
+                    <CardHeader className="border-b border-glass-border pb-4">
                       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                         <div>
                           <CardTitle className="text-lg font-bold text-gray-900 flex items-center gap-2">
@@ -3569,77 +3571,69 @@ export default function AdminDashboard() {
                 <div className="space-y-6">
                   {/* Top Stats Overview */}
                   <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
-                    <Card className="backdrop-blur-xl bg-white/90 border border-orange-100/70 shadow-xs hover:shadow-md transition-shadow rounded-2xl">
-                      <CardContent className="p-3.5 sm:p-5 flex items-center justify-between">
-                        <div>
-                          <p className="text-[11px] sm:text-xs text-muted-foreground font-semibold">انواع ژتون</p>
-                          <h3 className="text-lg sm:text-2xl font-black text-gray-900 mt-1">
-                            {toPersianDigits(voucherTypes.length)} <span className="text-[10px] sm:text-xs font-normal text-gray-500">نوع</span>
-                          </h3>
-                        </div>
-                        <div className="p-2.5 sm:p-3 bg-gradient-to-br from-orange-400 to-[#F47B20] text-white rounded-xl sm:rounded-2xl shadow-sm shadow-orange-500/20">
-                          <Ticket className="h-4 w-4 sm:h-6 sm:w-6" />
-                        </div>
-                      </CardContent>
-                    </Card>
+                    <div className="glass rounded-2xl border border-glass-border shadow-glass p-3.5 sm:p-5 flex items-center justify-between">
+                      <div>
+                        <p className="text-[11px] sm:text-xs text-muted-foreground font-semibold">انواع ژتون</p>
+                        <h3 className="text-lg sm:text-2xl font-black text-gray-900 mt-1">
+                          {toPersianDigits(voucherTypes.length)} <span className="text-[10px] sm:text-xs font-normal text-gray-500">نوع</span>
+                        </h3>
+                      </div>
+                      <div className="p-2.5 sm:p-3 bg-gradient-to-br from-orange-400 to-[#F47B20] text-white rounded-xl sm:rounded-2xl shadow-sm shadow-orange-500/20">
+                        <Ticket className="h-4 w-4 sm:h-6 sm:w-6" />
+                      </div>
+                    </div>
 
-                    <Card className="backdrop-blur-xl bg-white/90 border border-emerald-150 shadow-xs hover:shadow-md transition-shadow rounded-2xl">
-                      <CardContent className="p-3.5 sm:p-5 flex items-center justify-between">
-                        <div>
-                          <p className="text-[11px] sm:text-xs text-muted-foreground font-semibold">ژتون‌های فعال</p>
-                          <h3 className="text-lg sm:text-2xl font-black text-emerald-600 mt-1">
-                            {toPersianDigits(voucherTypes.filter((v) => v.is_active).length)} <span className="text-[10px] sm:text-xs font-normal text-gray-500">مورد</span>
-                          </h3>
-                        </div>
-                        <div className="p-2.5 sm:p-3 bg-gradient-to-br from-emerald-400 to-teal-500 text-white rounded-xl sm:rounded-2xl shadow-sm shadow-emerald-500/20">
-                          <CheckCircle2 className="h-4 w-4 sm:h-6 sm:w-6" />
-                        </div>
-                      </CardContent>
-                    </Card>
+                    <div className="glass rounded-2xl border border-glass-border shadow-glass p-3.5 sm:p-5 flex items-center justify-between">
+                      <div>
+                        <p className="text-[11px] sm:text-xs text-muted-foreground font-semibold">ژتون‌های فعال</p>
+                        <h3 className="text-lg sm:text-2xl font-black text-emerald-600 mt-1">
+                          {toPersianDigits(voucherTypes.filter((v) => v.is_active).length)} <span className="text-[10px] sm:text-xs font-normal text-gray-500">مورد</span>
+                        </h3>
+                      </div>
+                      <div className="p-2.5 sm:p-3 bg-gradient-to-br from-emerald-400 to-teal-500 text-white rounded-xl sm:rounded-2xl shadow-sm shadow-emerald-500/20">
+                        <CheckCircle2 className="h-4 w-4 sm:h-6 sm:w-6" />
+                      </div>
+                    </div>
 
-                    <Card className="backdrop-blur-xl bg-white/90 border border-blue-150 shadow-xs hover:shadow-md transition-shadow rounded-2xl">
-                      <CardContent className="p-3.5 sm:p-5 flex items-center justify-between">
-                        <div>
-                          <p className="text-[11px] sm:text-xs text-muted-foreground font-semibold">بیشترین سقف یارانه</p>
-                          <h3 className="text-lg sm:text-2xl font-black text-blue-600 mt-1">
-                            {voucherTypes.length > 0
-                              ? formatPersianPrice(Math.max(...voucherTypes.map((v) => Number(v.discount_amount))))
-                              : "۰"}{" "}
-                            <span className="text-[10px] sm:text-xs font-normal text-gray-500">تومان</span>
-                          </h3>
-                        </div>
-                        <div className="p-2.5 sm:p-3 bg-gradient-to-br from-blue-400 to-indigo-500 text-white rounded-xl sm:rounded-2xl shadow-sm shadow-blue-500/20">
-                          <Sparkles className="h-4 w-4 sm:h-6 sm:w-6" />
-                        </div>
-                      </CardContent>
-                    </Card>
+                    <div className="glass rounded-2xl border border-glass-border shadow-glass p-3.5 sm:p-5 flex items-center justify-between">
+                      <div>
+                        <p className="text-[11px] sm:text-xs text-muted-foreground font-semibold">بیشترین سقف یارانه</p>
+                        <h3 className="text-lg sm:text-2xl font-black text-blue-600 mt-1">
+                          {voucherTypes.length > 0
+                            ? formatPersianPrice(Math.max(...voucherTypes.map((v) => Number(v.discount_amount))))
+                            : "۰"}{" "}
+                          <span className="text-[10px] sm:text-xs font-normal text-gray-500">تومان</span>
+                        </h3>
+                      </div>
+                      <div className="p-2.5 sm:p-3 bg-gradient-to-br from-blue-400 to-indigo-500 text-white rounded-xl sm:rounded-2xl shadow-sm shadow-blue-500/20">
+                        <Sparkles className="h-4 w-4 sm:h-6 sm:w-6" />
+                      </div>
+                    </div>
 
-                    <Card className="backdrop-blur-xl bg-white/90 border border-purple-150 shadow-xs hover:shadow-md transition-shadow rounded-2xl">
-                      <CardContent className="p-3.5 sm:p-5 flex items-center justify-between">
-                        <div>
-                          <p className="text-[11px] sm:text-xs text-muted-foreground font-semibold">میانگین تخفیف</p>
-                          <h3 className="text-lg sm:text-2xl font-black text-purple-600 mt-1">
-                            {voucherTypes.length > 0
-                              ? formatPersianPrice(
-                                  Math.round(
-                                    voucherTypes.reduce((acc, curr) => acc + Number(curr.discount_amount), 0) /
-                                      voucherTypes.length,
-                                  ),
-                                )
-                              : "۰"}{" "}
-                            <span className="text-[10px] sm:text-xs font-normal text-gray-500">تومان</span>
-                          </h3>
-                        </div>
-                        <div className="p-2.5 sm:p-3 bg-gradient-to-br from-purple-400 to-violet-500 text-white rounded-xl sm:rounded-2xl shadow-sm shadow-purple-500/20">
-                          <DollarSign className="h-4 w-4 sm:h-6 sm:w-6" />
-                        </div>
-                      </CardContent>
-                    </Card>
+                    <div className="glass rounded-2xl border border-glass-border shadow-glass p-3.5 sm:p-5 flex items-center justify-between">
+                      <div>
+                        <p className="text-[11px] sm:text-xs text-muted-foreground font-semibold">میانگین تخفیف</p>
+                        <h3 className="text-lg sm:text-2xl font-black text-purple-600 mt-1">
+                          {voucherTypes.length > 0
+                            ? formatPersianPrice(
+                                Math.round(
+                                  voucherTypes.reduce((acc, curr) => acc + Number(curr.discount_amount), 0) /
+                                    voucherTypes.length,
+                                ),
+                              )
+                            : "۰"}{" "}
+                          <span className="text-[10px] sm:text-xs font-normal text-gray-500">تومان</span>
+                        </h3>
+                      </div>
+                      <div className="p-2.5 sm:p-3 bg-gradient-to-br from-purple-400 to-violet-500 text-white rounded-xl sm:rounded-2xl shadow-sm shadow-purple-500/20">
+                        <DollarSign className="h-4 w-4 sm:h-6 sm:w-6" />
+                      </div>
+                    </div>
                   </div>
 
                   {/* Main Vouchers Table Card */}
-                  <Card className="backdrop-blur-xl bg-white/90 border border-orange-100 shadow-sm rounded-2xl overflow-hidden">
-                    <CardHeader className="border-b border-orange-100/60 pb-4">
+                  <Card className="glass rounded-2xl border border-glass-border shadow-glass overflow-hidden">
+                    <CardHeader className="border-b border-glass-border pb-4">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div>
                           <CardTitle className="text-lg font-bold text-gray-900 flex items-center gap-2">
@@ -3831,8 +3825,8 @@ export default function AdminDashboard() {
               {/* Students Management Tab */}
               {activeTab === "students" && (
                 <div className="space-y-6">
-                  <Card className="backdrop-blur-xl bg-white/90 border border-orange-100 shadow-sm rounded-2xl overflow-hidden">
-                    <CardHeader className="border-b border-orange-100/60 pb-4">
+                  <Card className="glass rounded-2xl border border-glass-border shadow-glass overflow-hidden">
+                    <CardHeader className="border-b border-glass-border pb-4">
                       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div>
                           <CardTitle className="text-lg font-bold text-gray-900 flex items-center gap-2">
@@ -4071,8 +4065,8 @@ export default function AdminDashboard() {
               {/* Payments Tab */}
               {activeTab === "payments" && (
                 <div className="space-y-6">
-                  <Card className="backdrop-blur-xl bg-white/90 border border-orange-100 shadow-sm rounded-2xl overflow-hidden">
-                    <CardHeader className="border-b border-orange-100/60 pb-4">
+                  <Card className="glass rounded-2xl border border-glass-border shadow-glass overflow-hidden">
+                    <CardHeader className="border-b border-glass-border pb-4">
                       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                         <div>
                           <CardTitle className="text-lg font-bold text-gray-900 flex items-center gap-2">
@@ -4290,7 +4284,7 @@ export default function AdminDashboard() {
                       </div>
 
                       {/* Pagination Bar */}
-                      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 border-t border-orange-100/60 bg-orange-50/20">
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 border-t border-glass-border bg-orange-50/20">
                         <div className="text-xs text-muted-foreground text-center sm:text-right">
                           نمایش {toPersianDigits((pagination.page - 1) * pagination.pageSize + 1)} تا{" "}
                           {toPersianDigits(Math.min(pagination.page * pagination.pageSize, pagination.total))} از {toPersianDigits(pagination.total)} تراکنش
@@ -4327,8 +4321,8 @@ export default function AdminDashboard() {
               {/* Analytics Tab */}
               {activeTab === "analytics" && (
                 <div className="space-y-6">
-                  <Card className="backdrop-blur-xl bg-white/90 border border-orange-100 shadow-sm rounded-2xl overflow-hidden">
-                    <CardHeader className="border-b border-orange-100/60 pb-4">
+                  <Card className="glass rounded-2xl border border-glass-border shadow-glass overflow-hidden">
+                    <CardHeader className="border-b border-glass-border pb-4">
                       <CardTitle className="text-lg font-bold text-gray-900 flex items-center gap-2">
                         <BarChart2 className="h-5 w-5 text-[#F47B20]" />
                         آمار، گزارشات و تحلیل مصرف غذای دانشگاه
@@ -4420,20 +4414,20 @@ export default function AdminDashboard() {
           </AnimatePresence>
         </main>
 
-        {/* Mobile Bottom Navigation Bar */}
+        {/* Mobile Floating Glass Bottom Navigation Bar */}
         <nav
-          className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-orange-100 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] px-2 py-1.5 flex items-center justify-around"
+          className="md:hidden fixed bottom-3 left-3 right-3 z-40 glass-strong border border-glass-border rounded-2xl shadow-[0_8px_32px_rgba(244,123,32,0.14),0_2px_8px_rgba(0,0,0,0.06)] px-2 py-1.5 flex items-center justify-around bottom-nav-glass"
           dir="rtl"
         >
           <button
             onClick={() => setActiveTab("dashboard")}
-            className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all duration-150 ${
+            className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all duration-200 ${
               activeTab === "dashboard"
-                ? "text-[#F47B20] font-bold"
-                : "text-gray-500 hover:text-gray-800 font-medium"
+                ? "text-[#F47B20] font-black"
+                : "text-gray-500 hover:text-gray-900 font-medium"
             }`}
           >
-            <div className={`p-1 rounded-xl transition-colors ${activeTab === "dashboard" ? "bg-orange-50 text-[#F47B20]" : ""}`}>
+            <div className={`p-1 rounded-xl transition-all duration-200 ${activeTab === "dashboard" ? "bg-orange-500/15 text-[#F47B20] scale-110 shadow-xs" : ""}`}>
               <Home className="h-5 w-5" />
             </div>
             <span className="text-[10px] mt-0.5">پیشخوان</span>
@@ -4441,13 +4435,13 @@ export default function AdminDashboard() {
 
           <button
             onClick={() => setActiveTab("food")}
-            className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all duration-150 ${
+            className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all duration-200 ${
               activeTab === "food"
-                ? "text-[#F47B20] font-bold"
-                : "text-gray-500 hover:text-gray-800 font-medium"
+                ? "text-[#F47B20] font-black"
+                : "text-gray-500 hover:text-gray-900 font-medium"
             }`}
           >
-            <div className={`p-1 rounded-xl transition-colors ${activeTab === "food" ? "bg-orange-50 text-[#F47B20]" : ""}`}>
+            <div className={`p-1 rounded-xl transition-all duration-200 ${activeTab === "food" ? "bg-orange-500/15 text-[#F47B20] scale-110 shadow-xs" : ""}`}>
               <Utensils className="h-5 w-5" />
             </div>
             <span className="text-[10px] mt-0.5">غذاها</span>
@@ -4455,13 +4449,13 @@ export default function AdminDashboard() {
 
           <button
             onClick={() => setActiveTab("daily-menu")}
-            className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all duration-150 ${
+            className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all duration-200 ${
               activeTab === "daily-menu"
-                ? "text-[#F47B20] font-bold"
-                : "text-gray-500 hover:text-gray-800 font-medium"
+                ? "text-[#F47B20] font-black"
+                : "text-gray-500 hover:text-gray-900 font-medium"
             }`}
           >
-            <div className={`p-1 rounded-xl transition-colors ${activeTab === "daily-menu" ? "bg-orange-50 text-[#F47B20]" : ""}`}>
+            <div className={`p-1 rounded-xl transition-all duration-200 ${activeTab === "daily-menu" ? "bg-orange-500/15 text-[#F47B20] scale-110 shadow-xs" : ""}`}>
               <Sparkles className="h-5 w-5" />
             </div>
             <span className="text-[10px] mt-0.5">منوی روز</span>
@@ -4469,13 +4463,13 @@ export default function AdminDashboard() {
 
           <button
             onClick={() => setActiveTab("payments")}
-            className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all duration-150 ${
+            className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all duration-200 ${
               activeTab === "payments"
-                ? "text-[#F47B20] font-bold"
-                : "text-gray-500 hover:text-gray-800 font-medium"
+                ? "text-[#F47B20] font-black"
+                : "text-gray-500 hover:text-gray-900 font-medium"
             }`}
           >
-            <div className={`p-1 rounded-xl transition-colors ${activeTab === "payments" ? "bg-orange-50 text-[#F47B20]" : ""}`}>
+            <div className={`p-1 rounded-xl transition-all duration-200 ${activeTab === "payments" ? "bg-orange-500/15 text-[#F47B20] scale-110 shadow-xs" : ""}`}>
               <DollarSign className="h-5 w-5" />
             </div>
             <span className="text-[10px] mt-0.5">پرداخت‌ها</span>
@@ -4483,7 +4477,7 @@ export default function AdminDashboard() {
 
           <button
             onClick={() => setMobileNavOpen(true)}
-            className="flex flex-col items-center justify-center py-1 px-2.5 rounded-xl text-gray-500 hover:text-[#F47B20] font-medium transition-all duration-150"
+            className="flex flex-col items-center justify-center py-1 px-2.5 rounded-xl text-gray-500 hover:text-[#F47B20] font-medium transition-all duration-200"
           >
             <div className="p-1 rounded-xl">
               <Menu className="h-5 w-5" />
