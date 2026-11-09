@@ -630,7 +630,7 @@ export default function ReceiverDashboard() {
               </div>
 
               {/* Meal Toggle with Framer Motion Smooth Spring Transition */}
-              <div className="glass flex rounded-xl p-1 h-11 relative">
+              <div className="flex rounded-xl p-1 h-11 relative bg-white/95 border border-orange-200/90 shadow-xs">
                 {([["lunch", "ناهار", Sun], ["dinner", "شام", Moon]] as const).map(([k, l, I]) => {
                   const isActive = selectedMeal === k
                   return (
@@ -639,10 +639,10 @@ export default function ReceiverDashboard() {
                       type="button"
                       onClick={() => setSelectedMeal(k)}
                       className={cn(
-                        "relative flex flex-1 items-center justify-center gap-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer",
+                        "relative flex flex-1 items-center justify-center gap-1.5 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer",
                         isActive
-                          ? "text-white font-bold"
-                          : "text-gray-600 hover:text-gray-900"
+                          ? "text-white shadow-xs"
+                          : "text-gray-800 hover:text-gray-950 hover:bg-orange-50/60"
                       )}
                     >
                       {isActive && (
@@ -652,8 +652,17 @@ export default function ReceiverDashboard() {
                           transition={{ type: "spring", stiffness: 450, damping: 32 }}
                         />
                       )}
-                      <I className={cn("relative z-10 w-3.5 h-3.5", isActive ? "text-white" : "")} />
-                      <span className="relative z-10">{l}</span>
+                      <I
+                        className={cn(
+                          "relative z-10 w-4 h-4 transition-colors",
+                          isActive
+                            ? "text-white"
+                            : k === "lunch"
+                            ? "text-amber-500"
+                            : "text-indigo-500"
+                        )}
+                      />
+                      <span className="relative z-10 font-bold">{l}</span>
                     </button>
                   )
                 })}
@@ -685,10 +694,10 @@ export default function ReceiverDashboard() {
           </div>
         </div>
 
-        {/* 5. Main Frosted Glass Tabs (Reversed Order) */}
+        {/* 5. Main Frosted Glass Tabs (Reversed Order, Icon-Only No Scroll, Ultra-smooth CSS Transitions) */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-4">
           <div className="flex justify-center">
-            <TabsList className="glass-strong border border-glass-border p-1.5 h-auto min-h-12 rounded-2xl shadow-glass flex items-center gap-1 w-full max-w-2xl overflow-x-auto no-scrollbar">
+            <TabsList className="glass-strong border border-glass-border p-1.5 h-12 rounded-2xl shadow-glass grid grid-cols-5 gap-1 w-full max-w-xl">
               {[
                 { id: "not_picked_up", label: "غایب", count: notPickedUpOrders.length, icon: X },
                 { id: "picked_up", label: "تحویل داده شده", count: pickedUpOrders.length, icon: CheckCircle },
@@ -702,32 +711,26 @@ export default function ReceiverDashboard() {
                     key={tab.id}
                     value={tab.id}
                     onClick={() => setActiveTab(tab.id)}
+                    title={tab.label}
+                    aria-label={tab.label}
                     className={cn(
-                      "relative flex-1 h-9 rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap px-2 cursor-pointer",
-                      isActive ? "text-white" : "text-gray-700 hover:text-gray-900"
+                      "relative h-9 rounded-xl font-bold text-xs flex items-center justify-center gap-1 cursor-pointer transition-all duration-200 active:scale-95",
+                      isActive
+                        ? "bg-gradient-to-r from-[#F47B20] to-[#E06A10] text-white shadow-xs"
+                        : "text-gray-700 hover:text-gray-950 hover:bg-white/60"
                     )}
                   >
-                    {isActive && (
-                      <motion.div
-                        layoutId="activeReceiverTab"
-                        className="absolute inset-0 rounded-xl bg-gradient-to-r from-[#F47B20] to-[#E06A10] shadow-xs"
-                        transition={{ type: "spring", stiffness: 450, damping: 32 }}
-                      />
+                    <tab.icon className="w-4 h-4 shrink-0" />
+                    {tab.count > 0 && (
+                      <span
+                        className={cn(
+                          "text-[10px] min-w-4 px-1 py-0.2 rounded-full font-mono font-bold leading-tight transition-colors",
+                          isActive ? "bg-white/25 text-white" : "bg-orange-100 text-orange-700"
+                        )}
+                      >
+                        {toPersianDigits(tab.count)}
+                      </span>
                     )}
-                    <span className="relative z-10 flex items-center gap-1.5">
-                      <tab.icon className="w-3.5 h-3.5" />
-                      <span>{tab.label}</span>
-                      {tab.count > 0 && (
-                        <span
-                          className={cn(
-                            "text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold transition-colors",
-                            isActive ? "bg-white/20 text-white" : "bg-orange-100 text-orange-700"
-                          )}
-                        >
-                          {toPersianDigits(tab.count)}
-                        </span>
-                      )}
-                    </span>
                   </TabsTrigger>
                 )
               })}

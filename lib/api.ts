@@ -57,6 +57,7 @@ export const API_ROUTES = {
   UPDATE_DAILY_MENU_ITEM: (id: string) => `/menu/daily/${id}/`,
   DELETE_DAILY_MENU_ITEM: (id: string) => `/menu/daily/${id}/`,
   TOGGLE_DAILY_MENU_ITEM_AVAILABILITY: (id: string) => `/menu/daily/${id}/availability/`,
+  BATCH_TOGGLE_DAILY_MENU_ITEM_AVAILABILITY: '/menu/daily/batch-availability/',
   USE_TEMPLATE_FOR_DAILY: '/menu/use-template/',
 
   // Voucher

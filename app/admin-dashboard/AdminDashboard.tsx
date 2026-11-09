@@ -43,6 +43,7 @@ import {
   Search,
   Ticket,
   CheckCircle2,
+  XCircle,
   Sparkles,
   RefreshCw,
   Clock,
@@ -2145,17 +2146,76 @@ export default function AdminDashboard() {
 
 
   const handleToggleAvailability = useCallback(
-    async (itemId: string, is_available: boolean) => {
+    async (itemId: string | number, is_available: boolean) => {
+      // 1. Optimistic update for instant visual response
+      setDailyMenu((prev) => {
+        if (!prev) return null
+        return {
+          ...prev,
+          items: prev.items.map((item) =>
+            item.id.toString() === itemId.toString() ? { ...item, is_available } : item
+          ),
+        }
+      })
+
       try {
-        await api.put(createApiUrl(API_ROUTES.TOGGLE_DAILY_MENU_ITEM_AVAILABILITY(itemId)), { is_available })
-        await fetchDailyMenu()
+        await api.put(createApiUrl(API_ROUTES.TOGGLE_DAILY_MENU_ITEM_AVAILABILITY(itemId.toString())), { is_available })
         toast.success(`غذا ${is_available ? "فعال" : "غیرفعال"} شد`)
       } catch (error) {
         console.error("Error toggling menu item availability:", error)
         toast.error("خطا در تغییر وضعیت دسترسی غذا")
+        await fetchDailyMenu()
       }
     },
     [fetchDailyMenu],
+  )
+
+  const handleToggleAllAvailability = useCallback(
+    async (enable: boolean) => {
+      if (!dailyMenu || !dailyMenu.items || dailyMenu.items.length === 0) {
+        toast.error("هیچ غذایی در منوی این وعده وجود ندارد")
+        return
+      }
+
+      const itemsToToggle = dailyMenu.items.filter((item) => item.is_available !== enable)
+      if (itemsToToggle.length === 0) {
+        toast(enable ? "تمامی غذاها از قبل فعال هستند" : "تمامی غذاها از قبل غیرفعال هستند", { icon: "ℹ️" })
+        return
+      }
+
+      // Optimistic update: immediately flip all items in the UI
+      setDailyMenu((prev) => {
+        if (!prev) return null
+        return {
+          ...prev,
+          items: prev.items.map((item) => ({ ...item, is_available: enable })),
+        }
+      })
+
+      try {
+        try {
+          await api.put(createApiUrl(API_ROUTES.BATCH_TOGGLE_DAILY_MENU_ITEM_AVAILABILITY), {
+            item_ids: dailyMenu.items.map((item) => item.id),
+            is_available: enable,
+          })
+        } catch {
+          // Fallback to Promise.all across individual items
+          await Promise.all(
+            itemsToToggle.map((item) =>
+              api.put(createApiUrl(API_ROUTES.TOGGLE_DAILY_MENU_ITEM_AVAILABILITY(item.id.toString())), {
+                is_available: enable,
+              })
+            )
+          )
+        }
+        toast.success(enable ? "تمامی غذاهای این وعده فعال شدند" : "تمامی غذاهای این وعده غیرفعال شدند")
+      } catch (error) {
+        console.error("Error batch toggling availability:", error)
+        toast.error("خطا در تغییر وضعیت گروهی غذاها")
+        await fetchDailyMenu()
+      }
+    },
+    [dailyMenu, fetchDailyMenu],
   )
 
   const handleDateChange = useCallback((date: DateObject | DateObject[] | null) => {
@@ -3247,8 +3307,8 @@ export default function AdminDashboard() {
                                 </Badge>
                               </div>
                               <div className="flex items-center justify-between text-xs text-gray-500 pt-2 border-t border-orange-100/40">
-                                <span className="font-mono dir-ltr text-gray-600">
-                                  ساعت سرو: {toPersianDigits(item.start_time)} - {toPersianDigits(item.end_time)}
+                                <span className="font-mono dir-rtl text-gray-600 font-medium">
+                                  ساعت سرو: {toPersianDigits(item.start_time?.slice(0, 5))} الی {toPersianDigits(item.end_time?.slice(0, 5))}
                                 </span>
                                 <div className="flex items-center gap-2">
                                   <Button
@@ -3308,8 +3368,8 @@ export default function AdminDashboard() {
                                       {formatPersianPrice(item.food?.price)} تومان
                                     </p>
                                   </TableCell>
-                                  <TableCell className="text-xs text-gray-600 py-3 px-4 font-mono dir-ltr text-right">
-                                    {toPersianDigits(item.start_time)} - {toPersianDigits(item.end_time)}
+                                  <TableCell className="text-xs text-gray-700 py-3 px-4 font-mono dir-rtl text-right font-medium">
+                                    {toPersianDigits(item.start_time?.slice(0, 5))} الی {toPersianDigits(item.end_time?.slice(0, 5))}
                                   </TableCell>
                                   <TableCell className="py-3 px-4">
                                     <Badge variant="outline" className="bg-orange-50 text-[#F47B20] border-orange-200 font-bold text-xs">
@@ -3407,6 +3467,40 @@ export default function AdminDashboard() {
                             </Button>
                           </div>
                         </div>
+
+                        {/* Batch Availability Controls Toolbar */}
+                        {dailyMenu && dailyMenu.items && dailyMenu.items.length > 0 && (
+                          <div className="flex items-center justify-between flex-wrap gap-2 pt-3 mt-1 border-t border-orange-100/70 w-full">
+                            <div className="flex items-center gap-1.5 text-xs text-gray-600 font-medium">
+                              <span>غذاهای این وعده:</span>
+                              <Badge variant="secondary" className="font-mono font-bold bg-orange-100 text-orange-800 text-xs px-2 py-0.5">
+                                {toPersianDigits(dailyMenu.items.length)} غذا
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-2 w-full sm:w-auto">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleToggleAllAvailability(true)}
+                                className="flex-1 sm:flex-none h-8 px-3 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200 rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                فعال‌سازی همه
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleToggleAllAvailability(false)}
+                                className="flex-1 sm:flex-none h-8 px-3 text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border-rose-200 rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                              >
+                                <XCircle className="w-3.5 h-3.5 text-rose-600" />
+                                غیرفعال‌سازی همه
+                              </Button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </CardHeader>
                     <CardContent className="p-0">
@@ -3440,8 +3534,8 @@ export default function AdminDashboard() {
 
                               <div className="flex items-center justify-between text-xs text-gray-500 bg-orange-50/40 px-3 py-1.5 rounded-xl border border-orange-100/60">
                                 <span>ساعت توزیع:</span>
-                                <span className="font-mono dir-ltr font-medium text-gray-700">
-                                  {toPersianDigits(item.start_time)} - {toPersianDigits(item.end_time)}
+                                <span className="font-mono dir-rtl font-medium text-gray-700">
+                                  {toPersianDigits(item.start_time?.slice(0, 5))} الی {toPersianDigits(item.end_time?.slice(0, 5))}
                                 </span>
                               </div>
 
@@ -3514,8 +3608,8 @@ export default function AdminDashboard() {
                                       {formatPersianPrice(item.food?.price)} تومان
                                     </p>
                                   </TableCell>
-                                  <TableCell className="text-xs text-gray-600 py-3 px-4 font-mono dir-ltr text-right">
-                                    {toPersianDigits(item.start_time)} - {toPersianDigits(item.end_time)}
+                                  <TableCell className="text-xs text-gray-700 py-3 px-4 font-mono dir-rtl text-right font-medium">
+                                    {toPersianDigits(item.start_time?.slice(0, 5))} الی {toPersianDigits(item.end_time?.slice(0, 5))}
                                   </TableCell>
                                   <TableCell className="py-3 px-4">
                                     <Badge variant="outline" className="bg-orange-50 text-[#F47B20] border-orange-200 font-bold text-xs">
