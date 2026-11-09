@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import Link from "next/link"
 import Image from "next/image"
+import { motion } from "framer-motion"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -515,14 +517,14 @@ export default function ReceiverDashboard() {
       </header>
 
       <main className="max-w-6xl mx-auto px-3 sm:px-6 mt-4 sm:mt-6 space-y-4 sm:space-y-6">
-        {/* 2. Glass Live Metrics Bar (Interactive Tab Switchers) */}
+        {/* 2. Glass Live Metrics Bar (Interactive Tab Switchers - Reversed Order) */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3.5">
           {[
-            { tabKey: "waiting", title: "در انتظار تایید", count: waitingOrders.length, icon: AlertTriangle, color: "text-amber-500", bg: "bg-amber-500/10 border-amber-200/80" },
-            { tabKey: "preparing", title: "در حال پخت", count: preparingOrders.length, icon: Clock, color: "text-sky-500", bg: "bg-sky-500/10 border-sky-200/80" },
-            { tabKey: "ready_to_pickup", title: "آماده تحویل", count: readyToPickupOrders.length, icon: Package, color: "text-[#F47B20]", bg: "bg-orange-500/10 border-orange-200/80" },
+            { tabKey: "not_picked_up", title: "غایب / تحویل‌نشده", count: notPickedUpOrders.length, icon: X, color: "text-rose-500", bg: "bg-rose-500/10 border-rose-200/80" },
             { tabKey: "picked_up", title: "تحویل داده شده", count: pickedUpOrders.length, icon: CheckCircle, color: "text-emerald-500", bg: "bg-emerald-500/10 border-emerald-200/80" },
-            { tabKey: "not_picked_up", title: "غایب / تحویل‌نشده", count: notPickedUpOrders.length, icon: X, color: "text-rose-500", bg: "bg-rose-500/10 border-rose-200/80", extraClass: "col-span-2 sm:col-span-1" },
+            { tabKey: "ready_to_pickup", title: "آماده تحویل", count: readyToPickupOrders.length, icon: Package, color: "text-[#F47B20]", bg: "bg-orange-500/10 border-orange-200/80" },
+            { tabKey: "preparing", title: "در حال پخت", count: preparingOrders.length, icon: Clock, color: "text-sky-500", bg: "bg-sky-500/10 border-sky-200/80" },
+            { tabKey: "waiting", title: "در انتظار تایید", count: waitingOrders.length, icon: AlertTriangle, color: "text-amber-500", bg: "bg-amber-500/10 border-amber-200/80", extraClass: "col-span-2 sm:col-span-1" },
           ].map((item, idx) => {
             const isActive = activeTab === item.tabKey
             return (
@@ -627,32 +629,34 @@ export default function ReceiverDashboard() {
                 />
               </div>
 
-              {/* Meal Toggle */}
-              <div className="flex rounded-xl p-1 bg-orange-50/70 border border-orange-200/60 h-11">
-                <button
-                  type="button"
-                  onClick={() => setSelectedMeal("lunch")}
-                  className={`flex-1 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                    selectedMeal === "lunch"
-                      ? "bg-gradient-to-r from-[#F47B20] to-[#E06A10] text-white shadow-xs"
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}
-                >
-                  <Sun className="w-3.5 h-3.5" />
-                  <span>ناهار</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedMeal("dinner")}
-                  className={`flex-1 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                    selectedMeal === "dinner"
-                      ? "bg-gradient-to-r from-[#F47B20] to-[#E06A10] text-white shadow-xs"
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}
-                >
-                  <Moon className="w-3.5 h-3.5" />
-                  <span>شام</span>
-                </button>
+              {/* Meal Toggle with Framer Motion Smooth Spring Transition */}
+              <div className="glass flex rounded-xl p-1 h-11 relative">
+                {([["lunch", "ناهار", Sun], ["dinner", "شام", Moon]] as const).map(([k, l, I]) => {
+                  const isActive = selectedMeal === k
+                  return (
+                    <button
+                      key={k}
+                      type="button"
+                      onClick={() => setSelectedMeal(k)}
+                      className={cn(
+                        "relative flex flex-1 items-center justify-center gap-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer",
+                        isActive
+                          ? "text-white font-bold"
+                          : "text-gray-600 hover:text-gray-900"
+                      )}
+                    >
+                      {isActive && (
+                        <motion.div
+                          layoutId="activeReceiverMeal"
+                          className="absolute inset-0 rounded-lg bg-gradient-to-r from-[#F47B20] to-[#E06A10] shadow-xs"
+                          transition={{ type: "spring", stiffness: 450, damping: 32 }}
+                        />
+                      )}
+                      <I className={cn("relative z-10 w-3.5 h-3.5", isActive ? "text-white" : "")} />
+                      <span className="relative z-10">{l}</span>
+                    </button>
+                  )
+                })}
               </div>
             </div>
           </div>
@@ -681,37 +685,57 @@ export default function ReceiverDashboard() {
           </div>
         </div>
 
-        {/* 5. Main Frosted Glass Tabs */}
+        {/* 5. Main Frosted Glass Tabs (Reversed Order) */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-4">
           <div className="flex justify-center">
             <TabsList className="glass-strong border border-glass-border p-1.5 h-auto min-h-12 rounded-2xl shadow-glass flex items-center gap-1 w-full max-w-2xl overflow-x-auto no-scrollbar">
               {[
-                { id: "waiting", label: "در انتظار", count: waitingOrders.length, icon: AlertTriangle },
-                { id: "preparing", label: "در حال پخت", count: preparingOrders.length, icon: Clock },
-                { id: "ready_to_pickup", label: "آماده تحویل", count: readyToPickupOrders.length, icon: Package },
-                { id: "picked_up", label: "تحویل داده شده", count: pickedUpOrders.length, icon: CheckCircle },
                 { id: "not_picked_up", label: "غایب", count: notPickedUpOrders.length, icon: X },
-              ].map((tab) => (
-                <TabsTrigger
-                  key={tab.id}
-                  value={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className="flex-1 h-9 rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#F47B20] data-[state=active]:to-[#E06A10] data-[state=active]:text-white data-[state=active]:shadow-xs font-bold text-xs text-gray-700 transition-all flex items-center justify-center gap-1.5 whitespace-nowrap px-2"
-                >
-                  <tab.icon className="w-3.5 h-3.5" />
-                  <span>{tab.label}</span>
-                  {tab.count > 0 && (
-                    <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-white/20 data-[state=inactive]:bg-orange-100 data-[state=inactive]:text-orange-700 font-mono font-bold">
-                      {toPersianDigits(tab.count)}
+                { id: "picked_up", label: "تحویل داده شده", count: pickedUpOrders.length, icon: CheckCircle },
+                { id: "ready_to_pickup", label: "آماده تحویل", count: readyToPickupOrders.length, icon: Package },
+                { id: "preparing", label: "در حال پخت", count: preparingOrders.length, icon: Clock },
+                { id: "waiting", label: "در انتظار", count: waitingOrders.length, icon: AlertTriangle },
+              ].map((tab) => {
+                const isActive = activeTab === tab.id
+                return (
+                  <TabsTrigger
+                    key={tab.id}
+                    value={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={cn(
+                      "relative flex-1 h-9 rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap px-2 cursor-pointer",
+                      isActive ? "text-white" : "text-gray-700 hover:text-gray-900"
+                    )}
+                  >
+                    {isActive && (
+                      <motion.div
+                        layoutId="activeReceiverTab"
+                        className="absolute inset-0 rounded-xl bg-gradient-to-r from-[#F47B20] to-[#E06A10] shadow-xs"
+                        transition={{ type: "spring", stiffness: 450, damping: 32 }}
+                      />
+                    )}
+                    <span className="relative z-10 flex items-center gap-1.5">
+                      <tab.icon className="w-3.5 h-3.5" />
+                      <span>{tab.label}</span>
+                      {tab.count > 0 && (
+                        <span
+                          className={cn(
+                            "text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold transition-colors",
+                            isActive ? "bg-white/20 text-white" : "bg-orange-100 text-orange-700"
+                          )}
+                        >
+                          {toPersianDigits(tab.count)}
+                        </span>
+                      )}
                     </span>
-                  )}
-                </TabsTrigger>
-              ))}
+                  </TabsTrigger>
+                )
+              })}
             </TabsList>
           </div>
 
           {/* Orders Lists Helper */}
-          {["waiting", "preparing", "ready_to_pickup", "picked_up", "not_picked_up"].map((statusKey) => {
+          {["not_picked_up", "picked_up", "ready_to_pickup", "preparing", "waiting"].map((statusKey) => {
             const ordersMap: Record<string, Reservation[]> = {
               waiting: waitingOrders,
               preparing: preparingOrders,
@@ -871,49 +895,49 @@ export default function ReceiverDashboard() {
           <span className="text-[10px] mt-0.5 font-bold">ثبت کد</span>
         </button>
 
-        {/* Tab 1: Waiting */}
+        {/* Tab 1: Not Picked Up (غایب) */}
         <button
           type="button"
-          onClick={() => setActiveTab("waiting")}
-          className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all relative ${
-            activeTab === "waiting" ? "text-amber-600 font-black" : "text-gray-500 hover:text-gray-900 font-medium"
+          onClick={() => setActiveTab("not_picked_up")}
+          className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all relative ${
+            activeTab === "not_picked_up" ? "text-rose-600 font-black" : "text-gray-500 hover:text-gray-900 font-medium"
           }`}
         >
-          <div className={`p-1 rounded-xl transition-all ${activeTab === "waiting" ? "bg-amber-500/15 text-amber-600 scale-110 shadow-xs" : ""}`}>
-            <AlertTriangle className="h-4.5 w-4.5" />
+          <div className={`p-1 rounded-xl transition-all ${activeTab === "not_picked_up" ? "bg-rose-500/15 text-rose-600 scale-110 shadow-xs" : ""}`}>
+            <X className="h-4.5 w-4.5" />
           </div>
-          <span className="text-[10px] mt-0.5">در انتظار</span>
-          {waitingOrders.length > 0 && (
-            <span className="absolute top-0 right-1 px-1 min-w-[16px] h-4 text-[9px] font-mono font-bold rounded-full bg-amber-500 text-white flex items-center justify-center">
-              {toPersianDigits(waitingOrders.length)}
+          <span className="text-[10px] mt-0.5">غایب</span>
+          {notPickedUpOrders.length > 0 && (
+            <span className="absolute top-0 right-1 px-1 min-w-[16px] h-4 text-[9px] font-mono font-bold rounded-full bg-rose-500 text-white flex items-center justify-center">
+              {toPersianDigits(notPickedUpOrders.length)}
             </span>
           )}
         </button>
 
-        {/* Tab 2: Preparing */}
+        {/* Tab 2: Picked up (تحویل‌شده) */}
         <button
           type="button"
-          onClick={() => setActiveTab("preparing")}
-          className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all relative ${
-            activeTab === "preparing" ? "text-sky-600 font-black" : "text-gray-500 hover:text-gray-900 font-medium"
+          onClick={() => setActiveTab("picked_up")}
+          className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all relative ${
+            activeTab === "picked_up" ? "text-emerald-600 font-black" : "text-gray-500 hover:text-gray-900 font-medium"
           }`}
         >
-          <div className={`p-1 rounded-xl transition-all ${activeTab === "preparing" ? "bg-sky-500/15 text-sky-600 scale-110 shadow-xs" : ""}`}>
-            <Clock className="h-4.5 w-4.5" />
+          <div className={`p-1 rounded-xl transition-all ${activeTab === "picked_up" ? "bg-emerald-500/15 text-emerald-600 scale-110 shadow-xs" : ""}`}>
+            <CheckCircle className="h-4.5 w-4.5" />
           </div>
-          <span className="text-[10px] mt-0.5">در پخت</span>
-          {preparingOrders.length > 0 && (
-            <span className="absolute top-0 right-1 px-1 min-w-[16px] h-4 text-[9px] font-mono font-bold rounded-full bg-sky-500 text-white flex items-center justify-center">
-              {toPersianDigits(preparingOrders.length)}
+          <span className="text-[10px] mt-0.5">تحویل‌شده</span>
+          {pickedUpOrders.length > 0 && (
+            <span className="absolute top-0 right-1 px-1 min-w-[16px] h-4 text-[9px] font-mono font-bold rounded-full bg-emerald-500 text-white flex items-center justify-center">
+              {toPersianDigits(pickedUpOrders.length)}
             </span>
           )}
         </button>
 
-        {/* Tab 3: Ready to pickup */}
+        {/* Tab 3: Ready to pickup (آماده) */}
         <button
           type="button"
           onClick={() => setActiveTab("ready_to_pickup")}
-          className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all relative ${
+          className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all relative ${
             activeTab === "ready_to_pickup" ? "text-[#F47B20] font-black" : "text-gray-500 hover:text-gray-900 font-medium"
           }`}
         >
@@ -928,21 +952,40 @@ export default function ReceiverDashboard() {
           )}
         </button>
 
-        {/* Tab 4: Picked up */}
+        {/* Tab 4: Preparing (در پخت) */}
         <button
           type="button"
-          onClick={() => setActiveTab("picked_up")}
-          className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all relative ${
-            activeTab === "picked_up" ? "text-emerald-600 font-black" : "text-gray-500 hover:text-gray-900 font-medium"
+          onClick={() => setActiveTab("preparing")}
+          className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all relative ${
+            activeTab === "preparing" ? "text-sky-600 font-black" : "text-gray-500 hover:text-gray-900 font-medium"
           }`}
         >
-          <div className={`p-1 rounded-xl transition-all ${activeTab === "picked_up" ? "bg-emerald-500/15 text-emerald-600 scale-110 shadow-xs" : ""}`}>
-            <CheckCircle className="h-4.5 w-4.5" />
+          <div className={`p-1 rounded-xl transition-all ${activeTab === "preparing" ? "bg-sky-500/15 text-sky-600 scale-110 shadow-xs" : ""}`}>
+            <Clock className="h-4.5 w-4.5" />
           </div>
-          <span className="text-[10px] mt-0.5">تحویل‌شده</span>
-          {pickedUpOrders.length > 0 && (
-            <span className="absolute top-0 right-1 px-1 min-w-[16px] h-4 text-[9px] font-mono font-bold rounded-full bg-emerald-500 text-white flex items-center justify-center">
-              {toPersianDigits(pickedUpOrders.length)}
+          <span className="text-[10px] mt-0.5">در پخت</span>
+          {preparingOrders.length > 0 && (
+            <span className="absolute top-0 right-1 px-1 min-w-[16px] h-4 text-[9px] font-mono font-bold rounded-full bg-sky-500 text-white flex items-center justify-center">
+              {toPersianDigits(preparingOrders.length)}
+            </span>
+          )}
+        </button>
+
+        {/* Tab 5: Waiting (در انتظار) */}
+        <button
+          type="button"
+          onClick={() => setActiveTab("waiting")}
+          className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all relative ${
+            activeTab === "waiting" ? "text-amber-600 font-black" : "text-gray-500 hover:text-gray-900 font-medium"
+          }`}
+        >
+          <div className={`p-1 rounded-xl transition-all ${activeTab === "waiting" ? "bg-amber-500/15 text-amber-600 scale-110 shadow-xs" : ""}`}>
+            <AlertTriangle className="h-4.5 w-4.5" />
+          </div>
+          <span className="text-[10px] mt-0.5">در انتظار</span>
+          {waitingOrders.length > 0 && (
+            <span className="absolute top-0 right-1 px-1 min-w-[16px] h-4 text-[9px] font-mono font-bold rounded-full bg-amber-500 text-white flex items-center justify-center">
+              {toPersianDigits(waitingOrders.length)}
             </span>
           )}
         </button>
