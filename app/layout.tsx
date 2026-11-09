@@ -32,6 +32,9 @@ export const metadata: Metadata = {
       { url: '/icons/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
     ],
   },
+  other: {
+    enamad: '9523117',
+  },
 }
 
 export default function RootLayout({
@@ -42,6 +45,7 @@ export default function RootLayout({
   return (
     <html lang="fa" dir="rtl">
       <head>
+        <meta name="enamad" content="9523117" />
         <link rel="icon" href="/icons/icon-192x192.png" />
         <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
         <link rel="manifest" href="/manifest.json" />
