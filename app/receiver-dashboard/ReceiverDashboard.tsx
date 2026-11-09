@@ -895,68 +895,30 @@ export default function ReceiverDashboard() {
           <span className="text-[10px] mt-0.5 font-bold">ثبت کد</span>
         </button>
 
-        {/* Tab 1: Not Picked Up (غایب) */}
+        {/* Tab 1: Waiting */}
         <button
           type="button"
-          onClick={() => setActiveTab("not_picked_up")}
-          className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all relative ${
-            activeTab === "not_picked_up" ? "text-rose-600 font-black" : "text-gray-500 hover:text-gray-900 font-medium"
+          onClick={() => setActiveTab("waiting")}
+          className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all relative ${
+            activeTab === "waiting" ? "text-amber-600 font-black" : "text-gray-500 hover:text-gray-900 font-medium"
           }`}
         >
-          <div className={`p-1 rounded-xl transition-all ${activeTab === "not_picked_up" ? "bg-rose-500/15 text-rose-600 scale-110 shadow-xs" : ""}`}>
-            <X className="h-4.5 w-4.5" />
+          <div className={`p-1 rounded-xl transition-all ${activeTab === "waiting" ? "bg-amber-500/15 text-amber-600 scale-110 shadow-xs" : ""}`}>
+            <AlertTriangle className="h-4.5 w-4.5" />
           </div>
-          <span className="text-[10px] mt-0.5">غایب</span>
-          {notPickedUpOrders.length > 0 && (
-            <span className="absolute top-0 right-1 px-1 min-w-[16px] h-4 text-[9px] font-mono font-bold rounded-full bg-rose-500 text-white flex items-center justify-center">
-              {toPersianDigits(notPickedUpOrders.length)}
+          <span className="text-[10px] mt-0.5">در انتظار</span>
+          {waitingOrders.length > 0 && (
+            <span className="absolute top-0 right-1 px-1 min-w-[16px] h-4 text-[9px] font-mono font-bold rounded-full bg-amber-500 text-white flex items-center justify-center">
+              {toPersianDigits(waitingOrders.length)}
             </span>
           )}
         </button>
 
-        {/* Tab 2: Picked up (تحویل‌شده) */}
-        <button
-          type="button"
-          onClick={() => setActiveTab("picked_up")}
-          className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all relative ${
-            activeTab === "picked_up" ? "text-emerald-600 font-black" : "text-gray-500 hover:text-gray-900 font-medium"
-          }`}
-        >
-          <div className={`p-1 rounded-xl transition-all ${activeTab === "picked_up" ? "bg-emerald-500/15 text-emerald-600 scale-110 shadow-xs" : ""}`}>
-            <CheckCircle className="h-4.5 w-4.5" />
-          </div>
-          <span className="text-[10px] mt-0.5">تحویل‌شده</span>
-          {pickedUpOrders.length > 0 && (
-            <span className="absolute top-0 right-1 px-1 min-w-[16px] h-4 text-[9px] font-mono font-bold rounded-full bg-emerald-500 text-white flex items-center justify-center">
-              {toPersianDigits(pickedUpOrders.length)}
-            </span>
-          )}
-        </button>
-
-        {/* Tab 3: Ready to pickup (آماده) */}
-        <button
-          type="button"
-          onClick={() => setActiveTab("ready_to_pickup")}
-          className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all relative ${
-            activeTab === "ready_to_pickup" ? "text-[#F47B20] font-black" : "text-gray-500 hover:text-gray-900 font-medium"
-          }`}
-        >
-          <div className={`p-1 rounded-xl transition-all ${activeTab === "ready_to_pickup" ? "bg-orange-500/15 text-[#F47B20] scale-110 shadow-xs" : ""}`}>
-            <Utensils className="h-4.5 w-4.5" />
-          </div>
-          <span className="text-[10px] mt-0.5">آماده</span>
-          {readyToPickupOrders.length > 0 && (
-            <span className="absolute top-0 right-1 px-1 min-w-[16px] h-4 text-[9px] font-mono font-bold rounded-full bg-[#F47B20] text-white flex items-center justify-center">
-              {toPersianDigits(readyToPickupOrders.length)}
-            </span>
-          )}
-        </button>
-
-        {/* Tab 4: Preparing (در پخت) */}
+        {/* Tab 2: Preparing */}
         <button
           type="button"
           onClick={() => setActiveTab("preparing")}
-          className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all relative ${
+          className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all relative ${
             activeTab === "preparing" ? "text-sky-600 font-black" : "text-gray-500 hover:text-gray-900 font-medium"
           }`}
         >
@@ -971,21 +933,40 @@ export default function ReceiverDashboard() {
           )}
         </button>
 
-        {/* Tab 5: Waiting (در انتظار) */}
+        {/* Tab 3: Ready to pickup */}
         <button
           type="button"
-          onClick={() => setActiveTab("waiting")}
-          className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all relative ${
-            activeTab === "waiting" ? "text-amber-600 font-black" : "text-gray-500 hover:text-gray-900 font-medium"
+          onClick={() => setActiveTab("ready_to_pickup")}
+          className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all relative ${
+            activeTab === "ready_to_pickup" ? "text-[#F47B20] font-black" : "text-gray-500 hover:text-gray-900 font-medium"
           }`}
         >
-          <div className={`p-1 rounded-xl transition-all ${activeTab === "waiting" ? "bg-amber-500/15 text-amber-600 scale-110 shadow-xs" : ""}`}>
-            <AlertTriangle className="h-4.5 w-4.5" />
+          <div className={`p-1 rounded-xl transition-all ${activeTab === "ready_to_pickup" ? "bg-orange-500/15 text-[#F47B20] scale-110 shadow-xs" : ""}`}>
+            <Utensils className="h-4.5 w-4.5" />
           </div>
-          <span className="text-[10px] mt-0.5">در انتظار</span>
-          {waitingOrders.length > 0 && (
-            <span className="absolute top-0 right-1 px-1 min-w-[16px] h-4 text-[9px] font-mono font-bold rounded-full bg-amber-500 text-white flex items-center justify-center">
-              {toPersianDigits(waitingOrders.length)}
+          <span className="text-[10px] mt-0.5">آماده</span>
+          {readyToPickupOrders.length > 0 && (
+            <span className="absolute top-0 right-1 px-1 min-w-[16px] h-4 text-[9px] font-mono font-bold rounded-full bg-[#F47B20] text-white flex items-center justify-center">
+              {toPersianDigits(readyToPickupOrders.length)}
+            </span>
+          )}
+        </button>
+
+        {/* Tab 4: Picked up */}
+        <button
+          type="button"
+          onClick={() => setActiveTab("picked_up")}
+          className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all relative ${
+            activeTab === "picked_up" ? "text-emerald-600 font-black" : "text-gray-500 hover:text-gray-900 font-medium"
+          }`}
+        >
+          <div className={`p-1 rounded-xl transition-all ${activeTab === "picked_up" ? "bg-emerald-500/15 text-emerald-600 scale-110 shadow-xs" : ""}`}>
+            <CheckCircle className="h-4.5 w-4.5" />
+          </div>
+          <span className="text-[10px] mt-0.5">تحویل‌شده</span>
+          {pickedUpOrders.length > 0 && (
+            <span className="absolute top-0 right-1 px-1 min-w-[16px] h-4 text-[9px] font-mono font-bold rounded-full bg-emerald-500 text-white flex items-center justify-center">
+              {toPersianDigits(pickedUpOrders.length)}
             </span>
           )}
         </button>
