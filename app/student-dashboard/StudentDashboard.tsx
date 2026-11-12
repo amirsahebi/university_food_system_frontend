@@ -69,6 +69,12 @@ interface TrustScoreData {
 interface UserProfile {
   id?: number
   username?: string
+  first_name?: string
+  last_name?: string
+  phone_number?: string
+  student_number?: string
+  role?: string
+  avatar_url?: string
   student?: {
     id?: number
     first_name?: string
@@ -644,6 +650,13 @@ export default function StudentDashboard() {
   const trustScore = userProfile?.trust_score ?? 0
   const recoveryDays = userProfile?.trust_score_recovery_days ?? null
 
+  const studentFullName = useMemo(() => {
+    const fn = (userProfile?.first_name || userProfile?.student?.first_name || user?.first_name || "").trim()
+    const ln = (userProfile?.last_name || userProfile?.student?.last_name || user?.last_name || "").trim()
+    const full = `${fn} ${ln}`.trim()
+    return full || "پروفایل"
+  }, [userProfile, user])
+
   return (
     <div dir="rtl" className="relative min-h-screen pb-16 font-sans text-foreground">
       {/* Fixed static background layer: eliminates all background jumping/shifting between tabs */}
@@ -703,11 +716,7 @@ export default function StudentDashboard() {
                     <User className="size-3.5 text-white" />
                   </div>
                   <span className="hidden sm:inline text-xs font-semibold text-foreground">
-                    {userProfile?.student?.first_name
-                      ? `${userProfile.student.first_name} ${userProfile.student.last_name || ""}`
-                      : user?.first_name
-                      ? `${user.first_name} ${user.last_name || ""}`
-                      : "پروفایل"}
+                    {studentFullName}
                   </span>
                   <ChevronDown className="size-3.5 text-muted-foreground opacity-70" />
                 </Button>
@@ -715,7 +724,7 @@ export default function StudentDashboard() {
               <DropdownMenuContent
                 align="end"
                 sideOffset={8}
-                className="w-64 glass-strong border border-glass-border shadow-glass rounded-2xl p-2 z-50 text-foreground"
+                className="w-64 rounded-2xl p-2 z-50 text-foreground bg-white/85 dark:bg-neutral-900/85 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-2xl modal-glass"
               >
                 <div className="px-3 py-2.5 mb-1.5 rounded-xl bg-orange-500/10 border border-orange-500/15 flex items-center gap-2.5">
                   <div className="size-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
@@ -723,13 +732,7 @@ export default function StudentDashboard() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-bold text-foreground truncate">
-                      {(
-                        userProfile?.student?.first_name
-                          ? `${userProfile.student.first_name} ${userProfile.student.last_name || ""}`
-                          : user?.first_name
-                          ? `${user.first_name} ${user.last_name || ""}`
-                          : "کاربر"
-                      ).trim()}
+                      {studentFullName}
                     </p>
                   </div>
                 </div>

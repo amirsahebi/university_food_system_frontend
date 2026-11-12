@@ -32,8 +32,6 @@ import {
   Copy,
   CheckCheck,
   Search,
-  Sparkles,
-  Smartphone,
   RefreshCw,
 } from "lucide-react"
 import { toast, Toaster } from "react-hot-toast"
@@ -473,11 +471,11 @@ export default function ReceiverDashboard() {
               <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin text-orange-500" : ""}`} />
             </Button>
 
-            <DropdownMenu>
+            <DropdownMenu dir="rtl">
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="h-10 px-2.5 sm:px-3 rounded-xl border border-glass-border glass hover:bg-white/80 hover:border-orange-200/80 text-xs font-semibold text-gray-700 transition-all flex items-center gap-2 shadow-xs"
+                  className="h-10 px-2.5 sm:px-3 rounded-xl border border-glass-border glass hover:bg-white/80 hover:border-orange-200/80 text-xs font-semibold text-gray-700 transition-all flex items-center gap-2 shadow-xs cursor-pointer"
                 >
                   <Avatar className="h-6 w-6">
                     <AvatarFallback className="bg-orange-100 text-orange-700 text-xs font-bold">
@@ -487,27 +485,13 @@ export default function ReceiverDashboard() {
                   <span className="hidden sm:inline font-bold">{user.first_name} {user.last_name}</span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-52 rounded-2xl p-1.5 glass-strong border border-glass-border shadow-glass text-xs modal-glass" align="start">
+              <DropdownMenuContent className="w-52 rounded-2xl p-1.5 glass-strong border border-glass-border shadow-glass text-xs modal-glass" align="end">
                 <div className="px-3 py-2 border-b border-gray-100/80 mb-1">
                   <p className="font-bold text-gray-900">{user.first_name} {user.last_name}</p>
                   <p className="text-[11px] text-gray-500 font-mono mt-0.5">{toPersianDigits(user.phone_number)}</p>
                 </div>
-                <DropdownMenuItem
-                  onClick={() => window.dispatchEvent(new CustomEvent("open-whats-new"))}
-                  className="rounded-xl flex items-center gap-2 py-2 cursor-pointer text-amber-700 hover:text-amber-800 hover:bg-amber-500/10"
-                >
-                  <Sparkles className="h-4 w-4 text-amber-500" />
-                  <span>امکانات و تغییرات جدید</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => window.dispatchEvent(new CustomEvent("open-pwa-install"))}
-                  className="rounded-xl flex items-center gap-2 py-2 cursor-pointer text-orange-700 hover:text-orange-800 hover:bg-orange-500/10"
-                >
-                  <Smartphone className="h-4 w-4 text-orange-500" />
-                  <span>نصب نسخه اپلیکیشن (PWA)</span>
-                </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleLogout} className="rounded-xl flex items-center gap-2 py-2 text-rose-600 hover:text-rose-700 hover:bg-rose-500/10 cursor-pointer">
-                  <LogOut className="h-4 w-4" />
+                  <LogOut className="h-4 w-4 shrink-0 text-red-500" />
                   <span>خروج از حساب</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
