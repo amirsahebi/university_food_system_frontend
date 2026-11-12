@@ -10,11 +10,8 @@ import {
   Award,
   Check,
   ChevronLeft,
-  ChevronDown,
   Volume2,
-  ExternalLink,
   ShieldCheck,
-  Smartphone,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -176,7 +173,7 @@ export function NotificationCenter({
             vibrate: [200, 100, 200],
             tag: orderId ? `food-ready-${orderId}` : 'javanfoods-general',
             data: { url: '/student-dashboard?tab=orders' },
-          } as any)
+          } as NotificationOptions & { vibrate?: number[] })
         })
       } else {
         new Notification(title, {

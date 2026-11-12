@@ -49,7 +49,6 @@ import {
   Clock,
   ChevronLeft,
   ChevronRight,
-  Smartphone,
   Activity,
   AlertTriangle,
   Check,
