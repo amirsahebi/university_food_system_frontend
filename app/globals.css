@@ -558,4 +558,15 @@
   background: rgba(249, 115, 22, 0.6);
 }
 
+/* Ensure Persian DatePicker calendar popups always float above tabs, cards, and tables */
+.rmdp-container {
+  position: relative !important;
+}
+.rmdp-wrapper,
+.rmdp-calendar {
+  z-index: 9999 !important;
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.15), 0 8px 10px -6px rgb(0 0 0 / 0.1) !important;
+}
+
+
 

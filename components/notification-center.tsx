@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { toast } from 'react-hot-toast'
 import {
   Bell,
   UtensilsCrossed,
@@ -100,48 +101,82 @@ export function NotificationCenter({
 
   // Request browser Notification Permission
   const requestNotificationPermission = async () => {
-    if (typeof window === 'undefined' || !('Notification' in window)) return
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      toast.error('مرورگر شما از اعلان‌ها پشتیبانی نمی‌کند')
+      return
+    }
 
     try {
       const permission = await Notification.requestPermission()
       setPermissionState(permission)
 
       if (permission === 'granted') {
-        sendNativeNotification(
+        toast.success('اعلان‌های هوشمند سلف با موفقیت فعال شد')
+        await sendNativeNotification(
           'اعلان‌های هوشمند فعال شد 🔔',
           'به محض آماده شدن غذای شما در سلف، از این طریق مطلع خواهید شد.'
         )
+      } else {
+        toast.error('اجازه ارسال اعلان داده نشد')
       }
     } catch (err) {
       console.error('Error requesting notification permission:', err)
     }
   }
 
-  // Helper to send native system push notification
-  const sendNativeNotification = (title: string, body: string, orderId?: number) => {
-    if (typeof window === 'undefined' || !('Notification' in window)) return
+  // Robust Native System Push Notification Dispatcher (Compatible with Android Chrome, Samsung Internet & iOS PWA)
+  const sendNativeNotification = async (title: string, body: string, orderId?: number) => {
+    if (typeof window === 'undefined') return
+    if (!('Notification' in window)) return
+
     if (Notification.permission !== 'granted') return
 
+    const options = {
+      body,
+      icon: '/icons/icon-192x192.png',
+      badge: '/icons/icon-192x192.png',
+      tag: orderId ? `food-ready-${orderId}` : `javanfoods-${Date.now()}`,
+      data: { url: '/student-dashboard?tab=orders' },
+    } as NotificationOptions & { vibrate?: number[] }
+
     try {
-      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-        navigator.serviceWorker.ready.then((reg) => {
-          reg.showNotification(title, {
-            body,
-            icon: '/icons/icon-192x192.png',
-            badge: '/icons/icon-192x192.png',
-            tag: orderId ? `food-ready-${orderId}` : 'javanfoods-general',
-            data: { url: '/student-dashboard?tab=orders' },
-          } as NotificationOptions & { vibrate?: number[] })
-        })
-      } else {
-        new Notification(title, {
-          body,
-          icon: '/icons/icon-192x192.png',
-        })
+      // Priority 1: Service Worker Registration (Required for Android & Mobile Chrome & iOS PWA)
+      if ('serviceWorker' in navigator) {
+        const reg = await navigator.serviceWorker.ready
+        if (reg && reg.showNotification) {
+          await reg.showNotification(title, options)
+          return
+        }
+      }
+
+      // Priority 2: Standard Desktop Notification Constructor
+      if (typeof Notification === 'function') {
+        new Notification(title, options)
       }
     } catch (e) {
       console.warn('Native notification dispatch error:', e)
     }
+  }
+
+  // Send a test notification to device
+  const sendTestNotification = async () => {
+    if (typeof window === 'undefined') return
+
+    if (!('Notification' in window)) {
+      toast.error('مرورگر شما از نوتیفیکیشن پشتیبانی نمی‌کند')
+      return
+    }
+
+    if (Notification.permission !== 'granted') {
+      await requestNotificationPermission()
+      return
+    }
+
+    await sendNativeNotification(
+      'تست اعلان جوان‌فودز 🔔',
+      'نوتیفیکیشن با موفقیت روی گوشی شما دریافت شد! آماده‌باش سلف فعال است.'
+    )
+    toast.success('اعلان تست به گوشی شما ارسال شد! 🔔')
   }
 
   // Detect when an order becomes ready and trigger notification
@@ -342,16 +377,28 @@ export function NotificationCenter({
             )}
           </div>
 
-          {unreadCount > 0 && (
+          <div className="flex items-center gap-1.5">
             <button
               type="button"
-              onClick={handleMarkAllAsRead}
-              className="text-[11px] font-medium text-neutral-500 hover:text-orange-600 dark:text-neutral-400 dark:hover:text-orange-400 flex items-center gap-1 transition-colors cursor-pointer"
+              onClick={sendTestNotification}
+              title="ارسال یک اعلان آزمایشی به این گوشی"
+              className="text-[11px] font-medium text-orange-600 hover:text-orange-700 bg-orange-500/10 hover:bg-orange-500/20 px-2 py-0.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1"
             >
-              <CheckCheck className="size-3.5" />
-              <span>خواندن همه</span>
+              <Volume2 className="size-3" />
+              <span>تست اعلان</span>
             </button>
-          )}
+
+            {unreadCount > 0 && (
+              <button
+                type="button"
+                onClick={handleMarkAllAsRead}
+                className="text-[11px] font-medium text-neutral-500 hover:text-orange-600 dark:text-neutral-400 dark:hover:text-orange-400 flex items-center gap-1 transition-colors cursor-pointer"
+              >
+                <CheckCheck className="size-3.5" />
+                <span>خواندن همه</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Compact, clean permission banner */}

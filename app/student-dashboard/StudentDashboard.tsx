@@ -722,15 +722,14 @@ export default function StudentDashboard() {
                     <User className="size-4 text-white" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold text-foreground truncate">
-                      {userProfile?.student?.first_name
-                        ? `${userProfile.student.first_name} ${userProfile.student.last_name || ""}`
-                        : user?.first_name
-                        ? `${user.first_name} ${user.last_name || ""}`
-                        : "دانشجوی گرامی"}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground font-mono truncate" dir="ltr">
-                      {userProfile?.student?.phone_number || user?.phone_number || "حساب دانشجویی"}
+                    <p className="text-sm font-bold text-foreground truncate">
+                      {(
+                        userProfile?.student?.first_name
+                          ? `${userProfile.student.first_name} ${userProfile.student.last_name || ""}`
+                          : user?.first_name
+                          ? `${user.first_name} ${user.last_name || ""}`
+                          : "کاربر"
+                      ).trim()}
                     </p>
                   </div>
                 </div>

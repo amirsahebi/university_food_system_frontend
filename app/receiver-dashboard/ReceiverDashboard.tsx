@@ -555,7 +555,7 @@ export default function ReceiverDashboard() {
         </div>
 
         {/* 3. Action Terminal: Delivery Code Verification + Date/Meal Switcher */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4 relative z-30">
           {/* Box 1: Quick Code Verification */}
           <div className="glass p-4 sm:p-5 rounded-2xl border border-glass-border shadow-glass space-y-3.5">
             <div className="flex items-center gap-2.5 pb-2.5 border-b border-gray-200/60">
@@ -601,7 +601,7 @@ export default function ReceiverDashboard() {
           </div>
 
           {/* Box 2: Date & Meal Selector */}
-          <div className="glass p-4 sm:p-5 rounded-2xl border border-glass-border shadow-glass space-y-3.5">
+          <div className="glass p-4 sm:p-5 rounded-2xl border border-glass-border shadow-glass space-y-3.5 relative z-30">
             <div className="flex items-center gap-2.5 pb-2.5 border-b border-gray-200/60">
               <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600 border border-amber-200/60">
                 <Calendar className="w-4.5 h-4.5" />
@@ -613,7 +613,7 @@ export default function ReceiverDashboard() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
-              <div>
+              <div className="relative z-40">
                 <DatePicker
                   value={selectedDate}
                   onChange={(date) => {
@@ -625,7 +625,7 @@ export default function ReceiverDashboard() {
                   locale={persian_fa}
                   calendarPosition="bottom-right"
                   inputClass="w-full h-11 px-3.5 py-2 rounded-xl bg-white/80 text-xs font-semibold text-gray-800 border border-orange-200/80 shadow-xs focus:outline-none focus:ring-2 focus:ring-[#F47B20]"
-                  containerClassName="w-full"
+                  containerClassName="w-full relative z-40"
                 />
               </div>
 
