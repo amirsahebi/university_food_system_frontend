@@ -5,13 +5,11 @@ import {
   Bell,
   UtensilsCrossed,
   ShoppingBag,
-  Sparkles,
   CreditCard,
   Award,
-  Check,
   ChevronLeft,
   Volume2,
-  ShieldCheck,
+  CheckCheck,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -54,43 +52,8 @@ interface NotificationCenterProps {
   onViewOrders?: () => void
 }
 
-const STORAGE_KEY = 'javanfoods_notifications_store_v1'
-const NOTIFIED_READY_KEY = 'javanfoods_notified_ready_orders'
-
-const DEFAULT_NOTIFICATIONS: AppNotification[] = [
-  {
-    id: 'notif-trust-score',
-    type: 'trust_score',
-    title: 'سیستم هوشمند امتیاز اعتماد',
-    description:
-      'به ازای هر ۱۰۰ هزار تومان خرید آزاد، ۱ امتیاز به امتیاز اعتماد شما افزوده می‌شود. با امتیاز مثبت می‌توانید از فیش دانشجویی با تخفیف سلف استفاده کنید.',
-    timestamp: 'امروز',
-    read: false,
-    actionLabel: 'متوجه شدم',
-  },
-  {
-    id: 'notif-pwa',
-    type: 'announcement',
-    title: 'نصب نسخه وب‌اپلیکیشن (PWA)',
-    description:
-      'برای دسترسی سریع‌تر، عدم نیاز به مرورگر و دریافت بی‌درنگ نوتیفیکیشن آماده شدن غذا، سامانه جوان‌فودز را به صفحه اصلی گوشی خود اضافه کنید.',
-    timestamp: 'به‌تازگی',
-    read: true,
-    actionLabel: 'نصب برنامه',
-    actionType: 'pwa_install',
-  },
-  {
-    id: 'notif-welcome',
-    type: 'announcement',
-    title: 'طراحی شیشه‌ای جدید جوان‌فودز',
-    description:
-      'رابط کاربری جدید با سرعت بارگذاری فوق‌العاده، طراحی شفاف شیشه‌ای و مرکز اعلان‌های لحظه‌ای برای رفاه دانشجویان راه‌اندازی شد.',
-    timestamp: 'به‌تازگی',
-    read: true,
-    actionLabel: 'مشاهده جزئیات',
-    actionType: 'view_whats_new',
-  },
-]
+const STORAGE_KEY = 'javanfoods_notifications_store_v2'
+const NOTIFIED_READY_KEY = 'javanfoods_notified_ready_orders_v2'
 
 export function NotificationCenter({
   reservations = [],
@@ -98,8 +61,6 @@ export function NotificationCenter({
 }: NotificationCenterProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [notifications, setNotifications] = useState<AppNotification[]>([])
-  const [activeFilter, setActiveFilter] = useState<'all' | 'food_ready' | 'unread'>('all')
-  const [expandedId, setExpandedId] = useState<string | null>(null)
   const [permissionState, setPermissionState] = useState<NotificationPermission>('default')
   const [isClient, setIsClient] = useState(false)
 
@@ -118,11 +79,10 @@ export function NotificationCenter({
         const parsed = JSON.parse(stored) as AppNotification[]
         setNotifications(parsed)
       } else {
-        setNotifications(DEFAULT_NOTIFICATIONS)
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_NOTIFICATIONS))
+        setNotifications([])
       }
     } catch {
-      setNotifications(DEFAULT_NOTIFICATIONS)
+      setNotifications([])
     }
   }, [])
 
@@ -147,10 +107,9 @@ export function NotificationCenter({
       setPermissionState(permission)
 
       if (permission === 'granted') {
-        // Send a pleasant test notification confirmation
         sendNativeNotification(
           'اعلان‌های هوشمند فعال شد 🔔',
-          'از این پس به محض آماده شدن غذای شما در سلف، سریعاً باخبر خواهید شد.'
+          'به محض آماده شدن غذای شما در سلف، از این طریق مطلع خواهید شد.'
         )
       }
     } catch (err) {
@@ -170,7 +129,6 @@ export function NotificationCenter({
             body,
             icon: '/icons/icon-192x192.png',
             badge: '/icons/icon-192x192.png',
-            vibrate: [200, 100, 200],
             tag: orderId ? `food-ready-${orderId}` : 'javanfoods-general',
             data: { url: '/student-dashboard?tab=orders' },
           } as NotificationOptions & { vibrate?: number[] })
@@ -207,8 +165,8 @@ export function NotificationCenter({
 
       readyOrders.forEach((order) => {
         const foodName = order.food?.name || 'سفارش غذا'
-        const title = 'غذای شما آماده تحویل است! 🍲'
-        const description = `سفارش «${foodName}» (شماره سفارش #${order.id}) در سلف آماده تحویل می‌باشد. لطفاً جهت دریافت مراجعه نمایید.`
+        const title = 'غذای شما آماده تحویل است 🍲'
+        const description = `سفارش «${foodName}» (شماره #${order.id}) آماده تحویل می‌باشد.`
 
         newItems.push({
           id: `food-ready-${order.id}-${Date.now()}`,
@@ -219,13 +177,11 @@ export function NotificationCenter({
           read: false,
           orderId: order.id,
           foodName,
-          actionLabel: 'مشاهده فیش سفارش',
+          actionLabel: 'مشاهده فیش تحویل',
           actionType: 'view_orders',
         })
 
-        // Fire native OS/Browser push notification
         sendNativeNotification(title, description, order.id)
-
         notifiedIds.push(order.id)
       })
 
@@ -284,9 +240,8 @@ export function NotificationCenter({
     persistNotifications(updated)
   }
 
-  // Toggle item expand and mark single as read
+  // Mark single notification as read
   const handleItemClick = (item: AppNotification) => {
-    setExpandedId((prev) => (prev === item.id ? null : item.id))
     if (!item.read) {
       const updated = notifications.map((n) => (n.id === item.id ? { ...n, read: true } : n))
       persistNotifications(updated)
@@ -296,6 +251,7 @@ export function NotificationCenter({
   // Handle action button click
   const handleAction = (item: AppNotification, e: React.MouseEvent) => {
     e.stopPropagation()
+    handleItemClick(item)
     setIsOpen(false)
 
     if (item.actionType === 'view_orders') {
@@ -311,61 +267,39 @@ export function NotificationCenter({
     }
   }
 
-  // Filtered notifications
-  const filteredNotifications = useMemo(() => {
-    if (activeFilter === 'food_ready') {
-      return notifications.filter((n) => n.type === 'food_ready')
-    }
-    if (activeFilter === 'unread') {
-      return notifications.filter((n) => !n.read)
-    }
-    return notifications
-  }, [notifications, activeFilter])
-
-  // Visual configuration for each notification type
-  const getTypeConfig = (type: NotificationType) => {
+  // Icon mapping
+  const getNotificationIcon = (type: NotificationType) => {
     switch (type) {
       case 'food_ready':
-        return {
-          icon: UtensilsCrossed,
-          tag: 'آماده تحویل',
-          iconBg: 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-emerald-500/25',
-          chipBg: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
-          cardBg: 'bg-emerald-500/5 hover:bg-emerald-500/10 border-emerald-500/20',
-        }
+        return (
+          <div className="size-8 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+            <UtensilsCrossed className="size-4" />
+          </div>
+        )
       case 'order_placed':
-        return {
-          icon: ShoppingBag,
-          tag: 'ثبت سفارش',
-          iconBg: 'bg-gradient-to-br from-sky-500 to-blue-600 text-white shadow-sky-500/25',
-          chipBg: 'bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30',
-          cardBg: 'bg-sky-500/5 hover:bg-sky-500/10 border-sky-500/20',
-        }
+        return (
+          <div className="size-8 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 flex items-center justify-center shrink-0">
+            <ShoppingBag className="size-4" />
+          </div>
+        )
       case 'payment':
-        return {
-          icon: CreditCard,
-          tag: 'تراکنش مالی',
-          iconBg: 'bg-gradient-to-br from-amber-500 to-yellow-600 text-white shadow-amber-500/25',
-          chipBg: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30',
-          cardBg: 'bg-amber-500/5 hover:bg-amber-500/10 border-amber-500/20',
-        }
+        return (
+          <div className="size-8 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 flex items-center justify-center shrink-0">
+            <CreditCard className="size-4" />
+          </div>
+        )
       case 'trust_score':
-        return {
-          icon: Award,
-          tag: 'امتیاز اعتماد',
-          iconBg: 'bg-gradient-to-br from-orange-500 to-amber-600 text-white shadow-orange-500/25',
-          chipBg: 'bg-orange-500/15 text-orange-700 dark:text-orange-300 border-orange-500/30',
-          cardBg: 'bg-orange-500/5 hover:bg-orange-500/10 border-orange-500/20',
-        }
-      case 'announcement':
+        return (
+          <div className="size-8 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 flex items-center justify-center shrink-0">
+            <Award className="size-4" />
+          </div>
+        )
       default:
-        return {
-          icon: Sparkles,
-          tag: 'اطلاعیه',
-          iconBg: 'bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-purple-500/25',
-          chipBg: 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30',
-          cardBg: 'bg-purple-500/5 hover:bg-purple-500/10 border-purple-500/20',
-        }
+        return (
+          <div className="size-8 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 flex items-center justify-center shrink-0">
+            <Bell className="size-4" />
+          </div>
+        )
     }
   }
 
@@ -375,13 +309,13 @@ export function NotificationCenter({
         <Button
           variant="glass"
           size="sm"
-          className="relative size-9 p-0 rounded-full hover:bg-orange-500/10 text-foreground transition-transform active:scale-95 cursor-pointer shadow-xs"
-          title="مرکز اعلانات هوشمند"
-          aria-label="مرکز اعلانات"
+          className="relative size-8 sm:size-9 p-0 rounded-full hover:bg-orange-500/10 text-foreground transition-transform active:scale-95 cursor-pointer shadow-xs"
+          title="مرکز اعلان‌ها"
+          aria-label="مرکز اعلان‌ها"
         >
-          <Bell className="size-4 text-primary" />
+          <Bell className="size-4 text-foreground/80" />
           {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-4.5 h-4.5 px-1 rounded-full bg-orange-600 text-[10px] font-black text-white shadow-sm ring-2 ring-white dark:ring-neutral-900 animate-in zoom-in-75">
+            <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-4 h-4 px-1 rounded-full bg-orange-600 text-[9px] font-bold text-white ring-2 ring-white dark:ring-neutral-900 animate-in zoom-in-75">
               {unreadCount > 9 ? '+۹' : unreadCount}
             </span>
           )}
@@ -390,205 +324,118 @@ export function NotificationCenter({
 
       <PopoverContent
         dir="rtl"
-        align="start"
+        align="end"
         sideOffset={8}
-        className="w-[94vw] max-w-sm p-0 rounded-3xl glass-strong border border-glass-border text-foreground shadow-2xl backdrop-blur-2xl overflow-hidden z-50 animate-in fade-in-0 zoom-in-95 duration-200"
+        collisionPadding={12}
+        className="w-[calc(100vw-1.5rem)] sm:w-[380px] max-w-[380px] p-0 rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 text-neutral-900 dark:text-neutral-100 shadow-2xl overflow-hidden z-50"
       >
-        {/* Header */}
-        <div className="p-3.5 bg-gradient-to-r from-orange-500/15 via-amber-500/10 to-transparent border-b border-black/5 dark:border-white/10 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="size-8 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 text-white flex items-center justify-center shadow-xs">
-              <Bell className="size-4" />
-            </div>
-            <div>
-              <h4 className="font-extrabold text-sm text-foreground">مرکز اعلانات هوشمند</h4>
-              <p className="text-[10px] text-muted-foreground">اطلاع‌رسانی لحظه‌ای سفارش‌ها و سلف</p>
-            </div>
+        {/* Clean, calm header */}
+        <div className="px-4 py-3 border-b border-neutral-100 dark:border-neutral-800 flex items-center justify-between bg-neutral-50/60 dark:bg-neutral-900/60">
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-sm text-neutral-900 dark:text-neutral-100">
+              اعلان‌ها
+            </span>
+            {unreadCount > 0 && (
+              <span className="text-[11px] font-medium text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/40 px-2 py-0.5 rounded-full">
+                {unreadCount} جدید
+              </span>
+            )}
           </div>
 
           {unreadCount > 0 && (
             <button
               type="button"
               onClick={handleMarkAllAsRead}
-              className="text-[11px] font-bold text-orange-600 hover:text-orange-700 hover:underline px-2 py-1 rounded-lg transition-colors cursor-pointer"
+              className="text-[11px] font-medium text-neutral-500 hover:text-orange-600 dark:text-neutral-400 dark:hover:text-orange-400 flex items-center gap-1 transition-colors cursor-pointer"
             >
-              خواندن همه
+              <CheckCheck className="size-3.5" />
+              <span>خواندن همه</span>
             </button>
           )}
         </div>
 
-        {/* Web Push Permission Prompt (Replacing SMS for Food Ready) */}
+        {/* Compact, clean permission banner */}
         {permissionState !== 'granted' && (
-          <div className="p-3 bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-emerald-500/5 border-b border-emerald-500/20">
-            <div className="flex items-start gap-2.5">
-              <div className="size-7 rounded-lg bg-emerald-500 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
-                <Volume2 className="size-3.5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h5 className="text-xs font-bold text-emerald-800 dark:text-emerald-300">
-                  اعلان لحظه‌ای آماده شدن غذا (جایگزین پیامک)
-                </h5>
-                <p className="text-[10px] text-emerald-700/80 dark:text-emerald-400/80 leading-relaxed mt-0.5">
-                  برای مطلع شدن سریع از آماده شدن غذا حتی خارج از صفحه سایت، اجازه اعلان مرورگر را صادر کنید.
-                </p>
-                <Button
-                  size="sm"
-                  onClick={requestNotificationPermission}
-                  className="mt-2 h-7 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold rounded-lg shadow-xs flex items-center gap-1.5"
-                >
-                  <ShieldCheck className="size-3.5" />
-                  فعال‌سازی اعلان هوشمند
-                </Button>
-              </div>
+          <div className="px-3.5 py-2.5 bg-neutral-50 dark:bg-neutral-800/50 border-b border-neutral-100 dark:border-neutral-800 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <Volume2 className="size-3.5 text-neutral-500 dark:text-neutral-400 shrink-0" />
+              <p className="text-[11px] text-neutral-600 dark:text-neutral-300 truncate">
+                دریافت اعلان آماده شدن غذا
+              </p>
             </div>
+            <button
+              type="button"
+              onClick={requestNotificationPermission}
+              className="h-6 px-2.5 text-[11px] font-medium bg-orange-600 hover:bg-orange-700 text-white rounded-md shrink-0 transition-colors cursor-pointer"
+            >
+              فعال‌سازی
+            </button>
           </div>
         )}
 
-        {/* Filter Chips */}
-        <div className="px-3 pt-2.5 pb-1 flex items-center gap-1.5 border-b border-black/5 dark:border-white/10">
-          <button
-            type="button"
-            onClick={() => setActiveFilter('all')}
-            className={cn(
-              'px-2.5 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer',
-              activeFilter === 'all'
-                ? 'bg-brand text-white shadow-xs'
-                : 'text-muted-foreground hover:bg-black/5'
-            )}
-          >
-            همه ({notifications.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveFilter('food_ready')}
-            className={cn(
-              'px-2.5 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer flex items-center gap-1',
-              activeFilter === 'food_ready'
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'text-muted-foreground hover:bg-black/5'
-            )}
-          >
-            <span className="size-1.5 rounded-full bg-emerald-500" />
-            آماده تحویل
-          </button>
-          {unreadCount > 0 && (
-            <button
-              type="button"
-              onClick={() => setActiveFilter('unread')}
-              className={cn(
-                'px-2.5 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer',
-                activeFilter === 'unread'
-                  ? 'bg-orange-600 text-white shadow-xs'
-                  : 'text-muted-foreground hover:bg-black/5'
-              )}
-            >
-              خوانده‌نشده ({unreadCount})
-            </button>
-          )}
-        </div>
-
         {/* Notifications List */}
-        <div className="p-3 space-y-2 max-h-[58vh] overflow-y-auto custom-scrollbar">
-          {filteredNotifications.length === 0 ? (
-            <div className="py-8 text-center text-muted-foreground">
-              <Check className="size-8 mx-auto text-emerald-500/60 mb-2" />
-              <p className="text-xs font-medium">اعلانی در این دسته وجود ندارد</p>
+        <div className="max-h-[360px] overflow-y-auto divide-y divide-neutral-100 dark:divide-neutral-800 custom-scrollbar">
+          {notifications.length === 0 ? (
+            <div className="py-10 text-center px-4">
+              <div className="size-10 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center mx-auto mb-2.5 text-neutral-400 dark:text-neutral-500">
+                <Bell className="size-5" />
+              </div>
+              <p className="text-xs font-semibold text-neutral-700 dark:text-neutral-300">
+                هیچ اعلانی ندارید
+              </p>
+              <p className="text-[11px] text-neutral-400 dark:text-neutral-500 mt-1 leading-normal">
+                به محض آماده شدن سفارش در سلف، اینجا مطلع خواهید شد.
+              </p>
             </div>
           ) : (
-            filteredNotifications.map((item) => {
-              const cfg = getTypeConfig(item.type)
-              const Icon = cfg.icon
-              const isExpanded = expandedId === item.id
+            notifications.map((item) => (
+              <div
+                key={item.id}
+                onClick={() => handleItemClick(item)}
+                className={cn(
+                  'flex items-start gap-3 p-3.5 transition-colors cursor-pointer',
+                  !item.read
+                    ? 'bg-orange-50/40 dark:bg-orange-950/15 hover:bg-orange-50/70 dark:hover:bg-orange-950/25'
+                    : 'hover:bg-neutral-50 dark:hover:bg-neutral-800/40'
+                )}
+              >
+                {getNotificationIcon(item.type)}
 
-              return (
-                <div
-                  key={item.id}
-                  onClick={() => handleItemClick(item)}
-                  className={cn(
-                    'p-3 rounded-2xl border transition-all cursor-pointer relative overflow-hidden',
-                    cfg.cardBg,
-                    !item.read && 'ring-1 ring-orange-500/30'
-                  )}
-                >
-                  {/* Unread Indicator Bar */}
-                  {!item.read && (
-                    <div className="absolute top-0 right-0 bottom-0 w-1 bg-gradient-to-b from-orange-500 to-amber-500" />
-                  )}
-
-                  <div className="flex items-start gap-2.5">
-                    {/* Squircle Shape Icon with Gradient */}
-                    <div
-                      className={cn(
-                        'size-9 rounded-xl flex items-center justify-center shrink-0 shadow-sm mt-0.5',
-                        cfg.iconBg
-                      )}
-                    >
-                      <Icon className="size-4.5 stroke-[2.2]" />
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      {/* Top Meta: Tag & Timestamp */}
-                      <div className="flex items-center justify-between gap-1 mb-1">
-                        <span
-                          className={cn(
-                            'text-[10px] font-bold px-2 py-0.5 rounded-full border',
-                            cfg.chipBg
-                          )}
-                        >
-                          {cfg.tag}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground font-mono">
-                          {item.timestamp}
-                        </span>
-                      </div>
-
-                      {/* Title */}
-                      <h5 className="font-bold text-xs text-foreground leading-snug">
-                        {item.title}
-                      </h5>
-
-                      {/* Description with Expand/Collapse */}
-                      <p
-                        className={cn(
-                          'text-[11px] text-muted-foreground leading-relaxed mt-1 text-justify transition-all',
-                          !isExpanded && 'line-clamp-2'
-                        )}
-                      >
-                        {item.description}
-                      </p>
-
-                      {/* Expanded View Details & Action Button */}
-                      {isExpanded && item.actionLabel && (
-                        <div className="mt-2.5 pt-2 border-t border-black/5 dark:border-white/10 flex items-center justify-between gap-2 animate-in fade-in-0 duration-150">
-                          {item.orderId && (
-                            <span className="text-[10px] font-mono text-muted-foreground">
-                              کد پیگیری: #{item.orderId}
-                            </span>
-                          )}
-                          <Button
-                            size="sm"
-                            onClick={(e) => handleAction(item, e)}
-                            className="mr-auto h-7 px-3 bg-brand text-white text-[11px] font-bold rounded-lg shadow-xs flex items-center gap-1 hover:brightness-105 active:scale-95 transition-all"
-                          >
-                            <span>{item.actionLabel}</span>
-                            <ChevronLeft className="size-3.5" />
-                          </Button>
-                        </div>
-                      )}
-                    </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-bold text-neutral-900 dark:text-neutral-100 truncate">
+                      {item.title}
+                    </span>
+                    <span className="text-[10px] text-neutral-400 font-mono shrink-0">
+                      {item.timestamp}
+                    </span>
                   </div>
-                </div>
-              )
-            })
-          )}
-        </div>
 
-        {/* Footer */}
-        <div className="p-2.5 bg-black/[0.02] dark:bg-white/[0.02] border-t border-black/5 dark:border-white/10 text-center">
-          <p className="text-[10px] text-muted-foreground flex items-center justify-center gap-1.5 font-medium">
-            <Check className="size-3 text-emerald-500" />
-            اعلانات سلف و سفارشات به صورت زنده همگام هستند
-          </p>
+                  <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-1 leading-relaxed">
+                    {item.description}
+                  </p>
+
+                  {item.actionLabel && (
+                    <button
+                      type="button"
+                      onClick={(e) => handleAction(item, e)}
+                      className="mt-2 inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 hover:text-orange-700 dark:text-orange-400 transition-colors cursor-pointer"
+                    >
+                      <span>{item.actionLabel}</span>
+                      <ChevronLeft className="size-3" />
+                    </button>
+                  )}
+                </div>
+
+                {!item.read && (
+                  <span
+                    className="size-1.5 rounded-full bg-orange-500 shrink-0 mt-1.5"
+                    title="خوانده نشده"
+                  />
+                )}
+              </div>
+            ))
+          )}
         </div>
       </PopoverContent>
     </Popover>
