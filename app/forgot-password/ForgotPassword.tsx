@@ -5,37 +5,27 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import Image from "next/image"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { toast, Toaster } from "react-hot-toast"
-import { Send, LogIn, Phone, Key, Lock, ChevronLeft } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { Phone, Lock, KeyRound, ShieldCheck, ArrowRight, ArrowLeft, Send } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { toast, Toaster } from "react-hot-toast"
 import api from "@/lib/axios"
 import { API_ROUTES, createApiUrl } from "@/lib/api"
-import { AnimatePresence, motion } from "framer-motion"
 import { toEnglishDigits } from "@/lib/formatters"
+import { Field } from "@/components/account/Field"
+import { VerificationCode } from "@/components/account/VerificationCode"
 
 const requestCodeSchema = z.object({
   phone_number: z.preprocess(
     (val) => toEnglishDigits(val as string).trim(),
-    z.string().regex(/^09\d{9}$/, { message: "شماره تلفن باید 11 رقم و با 09 شروع شود" })
+    z.string().regex(/^09\d{9}$/, { message: "شماره تلفن باید ۱۱ رقم و با ۰۹ شروع شود" })
   ),
 })
 
 const resetPasswordSchema = z
   .object({
-    phone_number: z.preprocess(
-      (val) => toEnglishDigits(val as string).trim(),
-      z.string().regex(/^09\d{9}$/, { message: "شماره تلفن باید 11 رقم و با 09 شروع شود" })
-    ),
-    verification_code: z.preprocess(
-      (val) => toEnglishDigits(val as string).trim(),
-      z.string()
-    ),
-    new_password: z.string().min(8, { message: "رمز عبور جدید باید حداقل 8 کاراکتر باشد" }),
+    new_password: z.string().min(8, { message: "رمز عبور جدید باید حداقل ۸ کاراکتر باشد" }),
     confirm_password: z.string(),
   })
   .refine((data) => data.new_password === data.confirm_password, {
@@ -46,60 +36,80 @@ const resetPasswordSchema = z
 type RequestCodeForm = z.infer<typeof requestCodeSchema>
 type ResetPasswordForm = z.infer<typeof resetPasswordSchema>
 
-export default function ForgotPasswordPage() {
-  const [step, setStep] = useState<"request" | "reset">("request")
-  const [isSubmitting, setIsSubmitting] = useState(false)
+export default function ForgotPassword() {
+  const [step, setStep] = useState<0 | 1>(0)
   const [phoneNumber, setPhoneNumber] = useState("")
+  const [otpCode, setOtpCode] = useState("")
+  const [otpError, setOtpError] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const router = useRouter()
 
   const {
-    register: registerRequest,
-    handleSubmit: handleSubmitRequest,
-    formState: { errors: errorsRequest },
+    handleSubmit: handleRequestSubmit,
+    setValue: setRequestValue,
+    watch: watchRequest,
+    formState: { errors: requestErrors },
   } = useForm<RequestCodeForm>({
     resolver: zodResolver(requestCodeSchema),
+    defaultValues: { phone_number: "" },
   })
 
   const {
-    register: registerReset,
-    handleSubmit: handleSubmitReset,
-    formState: { errors: errorsReset },
-    setValue,
+    handleSubmit: handleResetSubmit,
+    setValue: setResetValue,
+    watch: watchReset,
+    formState: { errors: resetErrors },
   } = useForm<ResetPasswordForm>({
     resolver: zodResolver(resetPasswordSchema),
+    defaultValues: { new_password: "", confirm_password: "" },
   })
 
-  const onSubmitRequest = async (data: RequestCodeForm) => {
+  const phoneValue = watchRequest("phone_number")
+  const newPasswordValue = watchReset("new_password")
+  const confirmPasswordValue = watchReset("confirm_password")
+
+  const onRequestCode = async (data: RequestCodeForm) => {
     setIsSubmitting(true)
     try {
-      await api.post(createApiUrl(API_ROUTES.REQUEST_PASSWORD_RESET), { phone_number: data.phone_number })
-      toast.success("کد تایید به شماره تلفن شما ارسال شد")
+      await api.post(createApiUrl(API_ROUTES.REQUEST_PASSWORD_RESET), {
+        phone_number: data.phone_number,
+      })
+      toast.success("کد تأیید به شماره تلفن شما ارسال شد")
       setPhoneNumber(data.phone_number)
-      setStep("reset")
-      setValue("phone_number", data.phone_number)
-    } catch (error) {
-      console.error("Request error:", error)
-      toast.error("خطا در ارسال کد تایید. لطفا دوباره تلاش کنید.")
+      setStep(1)
+    } catch (error: unknown) {
+      console.error("Request reset error:", error)
+      const err = error as { response?: { data?: { message?: string } } }
+      toast.error(err.response?.data?.message || "خطا در ارسال کد تأیید. لطفاً دوباره تلاش کنید.")
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  const onSubmitReset = async (data: ResetPasswordForm) => {
+  const onResetPassword = async (data: ResetPasswordForm) => {
+    if (otpCode.length !== 6) {
+      setOtpError(true)
+      toast.error("لطفاً کد تأیید ۶ رقمی را وارد کنید")
+      return
+    }
+
     setIsSubmitting(true)
+    setOtpError(false)
     try {
       await api.post(createApiUrl(API_ROUTES.RESET_PASSWORD), {
-        phone_number: data.phone_number,
-        otp: data.verification_code,
+        phone_number: phoneNumber,
+        otp: otpCode,
         new_password: data.new_password,
       })
       toast.success("رمز عبور با موفقیت تغییر کرد")
       setTimeout(() => {
-        window.location.href = "/"
-      }, 2000)
-    } catch (error) {
-      console.error("Reset error:", error)
-      toast.error("خطا در تغییر رمز عبور. لطفا دوباره تلاش کنید.")
+        router.push("/")
+      }, 1500)
+    } catch (error: unknown) {
+      console.error("Reset password error:", error)
+      setOtpError(true)
+      const err = error as { response?: { data?: { message?: string } } }
+      toast.error(err.response?.data?.message || "کد تأیید نامعتبر است یا منقضی شده است.")
     } finally {
       setIsSubmitting(false)
     }
@@ -107,46 +117,10 @@ export default function ForgotPasswordPage() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-pattern bg-pattern-animate"
       dir="rtl"
+      className="relative flex h-svh flex-col overflow-hidden bg-page font-sans sm:h-auto sm:min-h-svh sm:justify-center sm:overflow-visible sm:overflow-x-hidden"
     >
-      <div className="absolute inset-0">
-        <div className="absolute top-0 right-0 w-full h-full overflow-hidden">
-          <svg
-            className="absolute top-0 right-0 h-full w-full"
-            viewBox="0 0 900 600"
-            preserveAspectRatio="xMidYMid slice"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <g>
-              <path
-                className="blob-animate-1"
-                d="M0 486.7C-52.7 454 -105.4 421.3 -166.8 402.8C-228.3 384.3 -298.5 380 -344.2 344.2C-389.8 308.3 -410.9 241 -430.5 178.3C-450.2 115.7 -468.5 57.9 -486.7 0L0 0Z"
-                fill="url(#orange-gradient-1)"
-                transform="translate(900, 0)"
-              ></path>
-            </g>
-            <g>
-              <path
-                className="blob-animate-2"
-                d="M0 -486.7C59.2 -472.3 118.5 -457.9 181.4 -437.9C244.3 -417.9 311 -392.4 344.2 -344.2C377.4 -295.9 377.2 -224.9 395.4 -163.8C413.6 -102.6 450.2 -51.3 486.7 0L0 0Z"
-                fill="url(#orange-gradient-2)"
-                transform="translate(0, 600)"
-              ></path>
-            </g>
-            <defs>
-              <linearGradient id="orange-gradient-1" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#f97316" stopOpacity="0.3"></stop>
-                <stop offset="100%" stopColor="#fdba74" stopOpacity="0.2"></stop>
-              </linearGradient>
-              <linearGradient id="orange-gradient-2" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#fb923c" stopOpacity="0.3"></stop>
-                <stop offset="100%" stopColor="#fed7aa" stopOpacity="0.2"></stop>
-              </linearGradient>
-            </defs>
-          </svg>
-        </div>
-      </div>
+      <div aria-hidden className="pointer-events-none absolute inset-0 bg-hero" />
 
       <Toaster
         position="top-center"
@@ -159,189 +133,169 @@ export default function ForgotPasswordPage() {
         }}
       />
 
-      <Card className="w-full max-w-md backdrop-blur-md bg-white/55 rounded-3xl shadow-xl border-0 relative z-10 animate-fade-in">
-        <CardHeader className="flex flex-col items-center space-y-2 pb-2">
-          <div
-            className="mb-2"
-            style={{ animationDelay: "0.1s" }}
-          >
-            <div className="relative h-20 w-20">
-              <Image src="/images/javanfoods_logo.png" alt="رستوران جوان" fill className="object-contain" priority />
+      <header className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-end gap-3 px-6 pb-6 pt-10 text-center sm:flex-none sm:gap-4 sm:pb-8 sm:pt-14">
+        <Link
+          href="/"
+          aria-label="رستوران جوان"
+          className="relative flex size-16 shrink-0 items-center justify-center rounded-[1.35rem] bg-white/85 p-2.5 shadow-glass backdrop-blur-md transition-transform hover:scale-[1.04] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-orange-500 sm:size-20"
+        >
+          <div className="relative h-full w-full">
+            <Image
+              src="/images/javanfoods_logo.png"
+              alt="رستوران جوان"
+              fill
+              className="object-contain drop-shadow-sm"
+              priority
+            />
+          </div>
+        </Link>
+        <div className="space-y-1">
+          <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
+            بازیابی رمز عبور
+          </h1>
+          <p className="text-sm text-muted-foreground sm:text-base">دسترسی دوباره به حساب شما</p>
+        </div>
+      </header>
+
+      <section className="relative z-10 mx-auto flex max-h-[80svh] w-full max-w-[560px] shrink-0 flex-col rounded-t-[2.25rem] border-t border-glass-border bg-glass-strong pt-5 shadow-sheet backdrop-blur-2xl sm:mb-8 sm:max-h-none sm:max-w-[460px] sm:rounded-[1.75rem] sm:border sm:pt-8">
+        <div className="shrink-0 px-5 pb-5 sm:px-8">
+          <div className="flex items-center gap-3">
+            <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-orange-100 text-orange-600 sm:size-11">
+              <KeyRound className="size-5" />
+            </span>
+            <div>
+              <h2 className="text-sm font-bold">
+                {step === 0 ? "شماره حساب شما" : "رمز عبور جدید"}
+              </h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {step === 0 ? "شماره موبایل ثبت‌شده در حساب کاربری" : phoneNumber}
+              </p>
             </div>
           </div>
-          <h1 className="text-2xl font-bold text-gray-800" style={{ animationDelay: "0.2s" }}>
-            رستوران جوان
-          </h1>
-          <p className="text-gray-500 text-sm" style={{ animationDelay: "0.3s" }}>
-            {step === "request" ? "بازیابی رمز عبور" : "تغییر رمز عبور"}
-          </p>
-        </CardHeader>
+        </div>
 
-        <CardContent className="pt-4">
-          <AnimatePresence mode="wait">
-            {step === "request" ? (
-              <motion.div
-                key="request"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ duration: 0.3 }}
+        {step === 0 ? (
+          <form onSubmit={handleRequestSubmit(onRequestCode)} className="flex min-h-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 pb-3 sm:px-8">
+              <Field
+                id="phone_number"
+                label="شماره موبایل"
+                icon={Phone}
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                dir="ltr"
+                placeholder="09123456789"
+                required
+                value={phoneValue}
+                onChange={(e) => {
+                  setRequestValue("phone_number", toEnglishDigits(e.target.value).trim(), {
+                    shouldValidate: true,
+                  })
+                }}
+                error={requestErrors.phone_number?.message}
+              />
+
+              <div className="border-t border-input/50 pt-3 text-center text-sm">
+                <Link
+                  href="/"
+                  className="inline-flex items-center gap-2 text-muted-foreground transition-colors hover:text-orange-600"
+                >
+                  <ArrowRight className="size-4" />
+                  بازگشت به صفحه ورود
+                </Link>
+              </div>
+            </div>
+
+            <div className="shrink-0 border-t border-input/40 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3 sm:px-8">
+              <Button
+                type="submit"
+                variant="brand"
+                disabled={isSubmitting}
+                className="h-14 w-full text-base font-bold sm:h-12 sm:text-sm flex items-center justify-center gap-2"
               >
-                <form onSubmit={handleSubmitRequest(onSubmitRequest)} className="space-y-4" dir="rtl">
-                  <div className="space-y-2">
-                    <Label htmlFor="phone_number">شماره تلفن</Label>
-                    <div className="relative">
-                      <Input
-                        id="phone_number"
-                        type="tel"
-                        placeholder="09123456789"
-                        {...registerRequest("phone_number")}
-                        className="pr-10 form-input-focus"
-                        dir="rtl"
-                      />
-                      <Phone
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-orange-400"
-                        size={18}
-                      />
-                    </div>
-                    {errorsRequest.phone_number && (
-                      <p className="text-sm text-red-500 animate-shake">{errorsRequest.phone_number.message}</p>
-                    )}
-                  </div>
-                  <div className="mt-6 flex justify-between items-center" dir="rtl">
-                    <Button
-                      type="submit"
-                      className="bg-[#f97316] hover:bg-orange-600 btn-hover-effect flex items-center gap-2"
-                      disabled={isSubmitting}
-                    >
-                      <Send className={`h-4 w-4 ${isSubmitting ? "animate-spin" : ""}`} />
-                      <span>{isSubmitting ? "در حال ارسال..." : "ارسال کد تایید"}</span>
-                    </Button>
-                    <Button
-                      type="button"
-                      onClick={() => router.push('/')}
-                      variant="outline"
-                      className="btn-hover-effect"
-                    >
-                      بازگشت به صفحه ورود
-                    </Button>
-                  </div>
-                </form>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="reset"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.3 }}
+                {isSubmitting ? "در حال ارسال..." : "ارسال کد تأیید"}
+                {!isSubmitting && <Send className="size-4" />}
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <form onSubmit={handleResetSubmit(onResetPassword)} className="flex min-h-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 pb-3 sm:px-8">
+              <VerificationCode
+                value={otpCode}
+                onChange={(val) => {
+                  setOtpCode(val)
+                  setOtpError(false)
+                }}
+                error={otpError}
+              />
+
+              <Field
+                id="new_password"
+                label="رمز عبور جدید"
+                icon={Lock}
+                type="password"
+                dir="ltr"
+                placeholder="حداقل ۸ کاراکتر"
+                showStrength
+                required
+                value={newPasswordValue}
+                onChange={(e) => {
+                  setResetValue("new_password", e.target.value, { shouldValidate: true })
+                }}
+                error={resetErrors.new_password?.message}
+              />
+
+              <Field
+                id="confirm_password"
+                label="تکرار رمز عبور جدید"
+                icon={ShieldCheck}
+                type="password"
+                dir="ltr"
+                placeholder="رمز عبور را دوباره وارد کنید"
+                required
+                value={confirmPasswordValue}
+                onChange={(e) => {
+                  setResetValue("confirm_password", e.target.value, { shouldValidate: true })
+                }}
+                error={resetErrors.confirm_password?.message}
+              />
+
+              <div className="border-t border-input/50 pt-3 text-center text-sm">
+                <Link
+                  href="/"
+                  className="inline-flex items-center gap-2 text-muted-foreground transition-colors hover:text-orange-600"
+                >
+                  <ArrowRight className="size-4" />
+                  انصراف و بازگشت به صفحه ورود
+                </Link>
+              </div>
+            </div>
+
+            <div className="shrink-0 border-t border-input/40 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3 sm:px-8">
+              <Button
+                type="submit"
+                variant="brand"
+                disabled={isSubmitting}
+                className="h-14 w-full text-base font-bold sm:h-12 sm:text-sm flex items-center justify-center gap-2"
               >
-                <form onSubmit={handleSubmitReset(onSubmitReset)} className="space-y-4" dir="rtl">
-                  <div className="space-y-2">
-                    <Label htmlFor="reset_phone_number">شماره تلفن</Label>
-                    <div className="relative">
-                      <Input
-                        id="reset_phone_number"
-                        type="tel"
-                        placeholder="09123456789"
-                        {...registerReset("phone_number")}
-                        className="pr-10 form-input-focus"
-                        dir="rtl"
-                        defaultValue={phoneNumber}
-                        readOnly
-                      />
-                      <Phone
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-orange-400"
-                        size={18}
-                      />
-                    </div>
-                    {errorsReset.phone_number && (
-                      <p className="text-sm text-red-500 animate-shake">{errorsReset.phone_number.message}</p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="verification_code">کد تایید</Label>
-                    <div className="relative">
-                      <Input
-                        id="verification_code"
-                        type="text"
-                        placeholder="123456"
-                        {...registerReset("verification_code")}
-                        className="pr-10 form-input-focus"
-                        dir="rtl"
-                      />
-                      <Key className="absolute right-3 top-1/2 transform -translate-y-1/2 text-orange-400" size={18} />
-                    </div>
-                    {errorsReset.verification_code && (
-                      <p className="text-sm text-red-500 animate-shake">{errorsReset.verification_code.message}</p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="new_password">رمز عبور جدید</Label>
-                    <div className="relative">
-                      <Input
-                        id="new_password"
-                        type="password"
-                        placeholder="••••••••"
-                        {...registerReset("new_password")}
-                        className="pr-10 form-input-focus"
-                        dir="rtl"
-                      />
-                      <Lock className="absolute right-3 top-1/2 transform -translate-y-1/2 text-orange-400" size={18} />
-                    </div>
-                    {errorsReset.new_password && (
-                      <p className="text-sm text-red-500 animate-shake">{errorsReset.new_password.message}</p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="confirm_password">تکرار رمز عبور جدید</Label>
-                    <div className="relative">
-                      <Input
-                        id="confirm_password"
-                        type="password"
-                        placeholder="••••••••"
-                        {...registerReset("confirm_password")}
-                        className="pr-10 form-input-focus"
-                        dir="rtl"
-                      />
-                      <Lock className="absolute right-3 top-1/2 transform -translate-y-1/2 text-orange-400" size={18} />
-                    </div>
-                    {errorsReset.confirm_password && (
-                      <p className="text-sm text-red-500 animate-shake">{errorsReset.confirm_password.message}</p>
-                    )}
-                  </div>
-                  <div className="mt-6 flex justify-between items-center" dir="rtl">
-                    <Button
-                      type="submit"
-                      className="bg-[#f97316] hover:bg-orange-600 btn-hover-effect flex items-center gap-2"
-                      disabled={isSubmitting}
-                    >
-                      <LogIn className={`h-4 w-4 ${isSubmitting ? "animate-spin" : ""}`} />
-                      <span>{isSubmitting ? "در حال تغییر رمز عبور..." : "تغییر رمز عبور"}</span>
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="btn-hover-effect flex items-center gap-2"
-                      onClick={() => setStep("request")}
-                    >
-                      <span>بازگشت به مرحله قبل</span>
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </form>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </CardContent>
-        {step === "reset" && (
-          <div className="flex justify-center pb-6">
-            <Link href="/" className="text-sm text-[#f97316] hover:underline text-center">
-              بازگشت به صفحه ورود
-            </Link>
-          </div>
+                {isSubmitting ? "در حال تغییر رمز..." : "تغییر رمز عبور"}
+                {!isSubmitting && <ArrowLeft className="size-4" />}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="mt-1 h-11 w-full rounded-full text-muted-foreground hover:bg-black/5"
+                onClick={() => setStep(0)}
+              >
+                <ArrowRight className="size-4 ml-1" />
+                مرحله قبل
+              </Button>
+            </div>
+          </form>
         )}
-      </Card>
+      </section>
     </div>
   )
 }

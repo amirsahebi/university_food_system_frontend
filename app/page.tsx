@@ -6,23 +6,22 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import Image from "next/image"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { toast, Toaster } from "react-hot-toast"
-import { Phone, Lock } from "lucide-react"
 import Link from "next/link"
+import { Phone, Lock, ArrowLeft } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { toast, Toaster } from "react-hot-toast"
 import { useAuth } from "@/lib/auth-context"
 import api from "@/lib/axios"
 import { API_ROUTES, createApiUrl } from "@/lib/api"
 import { toEnglishDigits } from "@/lib/formatters"
+import { Field } from "@/components/account/Field"
 
 const loginSchema = z.object({
   phone_number: z.preprocess(
     (val) => toEnglishDigits(val as string).trim(),
-    z.string().regex(/^09\d{9}$/, { message: "شماره تلفن باید 11 رقم و با 09 شروع شود" })
+    z.string().regex(/^09\d{9}$/, { message: "شماره تلفن باید ۱۱ رقم و با ۰۹ شروع شود" })
   ),
-  password: z.string().min(6, { message: "رمز عبور باید حداقل 6 کاراکتر باشد" }),
+  password: z.string().min(6, { message: "رمز عبور باید حداقل ۶ کاراکتر باشد" }),
 })
 
 type LoginForm = z.infer<typeof loginSchema>
@@ -37,20 +36,26 @@ export default function LoginPage() {
 
   useEffect(() => {
     setIsClient(true)
-    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
-    const cachedRole = typeof window !== 'undefined' ? localStorage.getItem('user_role') : null
+    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null
+    const cachedRole = typeof window !== "undefined" ? localStorage.getItem("user_role") : null
     if (token) {
       setHasStoredToken(true)
-      router.replace(`/${cachedRole || user?.role || 'student'}-dashboard`)
+      router.replace(`/${cachedRole || user?.role || "student"}-dashboard`)
     }
   }, [router, user])
 
   const {
     register,
     handleSubmit,
+    setValue,
+    watch,
     formState: { errors },
   } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
+    defaultValues: {
+      phone_number: "",
+      password: "",
+    },
   })
 
   const onSubmit = async (data: LoginForm) => {
@@ -70,7 +75,8 @@ export default function LoginPage() {
     } catch (error: unknown) {
       console.error("Login error:", error)
       const errorResponse = error as { response?: { data?: { message?: string } } }
-      const errorMessage = errorResponse.response?.data?.message || "خطا در ورود. لطفا دوباره تلاش کنید."
+      const errorMessage =
+        errorResponse.response?.data?.message || "خطا در ورود. لطفاً دوباره تلاش کنید."
       setLoginError(errorMessage)
       toast.error(errorMessage)
     } finally {
@@ -78,28 +84,28 @@ export default function LoginPage() {
     }
   }
 
-  // During initial mount or if user has an existing session / loading, show a seamless splash
-  const hasToken = typeof window !== 'undefined' ? !!localStorage.getItem('access_token') : false
+  const hasToken = typeof window !== "undefined" ? !!localStorage.getItem("access_token") : false
   if (!isClient || hasStoredToken || (hasToken && (isAuthenticated || isLoading))) {
     return (
       <div
-        className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden bg-pattern bg-pattern-animate select-none"
         dir="rtl"
+        className="relative flex min-h-svh flex-col items-center justify-center bg-page font-sans"
       >
+        <div aria-hidden className="pointer-events-none absolute inset-0 bg-hero" />
         <div className="relative z-10 flex flex-col items-center space-y-4">
-          <div className="relative h-24 w-24 animate-pulse">
+          <div className="relative size-20 animate-pulse">
             <Image
               src="/images/javanfoods_logo.png"
               alt="رستوران جوان"
               fill
-              className="object-contain"
+              className="object-contain drop-shadow"
               priority
             />
           </div>
           <div className="flex flex-col items-center gap-2">
             <h1 className="text-xl font-bold text-gray-800">رستوران جوان</h1>
-            <div className="h-1.5 w-36 bg-orange-100 rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-orange-400 to-orange-600 rounded-full animate-pulse w-full" />
+            <div className="h-1.5 w-36 overflow-hidden rounded-full bg-orange-100">
+              <div className="h-full w-full animate-pulse rounded-full bg-gradient-to-r from-orange-400 to-orange-600" />
             </div>
             <p className="text-xs text-muted-foreground animate-pulse">در حال ورود به سامانه...</p>
           </div>
@@ -108,48 +114,15 @@ export default function LoginPage() {
     )
   }
 
+  const phoneValue = watch("phone_number")
+  const passwordValue = watch("password")
+
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-pattern bg-pattern-animate"
       dir="rtl"
+      className="relative flex h-svh flex-col overflow-hidden bg-page font-sans sm:h-auto sm:min-h-svh sm:justify-center sm:overflow-visible sm:overflow-x-hidden"
     >
-      <div className="absolute inset-0">
-        <div className="absolute top-0 right-0 w-full h-full overflow-hidden">
-          <svg
-            className="absolute top-0 right-0 h-full w-full"
-            viewBox="0 0 900 600"
-            preserveAspectRatio="xMidYMid slice"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <g>
-              <path
-                className="blob-animate-1"
-                d="M0 486.7C-52.7 454 -105.4 421.3 -166.8 402.8C-228.3 384.3 -298.5 380 -344.2 344.2C-389.8 308.3 -410.9 241 -430.5 178.3C-450.2 115.7 -468.5 57.9 -486.7 0L0 0Z"
-                fill="url(#orange-gradient-1)"
-                transform="translate(900, 0)"
-              ></path>
-            </g>
-            <g>
-              <path
-                className="blob-animate-2"
-                d="M0 -486.7C59.2 -472.3 118.5 -457.9 181.4 -437.9C244.3 -417.9 311 -392.4 344.2 -344.2C377.4 -295.9 377.2 -224.9 395.4 -163.8C413.6 -102.6 450.2 -51.3 486.7 0L0 0Z"
-                fill="url(#orange-gradient-2)"
-                transform="translate(0, 600)"
-              ></path>
-            </g>
-            <defs>
-              <linearGradient id="orange-gradient-1" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#f97316" stopOpacity="0.3"></stop>
-                <stop offset="100%" stopColor="#fdba74" stopOpacity="0.2"></stop>
-              </linearGradient>
-              <linearGradient id="orange-gradient-2" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#fb923c" stopOpacity="0.3"></stop>
-                <stop offset="100%" stopColor="#fed7aa" stopOpacity="0.2"></stop>
-              </linearGradient>
-            </defs>
-          </svg>
-        </div>
-      </div>
+      <div aria-hidden className="pointer-events-none absolute inset-0 bg-hero" />
 
       <Toaster
         position="top-center"
@@ -162,79 +135,108 @@ export default function LoginPage() {
         }}
       />
 
-      <Card className="w-full max-w-md backdrop-blur-md bg-white/55 rounded-3xl shadow-xl border-0 relative z-10 animate-fade-in">
-        <CardHeader className="flex flex-col items-center space-y-2 pb-2">
-          <div
-            className="mb-2"
-            style={{ animationDelay: "0.1s" }}
-          >
-            <div className="relative h-20 w-20">
-              <Image src="/images/javanfoods_logo.png" alt="رستوران جوان" fill className="object-contain" priority />
-            </div>
+      {/* Header with logo positioned higher up for optimal breathing room */}
+      <header className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-6 pt-8 pb-4 text-center sm:flex-none sm:gap-4 sm:pt-14 sm:pb-8">
+        <Link
+          href="/"
+          aria-label="رستوران جوان"
+          className="relative flex size-16 shrink-0 items-center justify-center rounded-[1.35rem] bg-white/85 p-2.5 shadow-glass backdrop-blur-md transition-transform hover:scale-[1.04] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-orange-500 sm:size-20"
+        >
+          <div className="relative h-full w-full">
+            <Image
+              src="/images/javanfoods_logo.png"
+              alt="رستوران جوان"
+              fill
+              className="object-contain drop-shadow-sm"
+              priority
+            />
           </div>
-          <h1 className="text-2xl font-bold text-gray-800" style={{ animationDelay: "0.2s" }}>
+        </Link>
+        <div className="space-y-1">
+          <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
             رستوران جوان
           </h1>
-        </CardHeader>
+        </div>
+      </header>
 
-        <CardContent className="pt-4 mt-4">
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-            <div className="relative" style={{ animationDelay: "0.4s" }}>
-              <Input
-                id="phone_number"
-                type="tel"
-                placeholder="شماره موبایل"
-                {...register("phone_number")}
-                className="pr-12 py-6 text-right rounded-xl border-gray-200 bg-white/70 focus:bg-white form-input-focus input-icon-right"
-              />
-              <Phone className="absolute right-4 top-1/2 transform -translate-y-1/2 text-orange-400" size={20} />
-              {errors.phone_number && (
-                <p className="text-sm text-red-500 mt-1 animate-shake">{errors.phone_number.message}</p>
-              )}
-            </div>
+      {/* Bottom sheet on mobile, centered card on desktop */}
+      <section className="relative z-10 mx-auto flex max-h-[80svh] w-full max-w-[560px] shrink-0 flex-col rounded-t-[2.25rem] border-t border-glass-border bg-glass-strong pt-6 shadow-sheet backdrop-blur-2xl sm:mb-8 sm:max-h-none sm:max-w-[460px] sm:rounded-[1.75rem] sm:border sm:pt-8">
+        <form onSubmit={handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 pb-3 sm:px-8">
+            <Field
+              id="phone_number"
+              label="شماره موبایل"
+              icon={Phone}
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              dir="ltr"
+              placeholder="09123456789"
+              required
+              value={phoneValue}
+              onChange={(e) => {
+                setValue("phone_number", toEnglishDigits(e.target.value).trim(), {
+                  shouldValidate: true,
+                })
+              }}
+              error={errors.phone_number?.message}
+            />
 
-            <div className="relative" style={{ animationDelay: "0.5s" }}>
-              <Input
-                id="password"
-                type="password"
-                placeholder="رمز عبور"
-                {...register("password")}
-                className="pr-12 py-6 text-right rounded-xl border-gray-200 bg-white/70 focus:bg-white form-input-focus input-icon-right"
-              />
-              <Lock className="absolute right-4 top-1/2 transform -translate-y-1/2 text-orange-400" size={20} />
-              {errors.password && <p className="text-sm text-red-500 mt-1 animate-shake">{errors.password.message}</p>}
+            <Field
+              id="password"
+              label="رمز عبور"
+              icon={Lock}
+              type="password"
+              autoComplete="current-password"
+              dir="ltr"
+              placeholder="حداقل ۶ کاراکتر"
+              required
+              value={passwordValue}
+              onChange={(e) => {
+                setValue("password", e.target.value, { shouldValidate: true })
+              }}
+              error={errors.password?.message}
+            />
+
+            <div className="text-left">
+              <Link
+                href="/forgot-password"
+                className="inline-block py-1 text-xs text-muted-foreground transition-colors hover:text-orange-600"
+              >
+                رمز عبور خود را فراموش کرده‌اید؟
+              </Link>
             </div>
 
             {loginError && (
-              <div className="bg-red-50/80 backdrop-blur-sm border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm animate-shake">
+              <div
+                role="alert"
+                className="rounded-2xl border border-red-200 bg-red-50/80 px-4 py-3 text-xs leading-5 text-red-700 animate-shake"
+              >
                 {loginError}
               </div>
             )}
 
-            <Button
-              type="submit"
-              className="w-full py-6 text-lg bg-[#f97316] hover:bg-orange-600 rounded-xl font-medium transition-all btn-hover-effect"
-              style={{ animationDelay: "0.6s" }}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? "در حال ورود..." : "ورود"}
-            </Button>
-          </form>
-
-          <div className="mt-6 text-center" style={{ animationDelay: "0.7s" }}>
-            <Link href="/forgot-password" className="text-sm text-gray-600 hover:text-orange-500 transition-colors">
-              رمز عبور خود را فراموش کرده‌اید؟
-            </Link>
-
-            <div className="mt-4 text-sm text-gray-600 flex justify-center gap-2">
-              <span>حساب کاربری ندارید؟</span>
-              <Link href="/sign-up" className="text-orange-500 hover:text-orange-600 hover:underline transition-colors">
+            <div className="border-t border-input/50 pt-3 text-center text-sm">
+              <span className="text-muted-foreground">حساب کاربری ندارید؟ </span>
+              <Link href="/sign-up" className="font-bold text-orange-600 hover:underline">
                 ثبت‌نام کنید
               </Link>
             </div>
           </div>
-        </CardContent>
-      </Card>
+
+          <div className="shrink-0 border-t border-input/40 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3 sm:px-8">
+            <Button
+              type="submit"
+              variant="brand"
+              disabled={isSubmitting}
+              className="h-14 w-full text-base font-bold sm:h-12 sm:text-sm flex items-center justify-center gap-2"
+            >
+              {isSubmitting ? "در حال ورود..." : "ورود به حساب"}
+              {!isSubmitting && <ArrowLeft className="size-4" />}
+            </Button>
+          </div>
+        </form>
+      </section>
     </div>
   )
 }

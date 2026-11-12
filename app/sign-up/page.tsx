@@ -2,189 +2,46 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { motion, AnimatePresence } from "framer-motion"
+import Image from "next/image"
+import Link from "next/link"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import Image from "next/image"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Progress } from "@/components/ui/progress"
-import { toast, Toaster } from "react-hot-toast"
 import {
-  ChevronRight,
-  ChevronLeft,
-  User,
+  UserRound,
   Hash,
   Phone,
   Lock,
-  GraduationCap,
-  Send,
-  Check,
-  AlertCircle,
-  CheckCircle2,
-  UserRound,
-  School,
   ShieldCheck,
-  KeyRound,
+  Check,
+  ArrowRight,
+  ArrowLeft,
+  Send,
+  CheckCircle2,
   Sparkles,
 } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { toast, Toaster } from "react-hot-toast"
+import { cn } from "@/lib/utils"
 import api from "@/lib/axios"
 import { API_ROUTES, createApiUrl } from "@/lib/api"
-import OTPInput from "@/components/otp-input"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-
-interface SuccessModalProps {
-  isOpen: boolean
-  onClose: () => void
-  studentName: string
-}
-
-const SuccessModal = ({ isOpen, onClose, studentName }: SuccessModalProps) => {
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          onClick={onClose}
-        >
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.8, opacity: 0 }}
-            transition={{ type: "spring", damping: 15 }}
-            className="bg-white/90 backdrop-blur-md rounded-3xl p-6 max-w-md w-full shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="text-center">
-              <div className="flex justify-center mb-4">
-                <div className="relative h-16 w-16">
-                  <Image
-                    src="/images/javanfoods_logo.png"
-                    alt="رستوران جوان"
-                    fill
-                    className="object-contain drop-shadow-md"
-                    priority
-                  />
-                </div>
-              </div>
-
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: [0, 1.2, 1] }}
-                transition={{ duration: 0.5, times: [0, 0.8, 1] }}
-                className="w-20 h-20 bg-green-100 rounded-full mx-auto flex items-center justify-center mb-4"
-              >
-                <motion.div
-                  initial={{ pathLength: 0 }}
-                  animate={{ pathLength: 1 }}
-                  transition={{ delay: 0.2, duration: 0.5 }}
-                >
-                  <CheckCircle2 className="h-10 w-10 text-green-600" />
-                </motion.div>
-              </motion.div>
-
-              <motion.h2
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="text-2xl font-bold text-[#f97316] mb-2"
-              >
-                ثبت نام با موفقیت انجام شد!
-              </motion.h2>
-
-              <motion.p
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-                className="text-gray-600 mb-6"
-                dir="rtl"
-              >
-                {studentName} عزیز، حساب کاربری شما با موفقیت ایجاد شد. در حال انتقال به صفحه ورود...
-              </motion.p>
-
-              <motion.div
-                initial={{ width: "0%" }}
-                animate={{ width: "100%" }}
-                transition={{ delay: 0.5, duration: 3 }}
-                className="h-1 bg-[#f97316] rounded-full mb-6"
-              />
-
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6 }}
-                className="flex flex-col sm:flex-row items-center justify-center gap-2"
-              >
-                <Button onClick={onClose} className="bg-[#f97316] hover:bg-orange-600 w-full sm:w-auto">
-                  ورود به حساب کاربری
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    window.dispatchEvent(new CustomEvent("open-whats-new"))
-                  }}
-                  className="border-orange-500/30 text-orange-600 hover:bg-orange-50 w-full sm:w-auto text-xs"
-                >
-                  <Sparkles className="w-3.5 h-3.5 ml-1 text-orange-500" />
-                  آشنایی با امکانات جدید
-                </Button>
-              </motion.div>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  )
-}
-
-const convertToEnglishNumbers = (input: string): string => {
-  const persianNumbers = ["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"]
-  let result = input
-
-  for (let i = 0; i < 10; i++) {
-    const persianRegex = new RegExp(persianNumbers[i], "g")
-    result = result.replace(persianRegex, i.toString())
-  }
-
-  return result
-}
-
-const convertToPersianNumbers = (input: string): string => {
-  const persianNumbers = ["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"]
-  let result = input
-
-  for (let i = 0; i < 10; i++) {
-    const englishRegex = new RegExp(i.toString(), "g")
-    result = result.replace(englishRegex, persianNumbers[i])
-  }
-
-  return result
-}
+import { toEnglishDigits, toPersianDigits } from "@/lib/formatters"
+import { Field } from "@/components/account/Field"
+import { VerificationCode } from "@/components/account/VerificationCode"
 
 const signUpSchema = z
   .object({
-    firstName: z.string().min(2, { message: "نام باید حداقل 2 حرف باشد" }),
-    lastName: z.string().min(2, { message: "نام خانوادگی باید حداقل 2 حرف باشد" }),
+    firstName: z.string().min(2, { message: "نام باید حداقل ۲ حرف باشد" }),
+    lastName: z.string().min(2, { message: "نام خانوادگی باید حداقل ۲ حرف باشد" }),
     studentNumber: z.preprocess(
-      (val) => convertToEnglishNumbers(val as string || "").trim(),
-      z.string().regex(/^\d{7,12}$/, { message: "شماره دانشجویی باید بین 7 تا 10 رقم باشد" })
+      (val) => toEnglishDigits(val as string || "").trim(),
+      z.string().regex(/^\d{7,12}$/, { message: "شماره دانشجویی باید بین ۷ تا ۱۲ رقم باشد" })
     ),
     phoneNumber: z.preprocess(
-      (val) => convertToEnglishNumbers(val as string || "").trim(),
-      z.string().regex(/^09\d{9}$/, { message: "شماره تلفن باید 11 رقم و با 09 شروع شود" })
+      (val) => toEnglishDigits(val as string || "").trim(),
+      z.string().regex(/^09\d{9}$/, { message: "شماره تلفن باید ۱۱ رقم و با ۰۹ شروع شود" })
     ),
-    verificationCode: z.preprocess(
-      (val) => convertToEnglishNumbers(val as string || "").trim(),
-      z.string()
-    ),
-    password: z.string().min(8, { message: "رمز عبور باید حداقل 8 کاراکتر باشد" }),
+    password: z.string().min(8, { message: "رمز عبور باید حداقل ۸ کاراکتر باشد" }),
     confirmPassword: z.string(),
   })
   .refine((data) => data.password === data.confirmPassword, {
@@ -194,82 +51,53 @@ const signUpSchema = z
 
 type SignUpForm = z.infer<typeof signUpSchema>
 
-const steps = [
-  { icon: <UserRound size={18} />, text: "اطلاعات شخصی" },
-  { icon: <School size={18} />, text: "اطلاعات دانشجویی" },
-  { icon: <ShieldCheck size={18} />, text: "تایید شماره تلفن" },
-  { icon: <KeyRound size={18} />, text: "رمز عبور" },
-]
+const steps = ["اطلاعات فردی", "اطلاعات دانشجویی", "تأیید موبایل", "رمز عبور"]
+const stepIcons = [UserRound, Hash, ShieldCheck, Lock]
+const faDigits = ["۱", "۲", "۳", "۴"]
 
 export default function SignUp() {
   const [step, setStep] = useState(0)
-  const [isVerifying, setIsVerifying] = useState(false)
-  const [canResend, setCanResend] = useState(false)
-  const [resendTimer, setResendTimer] = useState(300) // 5 minutes in seconds
-  const [isCodeVerified, setIsCodeVerified] = useState(false)
-  const [isCodeError, setIsCodeError] = useState(false)
-  const [displayPhoneNumber, setDisplayPhoneNumber] = useState("")
-  const [displayStudentNumber, setDisplayStudentNumber] = useState("")
-  const [validationError, setValidationError] = useState<string | null>(null)
+  const [verificationCode, setVerificationCode] = useState("")
   const [verificationToken, setVerificationToken] = useState<string | null>(null)
+  const [isVerifying, setIsVerifying] = useState(false)
+  const [codeError, setCodeError] = useState(false)
+  const [canResend, setCanResend] = useState(false)
+  const [resendTimer, setResendTimer] = useState(180) // 3 minutes
   const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [registeredName, setRegisteredName] = useState("")
   const timerRef = useRef<NodeJS.Timeout | null>(null)
-  const redirectTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const router = useRouter()
+
   const {
     register,
     handleSubmit,
-    formState: { errors },
-    watch,
     setValue,
+    watch,
     trigger,
-    resetField,
+    formState: { errors },
   } = useForm<SignUpForm>({
     resolver: zodResolver(signUpSchema),
     mode: "onChange",
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+      studentNumber: "",
+      phoneNumber: "",
+      password: "",
+      confirmPassword: "",
+    },
   })
-  const router = useRouter()
 
-  const onSubmit = async (data: SignUpForm) => {
-    try {
-      await api.post(createApiUrl(API_ROUTES.SIGNUP), {
-        first_name: data.firstName,
-        last_name: data.lastName,
-        phone_number: data.phoneNumber,
-        password: data.password,
-        role: "student",
-        verification_code: data.verificationCode,
-        verification_token: verificationToken,
-        student_number: data.studentNumber,
-      })
+  const firstName = watch("firstName")
+  const lastName = watch("lastName")
+  const studentNumber = watch("studentNumber")
+  const phoneNumber = watch("phoneNumber")
+  const password = watch("password")
+  const confirmPassword = watch("confirmPassword")
 
-      // Show success modal instead of toast
-      setShowSuccessModal(true)
-
-      // Set a timer to redirect to login page after 4 seconds
-      redirectTimerRef.current = setTimeout(() => {
-        router.push("/")
-      }, 4000)
-    } catch (error) {
-      console.error(error)
-      toast.error("خطا در ثبت نام. لطفا دوباره تلاش کنید.")
-    }
-  }
-
-  const password = watch("password", "")
-  const phoneNumber = watch("phoneNumber", "")
-
-  const getPasswordStrength = (password: string) => {
-    if (password.length === 0) return 0
-    if (password.length < 4) return 25
-    if (password.length < 8) return 50
-    if (password.length < 12) return 75
-    return 100
-  }
-
-  const passwordStrength = getPasswordStrength(password)
-
+  // Resend countdown timer
   useEffect(() => {
-    if (resendTimer > 0 && !canResend && step === 2) {
+    if (step === 2 && resendTimer > 0 && !canResend) {
       timerRef.current = setTimeout(() => {
         setResendTimer((prev) => prev - 1)
       }, 1000)
@@ -284,262 +112,180 @@ export default function SignUp() {
     }
   }, [resendTimer, canResend, step])
 
-  useEffect(() => {
-    const subscription = watch((value, { name }) => {
-      if (name === "phoneNumber" && value.phoneNumber) {
-        setDisplayPhoneNumber(convertToPersianNumbers(value.phoneNumber))
-      }
-      if (name === "studentNumber" && value.studentNumber) {
-        setDisplayStudentNumber(convertToPersianNumbers(value.studentNumber))
-      }
-    })
+  // Step 1 to 2 transition: validate and send SMS code
+  const handleSendCode = async () => {
+    const isStepValid = await trigger(["studentNumber", "phoneNumber"])
+    if (!isStepValid) return
 
-    // Initialize values
-    const currentPhoneNumber = watch("phoneNumber")
-    if (currentPhoneNumber) {
-      setDisplayPhoneNumber(convertToPersianNumbers(currentPhoneNumber))
-    }
-
-    const currentStudentNumber = watch("studentNumber")
-    if (currentStudentNumber) {
-      setDisplayStudentNumber(convertToPersianNumbers(currentStudentNumber))
-    }
-
-    return () => subscription.unsubscribe()
-  }, [watch])
-
-  // Clear validation error when step changes
-  useEffect(() => {
-    setValidationError(null)
-    setIsCodeError(false)
-    setIsCodeVerified(false)
-  }, [step])
-
-  const validateCurrentStep = async () => {
-    setValidationError(null)
-
-    // Define which fields to validate based on current step
-    let fieldsToValidate: (keyof SignUpForm)[] = []
-
-    switch (step) {
-      case 0:
-        fieldsToValidate = ["firstName", "lastName"]
-        break
-      case 1:
-        fieldsToValidate = ["studentNumber", "phoneNumber"]
-        break
-      case 2:
-        if (!isCodeVerified) {
-          setValidationError("لطفا کد تایید را وارد کنید")
-          return false
-        }
-        break
-      case 3:
-        fieldsToValidate = ["password", "confirmPassword"]
-        break
-    }
-
-    // Trigger validation for the specified fields
-    const isValid = await trigger(fieldsToValidate)
-
-    if (!isValid) {
-      setValidationError("لطفا تمام فیلدها را به درستی پر کنید")
-    }
-
-    return isValid
-  }
-
-  const goToNextStep = async () => {
-    const isValid = await validateCurrentStep()
-    if (isValid) {
-      setStep(step + 1)
-    }
-  }
-
-  const sendVerificationCode = async () => {
-    const isValid = await validateCurrentStep()
-    if (!isValid) return
-
+    setIsVerifying(true)
     try {
-      const studentNumber = watch("studentNumber")
-
-      // First check if student number exists
-      const studentCheckResponse = await api.post(createApiUrl(API_ROUTES.CHECK_STUDENT_NUMBER_EXISTS), {
+      // 1. Check student number exists
+      const studentRes = await api.post(createApiUrl(API_ROUTES.CHECK_STUDENT_NUMBER_EXISTS), {
         student_number: studentNumber,
       })
-
-      if (studentCheckResponse.data.exists) {
+      if (studentRes.data.exists) {
         toast.error("این شماره دانشجویی قبلاً ثبت شده است")
-        setValidationError("این شماره دانشجویی قبلاً ثبت شده است")
+        setIsVerifying(false)
         return
       }
 
-      const phoneNumber = watch("phoneNumber")
-      setIsVerifying(true)
-      // First check if phone number exists
-      const checkResponse = await api.post(createApiUrl(API_ROUTES.CHECK_PHONE_EXISTS), {
+      // 2. Check phone exists
+      const phoneRes = await api.post(createApiUrl(API_ROUTES.CHECK_PHONE_EXISTS), {
         phone_number: phoneNumber,
       })
-
-      if (checkResponse.data.exists) {
+      if (phoneRes.data.exists) {
         toast.error("این شماره تلفن قبلاً ثبت شده است")
         setIsVerifying(false)
         return
       }
 
-      // If phone doesn't exist, send verification code
-      await api.post(createApiUrl(API_ROUTES.SEND_VERIFICATION_CODE), { phone_number: phoneNumber })
-      toast.success("کد تایید ارسال شد")
+      // 3. Send SMS code
+      await api.post(createApiUrl(API_ROUTES.SEND_VERIFICATION_CODE), {
+        phone_number: phoneNumber,
+      })
+      toast.success("کد تأیید ارسال شد")
       setStep(2)
-      setResendTimer(300) // Reset timer to 5 minutes
+      setVerificationCode("")
+      setCodeError(false)
+      setResendTimer(180)
       setCanResend(false)
-      setIsCodeVerified(false)
-      setIsCodeError(false)
-      resetField("verificationCode")
-      setDisplayPhoneNumber(convertToPersianNumbers(phoneNumber)) // Update displayed phone number
     } catch (error: unknown) {
-      console.error("Error sending verification code:", error)
-      // Check if it's a rate limit error (429)
-      if (error && typeof error === 'object' && 'response' in error && 
-          error.response && typeof error.response === 'object' && 'status' in error.response && 
-          error.response.status === 429) {
-        toast.error("تعداد درخواست‌های شما بیش از حد مجاز است. لطفا کمی بعد تلاش کنید")
-        setValidationError("تعداد درخواست‌های شما بیش از حد مجاز است. لطفا کمی بعد تلاش کنید")
+      console.error("Verification code error:", error)
+      const err = error as { response?: { status?: number; data?: { message?: string } } }
+      if (err.response?.status === 429) {
+        toast.error("تعداد درخواست‌ها بیش از حد مجاز است. لطفاً کمی بعد تلاش کنید.")
       } else {
-        toast.error("خطا در ارسال کد تایید")
+        toast.error(err.response?.data?.message || "خطا در ارسال کد تأیید")
       }
     } finally {
       setIsVerifying(false)
     }
   }
 
-  const verifyCode = async (code: string) => {
-    if (code.length !== 6) {
+  // Verify OTP code
+  const handleVerifyCode = async (codeToVerify: string) => {
+    if (codeToVerify.length !== 6) return
+
+    setIsVerifying(true)
+    setCodeError(false)
+    try {
+      const response = await api.post(createApiUrl(API_ROUTES.VERIFY_CODE), {
+        phone_number: phoneNumber,
+        code: codeToVerify,
+      })
+
+      if (response.data.verified) {
+        setVerificationToken(response.data.verification_token)
+        toast.success("شماره موبایل با موفقیت تأیید شد")
+        setTimeout(() => {
+          setStep(3)
+        }, 400)
+      } else {
+        setCodeError(true)
+        toast.error("کد وارد شده صحیح نمی‌باشد")
+      }
+    } catch (error: unknown) {
+      console.error("Error verifying code:", error)
+      setCodeError(true)
+      const err = error as { response?: { data?: { message?: string } } }
+      toast.error(err.response?.data?.message || "کد تأیید نامعتبر است")
+    } finally {
+      setIsVerifying(false)
+    }
+  }
+
+  // Resend code
+  const handleResendCode = async () => {
+    if (!canResend) return
+    setIsVerifying(true)
+    try {
+      await api.post(createApiUrl(API_ROUTES.SEND_VERIFICATION_CODE), {
+        phone_number: phoneNumber,
+      })
+      toast.success("کد تأیید مجدداً ارسال شد")
+      setResendTimer(180)
+      setCanResend(false)
+      setVerificationCode("")
+      setCodeError(false)
+    } catch (error) {
+      console.error(error)
+      toast.error("خطا در ارسال مجدد کد تأیید")
+    } finally {
+      setIsVerifying(false)
+    }
+  }
+
+  // Final Registration Submission
+  const onFinalSubmit = async (data: SignUpForm) => {
+    if (!verificationToken) {
+      toast.error("لطفاً ابتدا شماره موبایل خود را تأیید کنید")
+      setStep(2)
       return
     }
 
     setIsVerifying(true)
     try {
-      const response = await api.post(createApiUrl(API_ROUTES.VERIFY_CODE), {
-        phone_number: phoneNumber,
-        code: code,
+      await api.post(createApiUrl(API_ROUTES.SIGNUP), {
+        first_name: data.firstName,
+        last_name: data.lastName,
+        phone_number: data.phoneNumber,
+        password: data.password,
+        role: "student",
+        verification_code: verificationCode,
+        verification_token: verificationToken,
+        student_number: data.studentNumber,
       })
 
-      if (response.data.verified) {
-        setVerificationToken(response.data.verification_token)
-        setIsCodeVerified(true)
-        setIsCodeError(false)
-        setValidationError(null)
-        // Automatically proceed to next step after a short delay
-        setTimeout(() => {
-          setStep(3)
-        }, 500)
-      } else {
-        setIsCodeVerified(false)
-        setIsCodeError(true)
-        // Clear the code after a short delay
-        setTimeout(() => {
-          resetField("verificationCode")
-        }, 600)
-      }
-    } catch (error: unknown) {
-      console.error("Error verifying code:", error)
-      setIsCodeVerified(false)
-      setIsCodeError(true)
-      // Clear the code after a short delay
+      setRegisteredName(`${data.firstName} ${data.lastName}`)
+      setShowSuccessModal(true)
+
       setTimeout(() => {
-        resetField("verificationCode")
-      }, 600)
+        router.push("/")
+      }, 3500)
+    } catch (error: unknown) {
+      console.error("Signup error:", error)
+      const err = error as { response?: { data?: { message?: string } } }
+      toast.error(err.response?.data?.message || "خطا در ثبت‌نام. لطفاً دوباره تلاش کنید.")
     } finally {
       setIsVerifying(false)
     }
   }
 
-  const resendVerificationCode = async () => {
-    if (!canResend) return
-
-    const phoneNumber = watch("phoneNumber")
-    try {
-      await api.post(createApiUrl(API_ROUTES.SEND_VERIFICATION_CODE), { phone_number: phoneNumber })
-      toast.success("کد تایید مجدداً ارسال شد")
-      setResendTimer(300) // Reset timer to 5 minutes
-      setCanResend(false)
-      setIsCodeVerified(false)
-      setIsCodeError(false)
-      resetField("verificationCode")
-    } catch (error: unknown) {
-      console.error(error)
-      // Check if it's a rate limit error (429)
-      if (error && typeof error === 'object' && 'response' in error && 
-          error.response && typeof error.response === 'object' && 'status' in error.response && 
-          error.response.status === 429) {
-        toast.error("تعداد درخواست‌های شما بیش از حد مجاز است. لطفا کمی بعد تلاش کنید")
-        setValidationError("تعداد درخواست‌های شما بیش از حد مجاز است. لطفا کمی بعد تلاش کنید")
-      } else {
-        toast.error("خطا در ارسال مجدد کد تایید")
-      }
+  // Primary action button router based on current step
+  const handlePrimaryClick = async () => {
+    if (step === 0) {
+      const valid = await trigger(["firstName", "lastName"])
+      if (valid) setStep(1)
+    } else if (step === 1) {
+      await handleSendCode()
+    } else if (step === 2) {
+      await handleVerifyCode(verificationCode)
+    } else if (step === 3) {
+      await handleSubmit(onFinalSubmit)()
     }
   }
 
-  const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60)
-    const remainingSeconds = seconds % 60
-    return `${minutes}:${remainingSeconds < 10 ? "0" : ""}${remainingSeconds}`
+  const formatTimer = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${toPersianDigits(mins)}:${toPersianDigits(secs < 10 ? `0${secs}` : secs)}`
   }
 
-  const handleOtpComplete = (otp: string) => {
-    verifyCode(otp)
-  }
-
-  useEffect(() => {
-    return () => {
-      if (redirectTimerRef.current) {
-        clearTimeout(redirectTimerRef.current)
-      }
-    }
-  }, [])
+  const submitLabel =
+    step === 3
+      ? "ثبت‌نام نهایی"
+      : step === 1
+      ? "ارسال کد تأیید"
+      : step === 2
+      ? "تأیید کد"
+      : "ادامه"
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-pattern bg-pattern-animate"
+      dir="rtl"
+      className="relative flex h-svh flex-col overflow-hidden bg-page font-sans sm:h-auto sm:min-h-svh sm:justify-center sm:overflow-visible sm:overflow-x-hidden"
     >
-      <div className="absolute inset-0">
-        <div className="absolute top-0 right-0 w-full h-full overflow-hidden">
-          <svg
-            className="absolute top-0 right-0 h-full w-full"
-            viewBox="0 0 900 600"
-            preserveAspectRatio="xMidYMid slice"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <g>
-              <path
-                className="blob-animate-1"
-                d="M0 486.7C-52.7 454 -105.4 421.3 -166.8 402.8C-228.3 384.3 -298.5 380 -344.2 344.2C-389.8 308.3 -410.9 241 -430.5 178.3C-450.2 115.7 -468.5 57.9 -486.7 0L0 0Z"
-                fill="url(#orange-gradient-1)"
-                transform="translate(900, 0)"
-              ></path>
-            </g>
-            <g>
-              <path
-                className="blob-animate-2"
-                d="M0 -486.7C59.2 -472.3 118.5 -457.9 181.4 -437.9C244.3 -417.9 311 -392.4 344.2 -344.2C377.4 -295.9 377.2 -224.9 395.4 -163.8C413.6 -102.6 450.2 -51.3 486.7 0L0 0Z"
-                fill="url(#orange-gradient-2)"
-                transform="translate(0, 600)"
-              ></path>
-            </g>
-            <defs>
-              <linearGradient id="orange-gradient-1" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#f97316" stopOpacity="0.3"></stop>
-                <stop offset="100%" stopColor="#fdba74" stopOpacity="0.2"></stop>
-              </linearGradient>
-              <linearGradient id="orange-gradient-2" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#fb923c" stopOpacity="0.3"></stop>
-                <stop offset="100%" stopColor="#fed7aa" stopOpacity="0.2"></stop>
-              </linearGradient>
-            </defs>
-          </svg>
-        </div>
-      </div>
+      <div aria-hidden className="pointer-events-none absolute inset-0 bg-hero" />
 
       <Toaster
         position="top-center"
@@ -552,360 +298,321 @@ export default function SignUp() {
         }}
       />
 
-      <Card className="w-full max-w-md backdrop-blur-md bg-white/55 rounded-3xl shadow-xl border-0 relative z-10 animate-fade-in">
-        <CardHeader className="flex flex-col items-center space-y-2 pb-2">
-          <div
-            className="mb-2"
-            style={{ animationDelay: "0.1s" }}
-          >
-            <div className="relative h-20 w-20">
-              <Image src="/images/javanfoods_logo.png" alt="رستوران جوان" fill className="object-contain" priority />
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="relative w-full max-w-md rounded-3xl bg-white/95 p-6 text-center shadow-2xl backdrop-blur-md">
+            <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-2xl bg-orange-50 p-2 shadow-inner">
+              <Image
+                src="/images/javanfoods_logo.png"
+                alt="رستوران جوان"
+                width={56}
+                height={56}
+                className="object-contain"
+              />
             </div>
+            <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-green-100 text-green-600">
+              <CheckCircle2 className="size-10" />
+            </div>
+            <h2 className="text-2xl font-extrabold text-orange-600 mb-2">ثبت‌نام با موفقیت انجام شد!</h2>
+            <p className="text-sm text-gray-600 leading-6 mb-6">
+              {registeredName} عزیز، حساب کاربری دانشجویی شما با موفقیت ایجاد گردید. در حال انتقال به صفحه ورود...
+            </p>
+            <div className="mb-6 h-1.5 w-full overflow-hidden rounded-full bg-orange-100">
+              <div className="h-full w-full animate-pulse rounded-full bg-gradient-to-r from-orange-400 to-orange-600" />
+            </div>
+            <Button
+              onClick={() => router.push("/")}
+              variant="brand"
+              className="h-12 w-full font-bold"
+            >
+              ورود به حساب کاربری
+            </Button>
           </div>
-          <h1 className="text-2xl font-bold text-gray-800" style={{ animationDelay: "0.2s" }}>
-            رستوران جوان
-          </h1>
-          <p className="text-gray-500 text-sm" style={{ animationDelay: "0.3s" }}>
-            ثبت نام دانشجو
-          </p>
-        </CardHeader>
+        </div>
+      )}
 
-        <CardContent className="pt-4">
-          <div className="mb-6">
-            <div className="flex justify-between mb-2">
-              {steps.map((stepItem, index) => (
-                <div key={index} className="flex flex-col items-center">
-                  <div
-                    className={`flex items-center justify-center w-10 h-10 rounded-full mb-1 transition-colors ${
-                      index === step
-                        ? "bg-orange-100 text-[#f97316]"
-                        : index < step
-                          ? "bg-green-100 text-green-500"
-                          : "bg-gray-100 text-gray-400"
-                    }`}
-                  >
-                    {index < step ? <Check size={18} /> : stepItem.icon}
-                  </div>
-                  <span
-                    className={`text-xs hidden md:block ${
-                      index === step ? "text-[#f97316] font-bold" : index < step ? "text-green-500" : "text-gray-400"
-                    }`}
-                  >
-                    {stepItem.text}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <Progress
-              value={(step + 1) * (100 / steps.length)}
-              className="h-2 bg-orange-100"
-              indicatorClassName="bg-[#f97316]"
+      {/* Header with Official Logo */}
+      <header className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-end gap-3 px-6 pb-5 pt-8 text-center sm:flex-none sm:gap-4 sm:pb-8 sm:pt-12">
+        <Link
+          href="/"
+          aria-label="رستوران جوان"
+          className="relative flex size-16 shrink-0 items-center justify-center rounded-[1.35rem] bg-white/85 p-2.5 shadow-glass backdrop-blur-md transition-transform hover:scale-[1.04] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-orange-500 sm:size-20"
+        >
+          <div className="relative h-full w-full">
+            <Image
+              src="/images/javanfoods_logo.png"
+              alt="رستوران جوان"
+              fill
+              className="object-contain drop-shadow-sm"
+              priority
             />
           </div>
+        </Link>
+        <div className="space-y-1">
+          <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
+            ثبت‌نام دانشجو
+          </h1>
+          <p className="text-sm text-muted-foreground sm:text-base">ساخت حساب دانشجویی جوان</p>
+        </div>
+      </header>
 
-          {validationError && (
-            <Alert variant="destructive" className="mb-4 animate-shake">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{validationError}</AlertDescription>
-            </Alert>
-          )}
+      {/* Bottom Sheet on Mobile, Centered Glass Card on Desktop */}
+      <section className="relative z-10 mx-auto flex max-h-[82svh] w-full max-w-[560px] shrink-0 flex-col rounded-t-[2.25rem] border-t border-glass-border bg-glass-strong pt-5 shadow-sheet backdrop-blur-2xl sm:mb-8 sm:max-h-none sm:max-w-[460px] sm:rounded-[1.75rem] sm:border sm:pt-7">
+        {/* Step Indicator */}
+        <div className="shrink-0 px-5 pb-4 sm:px-8">
+          {/* Mobile Stepper Bar */}
+          <div className="mb-4 sm:hidden">
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="text-sm font-bold text-orange-600">{steps[step]}</span>
+              <span className="shrink-0 text-xs text-muted-foreground">
+                مرحله {faDigits[step]} از ۴
+              </span>
+            </div>
+            <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-neutral-200">
+              <div
+                className="h-full rounded-full bg-brand transition-all duration-500"
+                style={{ width: `${(step + 1) * 25}%` }}
+              />
+            </div>
+          </div>
 
-          <form onSubmit={handleSubmit(onSubmit)}>
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={step}
-                initial={{ opacity: 0, x: 50 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -50 }}
-                transition={{ duration: 0.3 }}
-              >
-                {step === 0 && (
-                  <div className="space-y-4" dir="rtl">
-                    <div>
-                      <Label htmlFor="firstName">نام</Label>
-                      <div className="relative mt-1">
-                        <Input
-                          id="firstName"
-                          {...register("firstName")}
-                          className={`pr-10 form-input-focus ${errors.firstName ? "border-red-500 focus:border-red-500" : ""}`}
-                        />
-                        <User
-                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-orange-400"
-                          size={18}
-                        />
-                      </div>
-                      {errors.firstName && (
-                        <p className="text-red-500 text-sm mt-1 animate-shake">{errors.firstName.message}</p>
-                      )}
-                    </div>
-                    <div>
-                      <Label htmlFor="lastName">نام خانوادگی</Label>
-                      <div className="relative mt-1">
-                        <Input
-                          id="lastName"
-                          {...register("lastName")}
-                          className={`pr-10 form-input-focus ${errors.lastName ? "border-red-500 focus:border-red-500" : ""}`}
-                        />
-                        <User
-                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-orange-400"
-                          size={18}
-                        />
-                      </div>
-                      {errors.lastName && (
-                        <p className="text-red-500 text-sm mt-1 animate-shake">{errors.lastName.message}</p>
-                      )}
-                    </div>
-                  </div>
-                )}
-                {step === 1 && (
-                  <div className="space-y-4" dir="rtl">
-                    <div>
-                      <Label htmlFor="studentNumber">شماره دانشجویی</Label>
-                      <div className="relative mt-1">
-                        <Input
-                          id="studentNumber"
-                          value={displayStudentNumber}
-                          onChange={(e) => {
-                            const englishValue = convertToEnglishNumbers(e.target.value)
-                            setValue("studentNumber", englishValue)
-                            setDisplayStudentNumber(convertToPersianNumbers(englishValue))
-                          }}
-                          className={`pr-10 form-input-focus ${errors.studentNumber ? "border-red-500 focus:border-red-500" : ""}`}
-                        />
-                        <Hash
-                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-orange-400"
-                          size={18}
-                        />
-                      </div>
-                      {errors.studentNumber && (
-                        <p className="text-red-500 text-sm mt-1 animate-shake">{errors.studentNumber.message}</p>
-                      )}
-                    </div>
-                    <div>
-                      <Label htmlFor="phoneNumber">شماره تلفن</Label>
-                      <div className="relative mt-1">
-                        <Input
-                          id="phoneNumber"
-                          value={displayPhoneNumber}
-                          onChange={(e) => {
-                            const englishValue = convertToEnglishNumbers(e.target.value)
-                            setValue("phoneNumber", englishValue)
-                            setDisplayPhoneNumber(convertToPersianNumbers(englishValue))
-                          }}
-                          className={`pr-10 form-input-focus ${errors.phoneNumber ? "border-red-500 focus:border-red-500" : ""}`}
-                        />
-                        <Phone
-                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-orange-400"
-                          size={18}
-                        />
-                      </div>
-                      {errors.phoneNumber && (
-                        <p className="text-red-500 text-sm mt-1 animate-shake">{errors.phoneNumber.message}</p>
-                      )}
-                    </div>
-                  </div>
-                )}
-                {step === 2 && (
-                  <div className="space-y-4" dir="rtl">
-                    <Card className="w-full rounded-xl shadow-md bg-white/70 backdrop-blur-md">
-                      <CardHeader>
-                        <CardTitle className="text-xl text-center">کد تایید</CardTitle>
-                        <CardDescription className="text-center">
-                          کد تایید 6 رقمی را که به شماره {convertToPersianNumbers(phoneNumber)} ارسال شده است وارد کنید.
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-6 flex flex-col items-center">
-                        <OTPInput
-                          length={6}
-                          value={watch("verificationCode") || ""}
-                          onChange={(value) => {
-                            // Convert any Persian digits to English first
-                            const englishValue = convertToEnglishNumbers(value)
-                            // Only update if the value is different to prevent infinite loops
-                            const currentValue = watch("verificationCode") || ""
-                            if (currentValue !== englishValue) {
-                              setValue("verificationCode", englishValue)
-                            }
-                          }}
-                          onComplete={handleOtpComplete}
-                          isError={isCodeError}
-                          isSuccess={isCodeVerified}
-                          disabled={isVerifying}
-                        />
-                        {isCodeVerified && (
-                          <p className="text-green-500 text-sm flex items-center justify-center">
-                            <Check className="mr-1 h-4 w-4" /> کد تایید شد
-                          </p>
-                        )}
-                      </CardContent>
-                      <CardFooter className="flex justify-between">
-                        <div className="flex items-center">
-                          {!canResend ? (
-                            <span className="text-sm text-gray-500">
-                              زمان باقی‌مانده: {convertToPersianNumbers(formatTime(resendTimer))}
-                            </span>
-                          ) : (
-                            <Button
-                              type="button"
-                              onClick={resendVerificationCode}
-                              variant="link"
-                              className="text-[#f97316] p-0"
-                            >
-                              ارسال مجدد کد
-                            </Button>
-                          )}
-                        </div>
-                      </CardFooter>
-                    </Card>
-                  </div>
-                )}
-                {step === 3 && (
-                  <div className="space-y-4" dir="rtl">
-                    <div>
-                      <Label htmlFor="password">رمز عبور</Label>
-                      <div className="relative mt-1">
-                        <Input
-                          id="password"
-                          type="password"
-                          {...register("password")}
-                          className={`pr-10 form-input-focus ${errors.password ? "border-red-500 focus:border-red-500" : ""}`}
-                        />
-                        <Lock
-                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-orange-400"
-                          size={18}
-                        />
-                      </div>
-                      {errors.password && (
-                        <p className="text-red-500 text-sm mt-1 animate-shake">{errors.password.message}</p>
-                      )}
-                      <Progress
-                        value={passwordStrength}
-                        className="h-2 mt-2 bg-orange-100"
-                        indicatorClassName={`${
-                          passwordStrength <= 25
-                            ? "bg-red-500"
-                            : passwordStrength <= 50
-                              ? "bg-yellow-500"
-                              : passwordStrength <= 75
-                                ? "bg-blue-500"
-                                : "bg-green-500"
-                        }`}
-                      />
-                      <p className="text-sm text-gray-500 mt-1">
-                        قدرت رمز عبور:{" "}
-                        {passwordStrength === 100
-                          ? "عالی"
-                          : passwordStrength >= 75
-                            ? "خوب"
-                            : passwordStrength >= 50
-                              ? "متوسط"
-                              : "ضعیف"}
-                      </p>
-                    </div>
-                    <div>
-                      <Label htmlFor="confirmPassword">تکرار رمز عبور</Label>
-                      <div className="relative mt-1">
-                        <Input
-                          id="confirmPassword"
-                          type="password"
-                          {...register("confirmPassword")}
-                          className={`pr-10 form-input-focus ${errors.confirmPassword ? "border-red-500 focus:border-red-500" : ""}`}
-                        />
-                        <Lock
-                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-orange-400"
-                          size={18}
-                        />
-                      </div>
-                      {errors.confirmPassword && (
-                        <p className="text-red-500 text-sm mt-1 animate-shake">{errors.confirmPassword.message}</p>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </motion.div>
-            </AnimatePresence>
-            <div className="mt-6 flex justify-between items-center" dir="rtl">
-              {/* دکمه بعدی / ارسال کد / ثبت نام در گوشه سمت راست */}
-              {step < steps.length - 1 ? (
-                step === 1 ? (
-                  <Button
-                    type="button"
-                    onClick={sendVerificationCode}
-                    className="bg-[#f97316] hover:bg-orange-600 btn-hover-effect flex items-center gap-2"
-                    disabled={isVerifying}
+          {/* Desktop Steps Grid */}
+          <ol className="hidden grid-cols-4 gap-2 sm:grid" aria-label="مراحل ثبت‌نام">
+            {steps.map((label, i) => {
+              const Icon = stepIcons[i] ?? UserRound
+              const isCurrent = i === step
+              const isDone = i < step
+              return (
+                <li
+                  key={label}
+                  aria-current={isCurrent ? "step" : undefined}
+                  className="flex min-w-0 flex-col items-center gap-1.5 text-center"
+                >
+                  <span
+                    className={cn(
+                      "grid size-10 place-items-center rounded-2xl transition-all",
+                      isCurrent
+                        ? "bg-brand text-white shadow-glow"
+                        : isDone
+                        ? "bg-emerald-100 text-emerald-600 font-bold"
+                        : "bg-neutral-100 text-muted-foreground"
+                    )}
                   >
-                    <Send className="h-4 w-4" />
-                    <span>{isVerifying ? "در حال ارسال..." : "ارسال کد تایید"}</span>
-                  </Button>
-                ) : step === 2 ? (
-                  <Button
-                    type="button"
-                    onClick={goToNextStep}
-                    className="bg-[#f97316] hover:bg-orange-600 btn-hover-effect flex items-center gap-2"
-                    disabled={!isCodeVerified}
+                    {isDone ? <Check className="size-4 stroke-[3]" /> : <Icon className="size-4" />}
+                  </span>
+                  <span
+                    className={cn(
+                      "text-[10px] leading-4",
+                      isCurrent ? "font-bold text-orange-600" : "text-muted-foreground"
+                    )}
                   >
-                    <ChevronRight className="h-4 w-4" />
-                    <span>بعدی</span>
-                  </Button>
-                ) : (
-                  <Button
-                    type="button"
-                    onClick={goToNextStep}
-                    className="bg-[#f97316] hover:bg-orange-600 btn-hover-effect flex items-center gap-2"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                    <span>بعدی</span>
-                  </Button>
-                )
-              ) : (
-                <Button
-                  type="submit"
-                  className="bg-[#f97316] hover:bg-orange-600 btn-hover-effect flex items-center gap-2"
-                  onClick={async (e) => {
-                    const isValid = await validateCurrentStep()
-                    if (!isValid) {
-                      e.preventDefault()
+                    {label}
+                  </span>
+                </li>
+              )
+            })}
+          </ol>
+        </div>
+
+        {/* Form Body */}
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 pb-3 sm:px-8">
+            {/* Step 0: Personal Info */}
+            {step === 0 && (
+              <>
+                <Field
+                  id="firstName"
+                  label="نام"
+                  icon={UserRound}
+                  autoComplete="given-name"
+                  placeholder="نام شما"
+                  dir="rtl"
+                  required
+                  value={firstName}
+                  onChange={(e) => setValue("firstName", e.target.value, { shouldValidate: true })}
+                  error={errors.firstName?.message}
+                />
+                <Field
+                  id="lastName"
+                  label="نام خانوادگی"
+                  icon={UserRound}
+                  autoComplete="family-name"
+                  placeholder="نام خانوادگی شما"
+                  dir="rtl"
+                  required
+                  value={lastName}
+                  onChange={(e) => setValue("lastName", e.target.value, { shouldValidate: true })}
+                  error={errors.lastName?.message}
+                />
+              </>
+            )}
+
+            {/* Step 1: Student & Phone Info (Inputs MUST be LTR) */}
+            {step === 1 && (
+              <>
+                <Field
+                  id="studentNumber"
+                  label="شماره دانشجویی"
+                  icon={Hash}
+                  inputMode="numeric"
+                  dir="ltr"
+                  placeholder="401123456"
+                  required
+                  value={studentNumber}
+                  onChange={(e) =>
+                    setValue("studentNumber", toEnglishDigits(e.target.value).trim(), {
+                      shouldValidate: true,
+                    })
+                  }
+                  error={errors.studentNumber?.message}
+                />
+                <Field
+                  id="phoneNumber"
+                  label="شماره موبایل"
+                  icon={Phone}
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  dir="ltr"
+                  placeholder="09123456789"
+                  required
+                  value={phoneNumber}
+                  onChange={(e) =>
+                    setValue("phoneNumber", toEnglishDigits(e.target.value).trim(), {
+                      shouldValidate: true,
+                    })
+                  }
+                  error={errors.phoneNumber?.message}
+                />
+              </>
+            )}
+
+            {/* Step 2: Verification Code */}
+            {step === 2 && (
+              <div className="space-y-4">
+                <div className="text-center">
+                  <h2 className="text-base font-bold text-foreground">تأیید شماره موبایل</h2>
+                  <p className="mt-1 text-sm text-muted-foreground font-mono" dir="ltr">
+                    {phoneNumber}
+                  </p>
+                </div>
+
+                <VerificationCode
+                  value={verificationCode}
+                  onChange={(val) => {
+                    setVerificationCode(val)
+                    setCodeError(false)
+                    if (val.length === 6) {
+                      handleVerifyCode(val)
                     }
                   }}
-                >
-                  <GraduationCap className="h-4 w-4" />
-                  <span>ثبت نام</span>
-                </Button>
-              )}
+                  error={codeError}
+                  disabled={isVerifying}
+                />
 
-              {/* دکمه بازگشت به صفحه ورود / قبلی در گوشه سمت چپ */}
-              {step === 0 ? (
-                <Button
-                  type="button"
-                  onClick={() => router.push('/')}
-                  variant="outline"
-                  className="btn-hover-effect"
-                >
-                  بازگشت به صفحه ورود
-                </Button>
-              ) : (
-                <Button
-                  type="button"
-                  onClick={() => setStep(step - 1)}
-                  variant="outline"
-                  className="btn-hover-effect flex items-center gap-2"
-                >
-                  <span>قبلی</span>
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-              )}
+                <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+                  {canResend ? (
+                    <Button
+                      type="button"
+                      variant="link"
+                      onClick={handleResendCode}
+                      disabled={isVerifying}
+                      className="p-0 h-auto text-xs text-orange-600 font-bold"
+                    >
+                      ارسال مجدد کد تأیید
+                    </Button>
+                  ) : (
+                    <span>ارسال مجدد کد پس از {formatTimer(resendTimer)}</span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setStep(1)}
+                    className="text-xs text-muted-foreground hover:text-orange-600 transition-colors"
+                  >
+                    ویرایش شماره
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 3: Passwords (Inputs MUST be LTR) */}
+            {step === 3 && (
+              <>
+                <Field
+                  id="password"
+                  label="رمز عبور"
+                  icon={Lock}
+                  type="password"
+                  autoComplete="new-password"
+                  dir="ltr"
+                  placeholder="حداقل ۸ کاراکتر"
+                  showStrength
+                  required
+                  value={password}
+                  onChange={(e) => setValue("password", e.target.value, { shouldValidate: true })}
+                  error={errors.password?.message}
+                />
+                <Field
+                  id="confirmPassword"
+                  label="تکرار رمز عبور"
+                  icon={ShieldCheck}
+                  type="password"
+                  autoComplete="new-password"
+                  dir="ltr"
+                  placeholder="رمز عبور را دوباره وارد کنید"
+                  required
+                  value={confirmPassword}
+                  onChange={(e) =>
+                    setValue("confirmPassword", e.target.value, { shouldValidate: true })
+                  }
+                  error={errors.confirmPassword?.message}
+                />
+              </>
+            )}
+
+            {/* Back to Login link */}
+            <div className="border-t border-input/50 pt-3 text-center text-sm">
+              <Link
+                href="/"
+                className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-orange-600 transition-colors"
+              >
+                <ArrowRight className="size-4" />
+                حساب کاربری دارید؟ بازگشت به صفحه ورود
+              </Link>
             </div>
-          </form>
-        </CardContent>
-      </Card>
-      <SuccessModal
-        isOpen={showSuccessModal}
-        onClose={() => {
-          setShowSuccessModal(false)
-          router.push("/")
-        }}
-        studentName={`${watch("firstName")} ${watch("lastName")}`}
-      />
+          </div>
+
+          {/* Action Bar */}
+          <div className="shrink-0 border-t border-input/40 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3 sm:px-8">
+            <Button
+              type="button"
+              variant="brand"
+              disabled={isVerifying}
+              onClick={handlePrimaryClick}
+              className="h-14 w-full text-base font-bold sm:h-12 sm:text-sm flex items-center justify-center gap-2"
+            >
+              {isVerifying ? "در حال بررسی..." : submitLabel}
+              {!isVerifying && (step === 1 ? <Send className="size-4" /> : <ArrowLeft className="size-4" />)}
+            </Button>
+            {step > 0 && (
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={isVerifying}
+                className="mt-1 h-11 w-full rounded-full text-muted-foreground hover:bg-black/5"
+                onClick={() => {
+                  setStep((s) => s - 1)
+                  setCodeError(false)
+                }}
+              >
+                <ArrowRight className="size-4 ml-1" />
+                مرحله قبل
+              </Button>
+            )}
+          </div>
+        </div>
+      </section>
     </div>
   )
 }
