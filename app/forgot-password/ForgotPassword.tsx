@@ -133,27 +133,36 @@ export default function ForgotPassword() {
         }}
       />
 
+      {/* Ambient Animated Orbs */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -top-24 right-[-10%] size-96 rounded-full bg-gradient-to-br from-orange-400/25 via-amber-300/15 to-transparent blur-3xl opacity-60 blob-animate-1" />
+        <div className="absolute top-1/3 -left-20 size-80 rounded-full bg-gradient-to-tr from-amber-400/20 via-orange-300/15 to-transparent blur-3xl opacity-50 blob-animate-2" />
+      </div>
+
       <header className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-end gap-3 px-6 pb-6 pt-10 text-center sm:flex-none sm:gap-4 sm:pb-8 sm:pt-14">
-        <Link
-          href="/"
-          aria-label="رستوران جوان"
-          className="relative flex size-16 shrink-0 items-center justify-center rounded-[1.35rem] bg-white/85 p-2.5 shadow-glass backdrop-blur-md transition-transform hover:scale-[1.04] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-orange-500 sm:size-20"
-        >
-          <div className="relative h-full w-full">
-            <Image
-              src="/images/javanfoods_logo.png"
-              alt="رستوران جوان"
-              fill
-              className="object-contain drop-shadow-sm"
-              priority
-            />
-          </div>
-        </Link>
+        <div className="relative group">
+          <div className="absolute -inset-4 rounded-full bg-gradient-to-r from-orange-400/25 to-amber-300/25 blur-xl animate-pulse" />
+          <Link
+            href="/"
+            aria-label="رستوران جوان"
+            className="relative flex items-center justify-center transition-transform hover:scale-105 active:scale-95"
+          >
+            <div className="relative size-20 sm:size-24 drop-shadow-md">
+              <Image
+                src="/images/javanfoods_logo.png"
+                alt="رستوران جوان"
+                fill
+                className="object-contain"
+                priority
+              />
+            </div>
+          </Link>
+        </div>
         <div className="space-y-1">
-          <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
+          <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl drop-shadow-xs">
             بازیابی رمز عبور
           </h1>
-          <p className="text-sm text-muted-foreground sm:text-base">دسترسی دوباره به حساب شما</p>
+          <p className="text-sm text-muted-foreground sm:text-base font-medium">دسترسی دوباره به حساب شما</p>
         </div>
       </header>
 

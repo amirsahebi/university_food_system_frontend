@@ -54,7 +54,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="جوان فودز" />
       </head>
-      <body className="font-sans bg-pattern bg-pattern-animate min-h-screen">
+      <body className="font-sans bg-page min-h-screen text-foreground antialiased selection:bg-orange-500 selection:text-white">
         <AuthProvider>
           {children}
           <WhatsNewModal />

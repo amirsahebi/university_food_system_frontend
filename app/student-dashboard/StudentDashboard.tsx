@@ -741,7 +741,7 @@ export default function StudentDashboard() {
         </section>
 
         {/* Navigation Tabs */}
-        <div className="relative mx-auto flex max-w-md rounded-full p-1.5 bg-neutral-200/60 dark:bg-neutral-800/70 border border-neutral-300/80 dark:border-neutral-700/80 shadow-inner backdrop-blur-md">
+        <div className="glass relative mx-auto flex max-w-md rounded-full p-1.5 shadow-glass backdrop-blur-xl">
           {([["menu", "منوی غذا", Utensils], ["orders", "سفارش‌های من", ShoppingBag]] as const).map(
             ([k, l, I]) => {
               const isActive = activeTab === k
@@ -751,16 +751,16 @@ export default function StudentDashboard() {
                   type="button"
                   onClick={() => setActiveTab(k)}
                   className={cn(
-                    "relative flex flex-1 items-center justify-center gap-2 rounded-full py-2.5 text-sm font-bold transition-all cursor-pointer z-10",
+                    "relative flex flex-1 items-center justify-center gap-2 rounded-full py-2.5 text-sm font-semibold transition-all cursor-pointer z-10",
                     isActive
-                      ? "text-orange-600 dark:text-orange-400 font-extrabold"
-                      : "text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100"
+                      ? "text-orange-600 dark:text-orange-400 font-bold"
+                      : "text-foreground/60 hover:text-foreground font-medium"
                   )}
                 >
                   {isActive && (
                     <motion.div
                       layoutId="activeTabPill"
-                      className="absolute inset-0 rounded-full bg-white dark:bg-neutral-900 border-2 border-orange-500 shadow-md shadow-orange-500/15 -z-10"
+                      className="absolute inset-0 rounded-full bg-white/95 dark:bg-neutral-900/90 shadow-sm border border-orange-500/20 -z-10"
                       transition={{ type: "spring", stiffness: 450, damping: 32 }}
                     />
                   )}
@@ -768,17 +768,17 @@ export default function StudentDashboard() {
                     <I
                       className={cn(
                         "size-4 transition-colors",
-                        isActive ? "text-orange-600 dark:text-orange-400" : "text-neutral-500 dark:text-neutral-400"
+                        isActive ? "text-orange-600 dark:text-orange-400" : "text-foreground/50"
                       )}
                     />
                     {l}
                     {k === "orders" && reservations.length > 0 && (
                       <span
                         className={cn(
-                          "rounded-full px-2 py-0.5 text-[0.7rem] font-bold transition-colors",
+                          "rounded-full px-2 py-0.5 text-[0.7rem] font-bold transition-all",
                           isActive
-                            ? "bg-orange-500 text-white shadow-xs"
-                            : "bg-neutral-300 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300"
+                            ? "bg-brand text-white shadow-glow"
+                            : "bg-orange-100/80 text-orange-700 dark:bg-neutral-800 dark:text-orange-400"
                         )}
                       >
                         {toPersianDigits(reservations.length)}
