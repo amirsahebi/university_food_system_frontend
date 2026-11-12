@@ -4011,14 +4011,15 @@ export default function AdminDashboard() {
                                   >
                                     {toPersianDigits(student.trust_score)}
                                   </Badge>
-                                  {student.trust_score < 100 && (
+                                  {student.trust_score < 0 && (
                                     <Button
                                       variant="ghost"
                                       size="sm"
                                       onClick={() => handleRecoverTrustScore(student)}
-                                      className="text-xs h-7 px-2 text-[#F47B20] hover:text-[#E06A10] hover:bg-orange-50"
+                                      className="text-[11px] h-6 px-2 text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-rose-200 rounded-md font-bold"
+                                      title="صفر کردن امتیاز منفی و رفع مسدودیت استفاده از ژتون"
                                     >
-                                      بازیابی
+                                      صفر کردن
                                     </Button>
                                   )}
                                 </div>
@@ -4099,14 +4100,15 @@ export default function AdminDashboard() {
                                       >
                                         {toPersianDigits(student.trust_score)}
                                       </Badge>
-                                      {student.trust_score < 100 && (
+                                      {student.trust_score < 0 && (
                                         <Button
                                           variant="ghost"
                                           size="sm"
                                           onClick={() => handleRecoverTrustScore(student)}
-                                          className="text-xs h-7 px-2 text-[#F47B20] hover:text-[#E06A10] hover:bg-orange-50"
+                                          className="text-[11px] h-6 px-2 text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-rose-200 rounded-md font-bold"
+                                          title="صفر کردن امتیاز منفی و رفع مسدودیت استفاده از ژتون"
                                         >
-                                          بازیابی
+                                          صفر کردن
                                         </Button>
                                       )}
                                     </div>
@@ -4713,13 +4715,13 @@ export default function AdminDashboard() {
               <Info className="w-5 h-5 text-[#F47B20] shrink-0 mt-0.5" />
               <div className="text-xs text-gray-800 space-y-1.5">
                 <p className="leading-relaxed">
-                  آیا از بازیابی امتیاز اعتبار برای دانشجو{" "}
+                  آیا از صفر کردن امتیاز منفی برای دانشجو{" "}
                   <strong className="text-gray-950 font-black">{recoverTarget?.name}</strong>{" "}
                   با شماره دانشجویی{" "}
                   <span className="font-mono bg-white px-2 py-0.5 rounded-lg text-orange-700 font-bold border border-orange-200 shadow-2xs">
                     {toPersianDigits(recoverTarget?.student_id)}
                   </span>{" "}
-                  مطمئن هستید؟
+                  مطمئن هستید؟ با این کار امتیاز منفی به ۰ تغییر یافته و مسدودیت استفاده از ژتون برطرف می‌شود.
                 </p>
                 {recoverTarget && (
                   <p className="text-gray-500 pt-1 border-t border-orange-100">

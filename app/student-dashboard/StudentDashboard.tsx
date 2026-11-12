@@ -24,6 +24,7 @@ import {
   ShoppingBag,
   User,
   Download,
+  AlertCircle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -227,9 +228,9 @@ function TrustCard({
 
   const pct = Math.max(4, Math.min(100, 50 + score * 2.5))
   const rules = [
-    ["+", "افزایش امتیاز", "هر ۱۰٬۰۰۰ تومان پرداخت موفق", "۱+", "bg-success-soft text-success"],
-    ["−", "کاهش امتیاز", "رزرو با ژتون که تحویل گرفته نشود", "۱۰-", "bg-destructive-soft text-destructive"],
-    ["↻", "بازیابی خودکار", "فقط برای امتیاز منفی، تا صفر", "۲+ / روز", "bg-info-soft text-info"],
+    ["+", "افزایش امتیاز", "هر ۱۰۰٬۰۰۰ تومان مجموع پرداختی‌های موفق", "۱+", "bg-success-soft text-success"],
+    ["−", "کاهش امتیاز", "عدم تحویل غذا هنگام رزرو با ژتون/فیش", "۱۰-", "bg-destructive-soft text-destructive"],
+    ["↺", "رفع مسدودیت", "مراجعه به مدیریت جهت صفر کردن امتیاز منفی", "توسط مدیر", "bg-warning-soft text-warning"],
   ]
 
   return (
@@ -255,7 +256,7 @@ function TrustCard({
                 <PopoverContent dir="rtl" className="glass-strong w-80 rounded-2xl p-4 shadow-xl border border-glass-border">
                   <h4 className="mb-2 font-bold text-primary">امتیاز اعتبار چیست؟</h4>
                   <p className="mb-3 text-xs leading-6 text-muted-foreground">
-                    میزان اعتماد سیستم به شما بر اساس رفتار پرداخت و رزرو. در صورت منفی بودن امتیاز، امکان استفاده از ژتون وجود ندارد.
+                    میزان اعتماد سیستم به شما بر اساس تحویل غذا و پرداخت‌های موفق. در صورت منفی بودن امتیاز، امکان استفاده از ژتون مسدود شده و جهت صفر کردن امتیاز باید به مدیریت مراجعه نمایید (ثبت سفارش آزاد با پرداخت کامل در هر امتیازی امکان‌پذیر است).
                   </p>
                   <div className="space-y-2">
                     {rules.map(([i, t, d, v, c]) => (
@@ -287,16 +288,20 @@ function TrustCard({
         <span className="text-sm text-muted-foreground">امتیاز فعلی</span>
         <div className="text-left">
           <span className={cn("text-3xl font-extrabold", tone[2])}>{toPersianDigits(score)}</span>
-          {score < 0 && recoveryDays && (
-            <div className="text-[0.7rem] text-destructive mt-0.5">
-              زمان بازیابی: {toPersianDigits(recoveryDays)} روز دیگر
-            </div>
-          )}
         </div>
       </div>
       <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
         <div className="h-full rounded-full bg-brand transition-all duration-500" style={{ width: `${pct}%` }} />
       </div>
+
+      {score < 0 && (
+        <div className="mt-3.5 rounded-2xl bg-destructive-soft border border-destructive/20 p-3 text-xs text-destructive flex items-start gap-2.5 leading-relaxed">
+          <AlertCircle className="size-4 shrink-0 mt-0.5" />
+          <span>
+            امکان استفاده از ژتون به دلیل امتیاز منفی مسدود شده است. جهت صفر کردن امتیاز منفی، لطفاً به مدیریت سلف مراجعه فرمایید. (ثبت سفارش آزاد با پرداخت کامل همچنان امکان‌پذیر است)
+          </span>
+        </div>
+      )}
     </div>
   )
 }
@@ -609,7 +614,9 @@ export default function StudentDashboard() {
   const recoveryDays = userProfile?.trust_score_recovery_days ?? null
 
   return (
-    <div dir="rtl" className="bg-page min-h-screen pb-16 font-sans text-foreground">
+    <div dir="rtl" className="relative min-h-screen pb-16 font-sans text-foreground">
+      {/* Fixed static background layer: eliminates all background jumping/shifting between tabs */}
+      <div className="fixed inset-0 -z-10 pointer-events-none bg-page" aria-hidden="true" />
       <Toaster position="top-center" />
 
       {/* Header */}
@@ -734,7 +741,7 @@ export default function StudentDashboard() {
         </section>
 
         {/* Navigation Tabs */}
-        <div className="glass mx-auto flex max-w-md rounded-full p-1.5">
+        <div className="relative mx-auto flex max-w-md rounded-full p-1.5 bg-neutral-200/60 dark:bg-neutral-800/70 border border-neutral-300/80 dark:border-neutral-700/80 shadow-inner backdrop-blur-md">
           {([["menu", "منوی غذا", Utensils], ["orders", "سفارش‌های من", ShoppingBag]] as const).map(
             ([k, l, I]) => {
               const isActive = activeTab === k
@@ -744,22 +751,36 @@ export default function StudentDashboard() {
                   type="button"
                   onClick={() => setActiveTab(k)}
                   className={cn(
-                    "relative flex flex-1 items-center justify-center gap-2 rounded-full py-2.5 text-sm font-semibold transition-colors cursor-pointer",
-                    isActive ? "text-primary font-bold" : "text-muted-foreground hover:text-foreground"
+                    "relative flex flex-1 items-center justify-center gap-2 rounded-full py-2.5 text-sm font-bold transition-all cursor-pointer z-10",
+                    isActive
+                      ? "text-orange-600 dark:text-orange-400 font-extrabold"
+                      : "text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100"
                   )}
                 >
                   {isActive && (
                     <motion.div
                       layoutId="activeTabPill"
-                      className="absolute inset-0 rounded-full bg-glass-strong shadow-sm"
+                      className="absolute inset-0 rounded-full bg-white dark:bg-neutral-900 border-2 border-orange-500 shadow-md shadow-orange-500/15 -z-10"
                       transition={{ type: "spring", stiffness: 450, damping: 32 }}
                     />
                   )}
-                  <span className="relative z-10 flex items-center gap-2">
-                    <I className="size-4" />
+                  <span className="flex items-center gap-2">
+                    <I
+                      className={cn(
+                        "size-4 transition-colors",
+                        isActive ? "text-orange-600 dark:text-orange-400" : "text-neutral-500 dark:text-neutral-400"
+                      )}
+                    />
                     {l}
                     {k === "orders" && reservations.length > 0 && (
-                      <span className="rounded-full bg-brand px-1.5 text-[0.65rem] text-primary-foreground font-bold">
+                      <span
+                        className={cn(
+                          "rounded-full px-2 py-0.5 text-[0.7rem] font-bold transition-colors",
+                          isActive
+                            ? "bg-orange-500 text-white shadow-xs"
+                            : "bg-neutral-300 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300"
+                        )}
+                      >
                         {toPersianDigits(reservations.length)}
                       </span>
                     )}
@@ -1125,8 +1146,8 @@ export default function StudentDashboard() {
                   </div>
 
                   {userProfile?.trust_score !== undefined && userProfile.trust_score < 0 && (
-                    <div className="rounded-2xl bg-destructive-soft border border-destructive/20 p-2.5 text-xs text-destructive text-center">
-                      به دلیل امتیاز اعتبار منفی، امکان استفاده از ژتون وجود ندارد
+                    <div className="rounded-2xl bg-destructive-soft border border-destructive/20 p-2.5 text-xs text-destructive text-center leading-relaxed">
+                      به دلیل امتیاز منفی، امکان استفاده از ژتون مسدود است. جهت صفر کردن امتیاز به مدیریت مراجعه فرمایید (سفارش آزاد با پرداخت کامل همچنان امکان‌پذیر است).
                     </div>
                   )}
 
