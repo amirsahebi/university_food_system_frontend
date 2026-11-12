@@ -56,7 +56,7 @@ export function Field({
           dir={dir}
           {...props}
           className={cn(
-            "h-14 rounded-2xl border-input/60 bg-glass-strong pr-11 text-base shadow-sm transition-all focus-visible:border-orange-500 focus-visible:ring-2 focus-visible:ring-orange-500/30 md:text-sm",
+            "h-14 rounded-2xl border border-white/70 bg-white/55 backdrop-blur-md pr-11 text-base shadow-xs transition-all focus-visible:bg-white/80 focus-visible:border-orange-500 focus-visible:ring-2 focus-visible:ring-orange-500/30 md:text-sm",
             isPassword ? "pl-12" : "pl-4",
             isLtr && "text-left font-sans tracking-wide",
             error && "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-500/20",

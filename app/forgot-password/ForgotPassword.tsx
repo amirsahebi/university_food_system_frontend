@@ -133,15 +133,24 @@ export default function ForgotPassword() {
         }}
       />
 
-      {/* Ambient Animated Orbs */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-24 right-[-10%] size-96 rounded-full bg-gradient-to-br from-orange-400/25 via-amber-300/15 to-transparent blur-3xl opacity-60 blob-animate-1" />
-        <div className="absolute top-1/3 -left-20 size-80 rounded-full bg-gradient-to-tr from-amber-400/20 via-orange-300/15 to-transparent blur-3xl opacity-50 blob-animate-2" />
+      {/* Ambient Animated Living Mesh Orbs */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+        {/* Saffron / Orange Flame Orb */}
+        <div className="absolute -top-24 right-[-10%] size-[28rem] rounded-full bg-gradient-to-br from-orange-500/40 via-amber-400/30 to-transparent blur-3xl opacity-75 animate-living-mesh-1" />
+
+        {/* Sunset Coral / Rose Radiance Orb */}
+        <div className="absolute top-1/4 -left-20 size-[26rem] rounded-full bg-gradient-to-tr from-rose-500/35 via-orange-400/25 to-transparent blur-3xl opacity-70 animate-living-mesh-2" />
+
+        {/* Golden Honey / Saffron Sunbeam Orb (under the card) */}
+        <div className="absolute -bottom-20 left-1/4 size-[30rem] rounded-full bg-gradient-to-t from-amber-400/40 via-orange-300/25 to-transparent blur-3xl opacity-65 animate-living-mesh-3" />
+
+        {/* Deep Coral / Terracotta Accent Orb */}
+        <div className="absolute top-1/2 right-1/4 size-[22rem] rounded-full bg-gradient-to-br from-orange-600/25 via-pink-500/15 to-transparent blur-3xl opacity-50 animate-living-mesh-4" />
       </div>
 
-      <header className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-end gap-3 px-6 pb-6 pt-10 text-center sm:flex-none sm:gap-4 sm:pb-8 sm:pt-14">
+      <header className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-end gap-3 px-6 pb-6 pt-10 text-center sm:flex-none sm:gap-4 sm:pb-8 sm:pt-14 animate-in fade-in-0 slide-in-from-top-4 duration-700 ease-out fill-mode-both">
         <div className="relative group">
-          <div className="absolute -inset-4 rounded-full bg-gradient-to-r from-orange-400/25 to-amber-300/25 blur-xl animate-pulse" />
+          <div className="absolute -inset-5 rounded-full bg-radial from-orange-500/35 via-amber-400/20 to-transparent blur-xl animate-logo-glow" />
           <Link
             href="/"
             aria-label="رستوران جوان"
@@ -166,7 +175,7 @@ export default function ForgotPassword() {
         </div>
       </header>
 
-      <section className="relative z-10 mx-auto flex max-h-[80svh] w-full max-w-[560px] shrink-0 flex-col rounded-t-[2.25rem] border-t border-glass-border bg-glass-strong pt-5 shadow-sheet backdrop-blur-2xl sm:mb-8 sm:max-h-none sm:max-w-[460px] sm:rounded-[1.75rem] sm:border sm:pt-8">
+      <section className="relative z-10 mx-auto flex max-h-[80svh] w-full max-w-[560px] shrink-0 flex-col rounded-t-[2.25rem] border-t border-glass-border glass-auth-card pt-5 shadow-sheet sm:mb-8 sm:max-h-none sm:max-w-[460px] sm:rounded-[1.75rem] sm:border sm:pt-8 animate-in fade-in-0 zoom-in-[0.98] slide-in-from-bottom-5 duration-700 delay-100 ease-out fill-mode-both">
         <div className="shrink-0 px-5 pb-5 sm:px-8">
           <div className="flex items-center gap-3">
             <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-orange-100 text-orange-600 sm:size-11">
@@ -184,7 +193,7 @@ export default function ForgotPassword() {
         </div>
 
         {step === 0 ? (
-          <form onSubmit={handleRequestSubmit(onRequestCode)} className="flex min-h-0 flex-1 flex-col">
+          <form key="step-0" onSubmit={handleRequestSubmit(onRequestCode)} className="flex min-h-0 flex-1 flex-col animate-in fade-in-0 slide-in-from-bottom-2 duration-300 fill-mode-both">
             <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 pb-3 sm:px-8">
               <Field
                 id="phone_number"
@@ -229,7 +238,7 @@ export default function ForgotPassword() {
             </div>
           </form>
         ) : (
-          <form onSubmit={handleResetSubmit(onResetPassword)} className="flex min-h-0 flex-1 flex-col">
+          <form key="step-1" onSubmit={handleResetSubmit(onResetPassword)} className="flex min-h-0 flex-1 flex-col animate-in fade-in-0 slide-in-from-bottom-2 duration-300 fill-mode-both">
             <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 pb-3 sm:px-8">
               <VerificationCode
                 value={otpCode}

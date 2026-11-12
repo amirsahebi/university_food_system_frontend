@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import Image from "next/image"
 import Link from "next/link"
-import { Phone, Lock, ArrowLeft, Sparkles, UtensilsCrossed, Zap, ShieldCheck } from "lucide-react"
+import { Phone, Lock, ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toast, Toaster } from "react-hot-toast"
 import { useAuth } from "@/lib/auth-context"
@@ -35,8 +35,7 @@ export default function LoginPage() {
   const [loginError, setLoginError] = useState<string | null>(null)
   const [isClient, setIsClient] = useState(false)
   const [hasStoredToken, setHasStoredToken] = useState(false)
-  // Header visual styles: 1 = Warm Radiant Aura (Default), 2 = Neon Glass Ring, 3 = Living Mesh & Tagline
-  const [headerStyle, setHeaderStyle] = useState<1 | 2 | 3>(1)
+
   const router = useRouter()
 
   useEffect(() => {
@@ -126,27 +125,22 @@ export default function LoginPage() {
       dir="rtl"
       className="relative flex h-svh flex-col overflow-hidden bg-page font-sans sm:h-auto sm:min-h-svh sm:justify-center sm:overflow-visible sm:overflow-x-hidden"
     >
-      {/* Background Ambience based on selected style */}
+      {/* Background Ambience with Dynamic Living Mesh */}
       <div aria-hidden className="pointer-events-none absolute inset-0 bg-hero" />
 
-      {/* Floating Animated Orbs for Depth and Warmth */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div
-          className={cn(
-            "absolute -top-24 right-[-10%] size-96 rounded-full blur-3xl opacity-60 transition-all duration-1000",
-            headerStyle === 1 && "bg-gradient-to-br from-orange-400/30 via-amber-300/20 to-transparent blob-animate-1",
-            headerStyle === 2 && "bg-gradient-to-br from-rose-400/25 via-orange-300/20 to-transparent",
-            headerStyle === 3 && "bg-gradient-to-br from-amber-400/35 via-orange-200/25 to-transparent blob-animate-2"
-          )}
-        />
-        <div
-          className={cn(
-            "absolute top-1/4 -left-20 size-80 rounded-full blur-3xl opacity-50 transition-all duration-1000",
-            headerStyle === 1 && "bg-gradient-to-tr from-amber-400/25 via-orange-300/15 to-transparent blob-animate-2",
-            headerStyle === 2 && "bg-gradient-to-tr from-amber-300/25 via-orange-400/20 to-transparent",
-            headerStyle === 3 && "bg-gradient-to-tr from-rose-400/25 via-amber-300/20 to-transparent blob-animate-1"
-          )}
-        />
+      {/* Floating Animated Living Mesh Orbs with Soft Color Fluidity */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+        {/* Saffron / Orange Flame Orb */}
+        <div className="absolute -top-24 right-[-10%] size-[28rem] rounded-full bg-gradient-to-br from-orange-500/40 via-amber-400/30 to-transparent blur-3xl opacity-75 animate-living-mesh-1" />
+
+        {/* Sunset Coral / Rose Radiance Orb */}
+        <div className="absolute top-1/4 -left-20 size-[26rem] rounded-full bg-gradient-to-tr from-rose-500/35 via-orange-400/25 to-transparent blur-3xl opacity-70 animate-living-mesh-2" />
+
+        {/* Golden Honey / Saffron Sunbeam Orb (under the card) */}
+        <div className="absolute -bottom-20 left-1/4 size-[30rem] rounded-full bg-gradient-to-t from-amber-400/40 via-orange-300/25 to-transparent blur-3xl opacity-65 animate-living-mesh-3" />
+
+        {/* Deep Coral / Terracotta Accent Orb */}
+        <div className="absolute top-1/2 right-1/4 size-[22rem] rounded-full bg-gradient-to-br from-orange-600/25 via-pink-500/15 to-transparent blur-3xl opacity-50 animate-living-mesh-4" />
       </div>
 
       <Toaster
@@ -160,69 +154,11 @@ export default function LoginPage() {
         }}
       />
 
-      {/* Style Switcher Pill - Allows testing proposed styles interactively */}
-      <div className="absolute top-3 left-4 z-30 flex items-center gap-1 rounded-full border border-white/60 bg-white/75 p-1 shadow-sm backdrop-blur-md text-[11px] font-medium text-foreground/75">
-        <span className="px-2 text-muted-foreground flex items-center gap-1">
-          <Sparkles className="size-3 text-orange-500" />
-          طرح هدر:
-        </span>
-        <button
-          type="button"
-          onClick={() => setHeaderStyle(1)}
-          className={cn(
-            "rounded-full px-2.5 py-0.5 transition-all cursor-pointer",
-            headerStyle === 1
-              ? "bg-brand text-white font-bold shadow-xs"
-              : "hover:bg-black/5 text-muted-foreground"
-          )}
-        >
-          ۱: هاله و نشان‌ها
-        </button>
-        <button
-          type="button"
-          onClick={() => setHeaderStyle(2)}
-          className={cn(
-            "rounded-full px-2.5 py-0.5 transition-all cursor-pointer",
-            headerStyle === 2
-              ? "bg-brand text-white font-bold shadow-xs"
-              : "hover:bg-black/5 text-muted-foreground"
-          )}
-        >
-          ۲: رینگ نئونی
-        </button>
-        <button
-          type="button"
-          onClick={() => setHeaderStyle(3)}
-          className={cn(
-            "rounded-full px-2.5 py-0.5 transition-all cursor-pointer",
-            headerStyle === 3
-              ? "bg-brand text-white font-bold shadow-xs"
-              : "hover:bg-black/5 text-muted-foreground"
-          )}
-        >
-          ۳: مش زنده
-        </button>
-      </div>
-
-      {/* Header with borderless logo and rich ambient elements */}
-      <header className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-6 pt-12 pb-5 text-center sm:flex-none sm:gap-4 sm:pt-16 sm:pb-8">
-        {/* Borderless Floating Logo Container */}
+      {/* Header with borderless logo and elegant entrance animation */}
+      <header className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-6 pt-10 pb-4 text-center sm:flex-none sm:gap-3.5 sm:pt-14 sm:pb-6 animate-in fade-in-0 slide-in-from-top-4 duration-700 ease-out fill-mode-both">
+        {/* Borderless Floating Logo Container with Breathing Radiant Halo */}
         <div className="relative group">
-          {/* Style 1: Ambient Warm Saffron Aura */}
-          {headerStyle === 1 && (
-            <div className="absolute -inset-4 rounded-full bg-gradient-to-r from-orange-400/30 to-amber-300/30 blur-xl animate-pulse" />
-          )}
-
-          {/* Style 2: Rotating Glass Neon Halo Ring */}
-          {headerStyle === 2 && (
-            <div className="absolute -inset-3.5 rounded-full border border-orange-400/40 border-dashed animate-spin-slow opacity-80" />
-          )}
-
-          {/* Style 3: Subtle Radiant Halo */}
-          {headerStyle === 3 && (
-            <div className="absolute -inset-5 rounded-full bg-radial from-orange-500/25 via-amber-300/10 to-transparent blur-lg" />
-          )}
-
+          <div className="absolute -inset-5 rounded-full bg-radial from-orange-500/35 via-amber-400/20 to-transparent blur-xl animate-logo-glow" />
           <Link
             href="/"
             aria-label="رستوران جوان"
@@ -240,93 +176,61 @@ export default function LoginPage() {
           </Link>
         </div>
 
-        {/* Title and Proposed Header Accents */}
-        <div className="space-y-2">
+        {/* Title ONLY - No text underneath */}
+        <div>
           <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl drop-shadow-xs">
             رستوران جوان
           </h1>
-
-          {/* Style 1: Frosted Glass Micro-Badges */}
-          {headerStyle === 1 && (
-            <div className="flex flex-wrap items-center justify-center gap-2 pt-0.5">
-              <span className="glass inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold text-orange-700 shadow-sm backdrop-blur-md">
-                <Zap className="size-3.5 text-orange-500" />
-                سفارش و تحویل هوشمند سلف
-              </span>
-              <span className="glass inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold text-orange-700 shadow-sm backdrop-blur-md">
-                <ShieldCheck className="size-3.5 text-emerald-500" />
-                تخفیف ویژه دانشجویی
-              </span>
-            </div>
-          )}
-
-          {/* Style 2: Minimalist Glowing Status Capsule */}
-          {headerStyle === 2 && (
-            <div className="pt-0.5">
-              <span className="glass inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold text-foreground/80 shadow-sm backdrop-blur-md">
-                <span className="relative flex size-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
-                </span>
-                سامانه فعال رزرو و تحویل آنلاین غذای دانشگاه
-              </span>
-            </div>
-          )}
-
-          {/* Style 3: Elegant Culinary Persian Tagline */}
-          {headerStyle === 3 && (
-            <div className="pt-0.5">
-              <p className="text-xs sm:text-sm font-medium text-orange-800/80 glass inline-block rounded-full px-4 py-1 shadow-xs">
-                ✨ طعم اصیل و باکیفیت، بدون اتلاف وقت در صف
-              </p>
-            </div>
-          )}
         </div>
       </header>
 
-      {/* Bottom sheet on mobile, centered card on desktop */}
-      <section className="relative z-10 mx-auto flex max-h-[78svh] w-full max-w-[560px] shrink-0 flex-col rounded-t-[2.25rem] border-t border-glass-border bg-glass-strong pt-6 shadow-sheet backdrop-blur-2xl sm:mb-8 sm:max-h-none sm:max-w-[460px] sm:rounded-[1.75rem] sm:border sm:pt-8">
+      {/* Authentic Glass Card - Translucent to show the living colorful mesh underneath */}
+      <section className="relative z-10 mx-auto flex max-h-[78svh] w-full max-w-[560px] shrink-0 flex-col rounded-t-[2.25rem] border-t border-glass-border glass-auth-card pt-6 shadow-sheet sm:mb-8 sm:max-h-none sm:max-w-[460px] sm:rounded-[1.75rem] sm:border sm:pt-8 animate-in fade-in-0 zoom-in-[0.98] slide-in-from-bottom-5 duration-700 delay-100 ease-out fill-mode-both">
         <form onSubmit={handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
           <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 pb-3 sm:px-8">
-            <Field
-              id="phone_number"
-              label="شماره موبایل"
-              icon={Phone}
-              type="tel"
-              inputMode="tel"
-              autoComplete="tel"
-              dir="ltr"
-              placeholder="09123456789"
-              required
-              value={phoneValue}
-              onChange={(e) => {
-                setValue("phone_number", toEnglishDigits(e.target.value).trim(), {
-                  shouldValidate: true,
-                })
-              }}
-              error={errors.phone_number?.message}
-            />
+            <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-500 delay-200 fill-mode-both">
+              <Field
+                id="phone_number"
+                label="شماره موبایل"
+                icon={Phone}
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                dir="ltr"
+                placeholder="09123456789"
+                required
+                value={phoneValue}
+                onChange={(e) => {
+                  setValue("phone_number", toEnglishDigits(e.target.value).trim(), {
+                    shouldValidate: true,
+                  })
+                }}
+                error={errors.phone_number?.message}
+              />
+            </div>
 
-            <Field
-              id="password"
-              label="رمز عبور"
-              icon={Lock}
-              type="password"
-              autoComplete="current-password"
-              dir="ltr"
-              placeholder="حداقل ۶ کاراکتر"
-              required
-              value={passwordValue}
-              onChange={(e) => {
-                setValue("password", e.target.value, { shouldValidate: true })
-              }}
-              error={errors.password?.message}
-            />
+            <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-500 delay-300 fill-mode-both">
+              <Field
+                id="password"
+                label="رمز عبور"
+                icon={Lock}
+                type="password"
+                autoComplete="current-password"
+                dir="ltr"
+                placeholder="حداقل ۶ کاراکتر"
+                required
+                value={passwordValue}
+                onChange={(e) => {
+                  setValue("password", e.target.value, { shouldValidate: true })
+                }}
+                error={errors.password?.message}
+              />
+            </div>
 
-            <div className="text-left">
+            <div className="text-left animate-in fade-in-0 slide-in-from-bottom-2 duration-500 delay-350 fill-mode-both">
               <Link
                 href="/forgot-password"
-                className="inline-block py-1 text-xs text-muted-foreground transition-colors hover:text-orange-600"
+                className="inline-block py-1 text-xs text-muted-foreground transition-colors hover:text-orange-600 font-medium"
               >
                 رمز عبور خود را فراموش کرده‌اید؟
               </Link>
@@ -341,7 +245,7 @@ export default function LoginPage() {
               </div>
             )}
 
-            <div className="border-t border-input/50 pt-3 text-center text-sm">
+            <div className="border-t border-black/5 dark:border-white/10 pt-3 text-center text-sm animate-in fade-in-0 slide-in-from-bottom-2 duration-500 delay-400 fill-mode-both">
               <span className="text-muted-foreground">حساب کاربری ندارید؟ </span>
               <Link href="/sign-up" className="font-bold text-orange-600 hover:underline">
                 ثبت‌نام کنید
@@ -349,12 +253,12 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <div className="shrink-0 border-t border-input/40 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3 sm:px-8">
+          <div className="shrink-0 border-t border-black/5 dark:border-white/10 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3 sm:px-8 animate-in fade-in-0 slide-in-from-bottom-2 duration-500 delay-300 fill-mode-both">
             <Button
               type="submit"
               variant="brand"
               disabled={isSubmitting}
-              className="h-14 w-full text-base font-bold sm:h-12 sm:text-sm flex items-center justify-center gap-2"
+              className="h-14 w-full text-base font-bold sm:h-12 sm:text-sm flex items-center justify-center gap-2 shadow-glow hover:brightness-105 active:scale-[0.99] transition-all"
             >
               {isSubmitting ? "در حال ورود..." : "ورود به حساب"}
               {!isSubmitting && <ArrowLeft className="size-4" />}
