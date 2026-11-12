@@ -2468,7 +2468,7 @@ export default function AdminDashboard() {
             </TooltipProvider>
 
             {/* Admin Profile Dropdown */}
-            <DropdownMenu>
+            <DropdownMenu dir="rtl">
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative flex items-center gap-2.5 p-1.5 pr-2.5 rounded-xl hover:bg-white/60">
                   <div className="hidden sm:flex flex-col items-start text-right">
@@ -2483,7 +2483,7 @@ export default function AdminDashboard() {
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56 glass-strong border border-glass-border shadow-glass rounded-2xl p-1.5" align="start" forceMount>
+              <DropdownMenuContent className="w-52 glass-strong border border-glass-border shadow-glass rounded-2xl p-1.5" align="start" forceMount>
                 <DropdownMenuLabel className="font-normal px-2.5 py-2">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-bold leading-none text-gray-900">مدیر سیستم جوان</p>
@@ -2491,36 +2491,8 @@ export default function AdminDashboard() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator className="bg-glass-border" />
-                <DropdownMenuItem onClick={() => setActiveTab("dashboard")} className="rounded-xl cursor-pointer">
-                  <Home className="ml-2 h-4 w-4 text-gray-500" />
-                  <span>داشبورد اصلی</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => router.push("/")} className="rounded-xl cursor-pointer">
-                  <Utensils className="ml-2 h-4 w-4 text-gray-500" />
-                  <span>مشاهده صفحه دانشجویی</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator className="bg-glass-border" />
-                <DropdownMenuItem
-                  onClick={() => {
-                    window.dispatchEvent(new CustomEvent("open-whats-new"))
-                  }}
-                  className="rounded-xl cursor-pointer text-amber-600 focus:text-amber-700 focus:bg-amber-500/10"
-                >
-                  <Sparkles className="ml-2 h-4 w-4 text-amber-500" />
-                  <span>امکانات و تغییرات جدید</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => {
-                    window.dispatchEvent(new CustomEvent("open-pwa-install"))
-                  }}
-                  className="rounded-xl cursor-pointer text-orange-600 focus:text-orange-700 focus:bg-orange-500/10"
-                >
-                  <Smartphone className="ml-2 h-4 w-4 text-orange-500" />
-                  <span>نصب نسخه اپلیکیشن (PWA)</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator className="bg-glass-border" />
-                <DropdownMenuItem onClick={handleLogout} className="rounded-xl cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-500/10">
-                  <LogOut className="ml-2 h-4 w-4" />
+                <DropdownMenuItem onClick={handleLogout} className="flex items-center gap-2 rounded-xl cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-500/10">
+                  <LogOut className="h-4 w-4 text-red-500 shrink-0" />
                   <span>خروج از حساب</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -2614,52 +2586,6 @@ export default function AdminDashboard() {
               {/* Dashboard Tab */}
               {activeTab === "dashboard" && (
                 <div className="space-y-6">
-                  {/* Hero Welcome Card */}
-                  <div className="relative overflow-hidden rounded-3xl glass-strong border border-glass-border p-6 shadow-glass">
-                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-[#F47B20]/15 text-[#F47B20] border border-orange-500/20">
-                            مرکز فرماندهی سامانه
-                          </span>
-                          <span className="text-xs text-gray-300">|</span>
-                          <span className="text-xs text-gray-500 font-medium">{todayPersianDate}</span>
-                        </div>
-                        <h1 className="text-2xl font-black text-gray-900 mt-2">
-                          خوش آمدید، مدیر سیستم 👋
-                        </h1>
-                        <p className="text-xs sm:text-sm text-gray-600 mt-1">
-                          گزارش برخط وضعیت سفارشات، ظرفیت سلف‌ها و رزروهای رستوران جوان در یک نگاه
-                        </p>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full lg:w-auto">
-                        <Button
-                          onClick={handleAddFood}
-                          className="bg-[#F47B20] hover:bg-[#E06A10] text-white shadow-sm flex items-center justify-center gap-1.5 rounded-xl text-xs font-semibold px-4 py-2.5 h-10 sm:h-9"
-                        >
-                          <Plus className="w-4 h-4" />
-                          افزودن غذای جدید
-                        </Button>
-                        <Button
-                          onClick={() => setActiveTab("daily-menu")}
-                          variant="outline"
-                          className="glass hover:bg-glass-strong border-glass-border text-gray-800 rounded-xl text-xs font-semibold flex items-center justify-center h-10 sm:h-9"
-                        >
-                          <Calendar className="w-4 h-4 ml-1.5 text-[#F47B20]" />
-                          تنظیم منوی روز
-                        </Button>
-                        <Button
-                          onClick={() => setActiveTab("vouchers")}
-                          variant="outline"
-                          className="glass hover:bg-glass-strong border-glass-border text-gray-800 rounded-xl text-xs font-semibold flex items-center justify-center h-10 sm:h-9"
-                        >
-                          <Ticket className="w-4 h-4 ml-1.5 text-[#F47B20]" />
-                          مدیریت ژتون‌ها
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-
                   {/* 4 StatCards */}
                   <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
                     <StatCard

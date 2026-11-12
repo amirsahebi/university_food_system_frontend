@@ -120,7 +120,7 @@ export function VerificationCode({
             onKeyDown={(e) => handleKeyDown(e, i)}
             onPaste={(e) => handlePaste(e, i)}
             className={cn(
-              "h-14 sm:h-16 w-full rounded-2xl border border-white/70 bg-white/55 backdrop-blur-md text-2xl font-bold text-center text-primary-deep shadow-xs transition-all focus:bg-white/80 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/30 focus:outline-none",
+              "h-14 sm:h-16 w-full rounded-2xl border border-white/70 bg-white/65 text-2xl font-bold text-center text-primary-deep shadow-xs transition-colors focus:bg-white/90 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/30 focus:outline-none",
               error && "border-red-500 text-red-500 animate-shake"
             )}
             aria-label={`رقم ${i + 1} کد تأیید`}

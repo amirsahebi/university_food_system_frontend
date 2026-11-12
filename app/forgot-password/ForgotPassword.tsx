@@ -18,15 +18,23 @@ import { VerificationCode } from "@/components/account/VerificationCode"
 
 const requestCodeSchema = z.object({
   phone_number: z.preprocess(
-    (val) => toEnglishDigits(val as string).trim(),
-    z.string().regex(/^09\d{9}$/, { message: "شماره تلفن باید ۱۱ رقم و با ۰۹ شروع شود" })
+    (val) => toEnglishDigits((val as string) || "").trim(),
+    z
+      .string()
+      .min(1, { message: "لطفاً شماره موبایل را وارد کنید" })
+      .regex(/^09\d{9}$/, { message: "شماره تلفن باید ۱۱ رقم و با ۰۹ شروع شود" })
   ),
 })
 
 const resetPasswordSchema = z
   .object({
-    new_password: z.string().min(8, { message: "رمز عبور جدید باید حداقل ۸ کاراکتر باشد" }),
-    confirm_password: z.string(),
+    new_password: z
+      .string()
+      .min(1, { message: "لطفاً رمز عبور جدید را وارد کنید" })
+      .min(8, { message: "رمز عبور جدید باید حداقل ۸ کاراکتر باشد" }),
+    confirm_password: z
+      .string()
+      .min(1, { message: "لطفاً تکرار رمز عبور جدید را وارد کنید" }),
   })
   .refine((data) => data.new_password === data.confirm_password, {
     message: "رمزهای عبور جدید مطابقت ندارند",
@@ -193,7 +201,7 @@ export default function ForgotPassword() {
         </div>
 
         {step === 0 ? (
-          <form key="step-0" onSubmit={handleRequestSubmit(onRequestCode)} className="flex min-h-0 flex-1 flex-col animate-in fade-in-0 slide-in-from-bottom-2 duration-300 fill-mode-both">
+          <form key="step-0" noValidate onSubmit={handleRequestSubmit(onRequestCode)} className="flex min-h-0 flex-1 flex-col animate-in fade-in-0 slide-in-from-bottom-2 duration-300 fill-mode-both">
             <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 pb-3 sm:px-8">
               <Field
                 id="phone_number"
@@ -238,7 +246,7 @@ export default function ForgotPassword() {
             </div>
           </form>
         ) : (
-          <form key="step-1" onSubmit={handleResetSubmit(onResetPassword)} className="flex min-h-0 flex-1 flex-col animate-in fade-in-0 slide-in-from-bottom-2 duration-300 fill-mode-both">
+          <form key="step-1" noValidate onSubmit={handleResetSubmit(onResetPassword)} className="flex min-h-0 flex-1 flex-col animate-in fade-in-0 slide-in-from-bottom-2 duration-300 fill-mode-both">
             <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 pb-3 sm:px-8">
               <VerificationCode
                 value={otpCode}

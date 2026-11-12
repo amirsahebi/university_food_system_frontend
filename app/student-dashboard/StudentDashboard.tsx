@@ -25,9 +25,18 @@ import {
   User,
   Download,
   AlertCircle,
+  ChevronDown,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { FoodImage } from "@/components/ui/food-image"
 import { cn } from "@/lib/utils"
 import { toast, Toaster } from "react-hot-toast"
@@ -309,7 +318,7 @@ function TrustCard({
 /* ---------- Main Dashboard Component ---------- */
 export default function StudentDashboard() {
   const router = useRouter()
-  const { logout } = useAuth()
+  const { user, logout } = useAuth()
 
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [selectedMeal, setSelectedMeal] = useState<"lunch" | "dinner">("lunch")
@@ -395,14 +404,37 @@ export default function StudentDashboard() {
     fetchUserProfile()
   }, [fetchDailyMenu, fetchReservations, fetchVoucherTypes, fetchUserProfile])
 
-  // Refresh reservations on window focus
+  // Refresh reservations on window focus & custom tab events
   useEffect(() => {
     const handleFocus = () => {
       fetchReservations()
     }
+    const handleSwitchToOrders = () => {
+      setActiveTab("orders")
+    }
+
     window.addEventListener("focus", handleFocus)
-    return () => window.removeEventListener("focus", handleFocus)
+    window.addEventListener("switch-to-orders-tab", handleSwitchToOrders)
+
+    return () => {
+      window.removeEventListener("focus", handleFocus)
+      window.removeEventListener("switch-to-orders-tab", handleSwitchToOrders)
+    }
   }, [fetchReservations])
+
+  // Battery-efficient periodic check for active orders only (waiting/preparing)
+  useEffect(() => {
+    const hasActiveOrders = reservations.some(
+      (r) => r.status === "waiting" || r.status === "preparing"
+    )
+    if (!hasActiveOrders) return
+
+    const interval = setInterval(() => {
+      fetchReservations()
+    }, 25000)
+
+    return () => clearInterval(interval)
+  }, [reservations, fetchReservations])
 
   /* ---------- Menu Categories & Filtering ---------- */
   const categories = useMemo(() => {
@@ -639,9 +671,12 @@ export default function StudentDashboard() {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {/* Notification Center */}
-            <NotificationCenter />
+            <NotificationCenter
+              reservations={reservations}
+              onViewOrders={() => setActiveTab("orders")}
+            />
 
             {/* PWA Install */}
             <Button
@@ -657,41 +692,94 @@ export default function StudentDashboard() {
               <span className="hidden md:inline text-xs font-medium">نصب برنامه</span>
             </Button>
 
-            {/* Payment History */}
-            <Button
-              variant="glass"
-              size="sm"
-              className="gap-1.5 size-8 sm:size-auto sm:px-3 p-0 sm:py-1.5 rounded-full"
-              onClick={() => router.push("/payment/history")}
-              title="تاریخچه پرداخت‌ها"
-            >
-              <CreditCard className="size-4 text-primary" />
-              <span className="hidden sm:inline text-xs">تراکنش‌ها</span>
-            </Button>
+            {/* Profile Dropdown Menu */}
+            <DropdownMenu dir="rtl">
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="glass"
+                  size="sm"
+                  className="gap-2 h-8 sm:h-9 px-2 sm:px-3 rounded-full hover:bg-orange-500/10 cursor-pointer transition-all duration-200"
+                >
+                  <div className="size-6 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 text-white flex items-center justify-center font-bold text-xs shadow-xs shrink-0">
+                    <User className="size-3.5 text-white" />
+                  </div>
+                  <span className="hidden sm:inline text-xs font-semibold text-foreground">
+                    {userProfile?.student?.first_name
+                      ? `${userProfile.student.first_name} ${userProfile.student.last_name || ""}`
+                      : user?.first_name
+                      ? `${user.first_name} ${user.last_name || ""}`
+                      : "پروفایل"}
+                  </span>
+                  <ChevronDown className="size-3.5 text-muted-foreground opacity-70" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                sideOffset={8}
+                className="w-64 glass-strong border border-glass-border shadow-glass rounded-2xl p-2 z-50 text-foreground"
+              >
+                <div className="px-3 py-2.5 mb-1.5 rounded-xl bg-orange-500/10 border border-orange-500/15 flex items-center gap-2.5">
+                  <div className="size-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
+                    <User className="size-4 text-white" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-foreground truncate">
+                      {userProfile?.student?.first_name
+                        ? `${userProfile.student.first_name} ${userProfile.student.last_name || ""}`
+                        : user?.first_name
+                        ? `${user.first_name} ${user.last_name || ""}`
+                        : "دانشجوی گرامی"}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground font-mono truncate" dir="ltr">
+                      {userProfile?.student?.phone_number || user?.phone_number || "حساب دانشجویی"}
+                    </p>
+                  </div>
+                </div>
 
-            {/* Profile */}
-            <Button
-              variant="glass"
-              size="sm"
-              className="gap-1.5 size-8 sm:size-auto sm:px-3 p-0 sm:py-1.5 rounded-full"
-              onClick={() => router.push("/edit-profile")}
-              title="پروفایل کاربری"
-            >
-              <User className="size-4 text-primary" />
-              <span className="hidden sm:inline text-xs">پروفایل</span>
-            </Button>
+                <DropdownMenuSeparator className="bg-black/5 dark:bg-white/10 my-1" />
 
-            {/* Logout */}
-            <Button
-              variant="glass"
-              size="sm"
-              className="gap-1.5 size-8 sm:size-auto sm:px-3 p-0 sm:py-1.5 rounded-full hover:text-destructive"
-              onClick={handleLogout}
-              title="خروج از حساب کاربری"
-            >
-              <LogOut className="size-4" />
-              <span className="hidden sm:inline text-xs">خروج</span>
-            </Button>
+                <DropdownMenuItem
+                  onClick={() => router.push("/edit-profile")}
+                  className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-orange-500/10 cursor-pointer focus:bg-orange-500/10"
+                >
+                  <div className="size-8 rounded-lg bg-orange-500/10 text-orange-600 flex items-center justify-center shrink-0">
+                    <User className="size-4" />
+                  </div>
+                  <div className="flex-1 text-right">
+                    <span className="text-xs font-bold text-foreground block">پروفایل کاربری</span>
+                    <span className="text-[10px] text-muted-foreground block">مشاهده و ویرایش اطلاعات حساب</span>
+                  </div>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  onClick={() => router.push("/payment/history")}
+                  className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-emerald-500/10 cursor-pointer focus:bg-emerald-500/10"
+                >
+                  <div className="size-8 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0">
+                    <CreditCard className="size-4" />
+                  </div>
+                  <div className="flex-1 text-right">
+                    <span className="text-xs font-bold text-foreground block">تاریخچه پرداخت‌ها</span>
+                    <span className="text-[10px] text-muted-foreground block">گزارش تراکنش‌ها و شارژ کیف پول</span>
+                  </div>
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator className="bg-black/5 dark:bg-white/10 my-1" />
+
+                <DropdownMenuItem
+                  onClick={handleLogout}
+                  className="flex items-center gap-3 p-2.5 rounded-xl text-red-600 hover:bg-red-500/10 focus:bg-red-500/10 cursor-pointer"
+                >
+                  <div className="size-8 rounded-lg bg-red-500/10 text-red-600 flex items-center justify-center shrink-0">
+                    <LogOut className="size-4" />
+                  </div>
+                  <div className="flex-1 text-right">
+                    <span className="text-xs font-bold text-red-600 block">خروج از حساب</span>
+                    <span className="text-[10px] text-red-500/70 block">اتمام نشست و خروج از برنامه</span>
+                  </div>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>

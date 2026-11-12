@@ -33,18 +33,35 @@ export const dynamic = "force-dynamic"
 
 const signUpSchema = z
   .object({
-    firstName: z.string().min(2, { message: "نام باید حداقل ۲ حرف باشد" }),
-    lastName: z.string().min(2, { message: "نام خانوادگی باید حداقل ۲ حرف باشد" }),
+    firstName: z
+      .string()
+      .min(1, { message: "لطفاً نام را وارد کنید" })
+      .min(2, { message: "نام باید حداقل ۲ حرف باشد" }),
+    lastName: z
+      .string()
+      .min(1, { message: "لطفاً نام خانوادگی را وارد کنید" })
+      .min(2, { message: "نام خانوادگی باید حداقل ۲ حرف باشد" }),
     studentNumber: z.preprocess(
-      (val) => toEnglishDigits(val as string || "").trim(),
-      z.string().regex(/^\d{7,12}$/, { message: "شماره دانشجویی باید بین ۷ تا ۱۲ رقم باشد" })
+      (val) => toEnglishDigits((val as string) || "").trim(),
+      z
+        .string()
+        .min(1, { message: "لطفاً شماره دانشجویی را وارد کنید" })
+        .regex(/^\d{7,12}$/, { message: "شماره دانشجویی باید بین ۷ تا ۱۲ رقم باشد" })
     ),
     phoneNumber: z.preprocess(
-      (val) => toEnglishDigits(val as string || "").trim(),
-      z.string().regex(/^09\d{9}$/, { message: "شماره تلفن باید ۱۱ رقم و با ۰۹ شروع شود" })
+      (val) => toEnglishDigits((val as string) || "").trim(),
+      z
+        .string()
+        .min(1, { message: "لطفاً شماره موبایل را وارد کنید" })
+        .regex(/^09\d{9}$/, { message: "شماره تلفن باید ۱۱ رقم و با ۰۹ شروع شود" })
     ),
-    password: z.string().min(8, { message: "رمز عبور باید حداقل ۸ کاراکتر باشد" }),
-    confirmPassword: z.string(),
+    password: z
+      .string()
+      .min(1, { message: "لطفاً رمز عبور را وارد کنید" })
+      .min(8, { message: "رمز عبور باید حداقل ۸ کاراکتر باشد" }),
+    confirmPassword: z
+      .string()
+      .min(1, { message: "لطفاً تکرار رمز عبور را وارد کنید" }),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "رمزهای عبور مطابقت ندارند",

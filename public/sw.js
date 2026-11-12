@@ -1,4 +1,4 @@
-const CACHE_NAME = 'javanfoods-pwa-v11';
+const CACHE_NAME = 'javanfoods-pwa-v12';
 const OFFLINE_URL = '/offline.html';
 
 const PRECACHE_ASSETS = [
@@ -37,6 +37,45 @@ self.addEventListener('activate', (event) => {
       );
     }).then(() => self.clients.claim())
   );
+});
+
+// Native Notification Click Handler
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = (event.notification.data && event.notification.data.url) || '/student-dashboard';
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url && client.url.includes('/student-dashboard') && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(targetUrl);
+      }
+    })
+  );
+});
+
+// Push notification payload handler
+self.addEventListener('push', (event) => {
+  let data = {};
+  if (event.data) {
+    try {
+      data = event.data.json();
+    } catch (e) {
+      data = { title: 'رستوران جوان', body: event.data.text() };
+    }
+  }
+  const title = data.title || 'غذای شما آماده است! 🍲';
+  const options = {
+    body: data.body || 'سفارش شما در رستوران جوان آماده تحویل می‌باشد.',
+    icon: data.icon || '/icons/icon-192x192.png',
+    badge: '/icons/icon-192x192.png',
+    vibrate: [200, 100, 200],
+    data: { url: data.url || '/student-dashboard' },
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
 });
 
 self.addEventListener('fetch', (event) => {

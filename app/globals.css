@@ -270,114 +270,113 @@
   @apply pl-12;
 }
 
-/* Living Mesh Fluid Gravity Animations */
+/* High-Performance Living Mesh Animations (Optimized for 60/120 FPS without thermal throttling) */
 @keyframes livingMesh1 {
   0% {
-    transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+    transform: translate3d(0, 0, 0);
   }
-  25% {
-    transform: translate3d(-70px, 45px, 0) scale(1.15) rotate(12deg);
+  30% {
+    transform: translate3d(-60px, 35px, 0);
   }
-  50% {
-    transform: translate3d(-110px, -35px, 0) scale(0.92) rotate(-8deg);
-  }
-  75% {
-    transform: translate3d(-35px, -65px, 0) scale(1.1) rotate(6deg);
+  70% {
+    transform: translate3d(-100px, -30px, 0);
   }
   100% {
-    transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+    transform: translate3d(0, 0, 0);
   }
 }
 
 @keyframes livingMesh2 {
   0% {
-    transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+    transform: translate3d(0, 0, 0);
   }
-  30% {
-    transform: translate3d(85px, -55px, 0) scale(1.18) rotate(-14deg);
+  35% {
+    transform: translate3d(70px, -45px, 0);
   }
-  60% {
-    transform: translate3d(130px, 35px, 0) scale(0.88) rotate(18deg);
-  }
-  85% {
-    transform: translate3d(45px, 55px, 0) scale(1.06) rotate(-4deg);
+  75% {
+    transform: translate3d(100px, 30px, 0);
   }
   100% {
-    transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+    transform: translate3d(0, 0, 0);
   }
 }
 
 @keyframes livingMesh3 {
   0% {
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: translate3d(0, 0, 0);
   }
-  35% {
-    transform: translate3d(-50px, -70px, 0) scale(1.22);
+  40% {
+    transform: translate3d(-40px, -50px, 0);
   }
-  70% {
-    transform: translate3d(60px, -35px, 0) scale(0.85);
+  80% {
+    transform: translate3d(50px, -25px, 0);
   }
   100% {
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: translate3d(0, 0, 0);
   }
 }
 
 @keyframes livingMesh4 {
   0% {
-    transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+    transform: translate3d(0, 0, 0);
   }
-  40% {
-    transform: translate3d(-60px, 60px, 0) scale(1.14) rotate(15deg);
+  45% {
+    transform: translate3d(-50px, 45px, 0);
   }
-  80% {
-    transform: translate3d(70px, -40px, 0) scale(0.92) rotate(-10deg);
+  85% {
+    transform: translate3d(50px, -35px, 0);
   }
   100% {
-    transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+    transform: translate3d(0, 0, 0);
   }
 }
 
 @keyframes logoPulseGlow {
   0%, 100% {
     opacity: 0.55;
-    transform: scale(1);
+    transform: scale3d(1, 1, 1);
   }
   50% {
     opacity: 0.85;
-    transform: scale(1.1);
+    transform: scale3d(1.08, 1.08, 1);
   }
 }
 
 .animate-living-mesh-1 {
-  animation: livingMesh1 16s ease-in-out infinite;
+  animation: livingMesh1 18s ease-in-out infinite;
   will-change: transform;
+  transform: translateZ(0);
 }
 
 .animate-living-mesh-2 {
-  animation: livingMesh2 20s ease-in-out infinite;
+  animation: livingMesh2 22s ease-in-out infinite;
   will-change: transform;
+  transform: translateZ(0);
 }
 
 .animate-living-mesh-3 {
-  animation: livingMesh3 18s ease-in-out infinite;
+  animation: livingMesh3 20s ease-in-out infinite;
   will-change: transform;
+  transform: translateZ(0);
 }
 
 .animate-living-mesh-4 {
-  animation: livingMesh4 24s ease-in-out infinite;
+  animation: livingMesh4 26s ease-in-out infinite;
   will-change: transform;
+  transform: translateZ(0);
 }
 
 .animate-logo-glow {
   animation: logoPulseGlow 4s ease-in-out infinite;
   will-change: transform, opacity;
+  transform: translateZ(0);
 }
 
 /* Authentic Glassmorphism Auth Card */
 .glass-auth-card {
   background: rgba(255, 255, 255, 0.52);
-  backdrop-filter: blur(28px) saturate(190%);
-  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   border: 1px solid rgba(255, 255, 255, 0.75);
   box-shadow: 
     0 1px 0 0 rgba(255, 255, 255, 0.95) inset,
@@ -387,18 +386,18 @@
 
 .dark .glass-auth-card {
   background: rgba(24, 24, 27, 0.6);
-  backdrop-filter: blur(28px) saturate(180%);
-  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(170%);
+  -webkit-backdrop-filter: blur(20px) saturate(170%);
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.1) inset, 0 20px 50px -15px rgba(0, 0, 0, 0.5);
 }
 
-/* Ensure glassmorphism stays active on mobile for auth cards */
+/* Mobile high-efficiency: 14px blur runs cool without heating phones */
 @media (max-width: 768px) {
   .glass-auth-card {
-    background: rgba(255, 255, 255, 0.56) !important;
-    backdrop-filter: blur(24px) saturate(190%) !important;
-    -webkit-backdrop-filter: blur(24px) saturate(190%) !important;
+    background: rgba(255, 255, 255, 0.6) !important;
+    backdrop-filter: blur(14px) saturate(160%) !important;
+    -webkit-backdrop-filter: blur(14px) saturate(160%) !important;
     border-top: 1px solid rgba(255, 255, 255, 0.8) !important;
   }
 }

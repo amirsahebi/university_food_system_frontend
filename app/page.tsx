@@ -21,10 +21,16 @@ export const dynamic = "force-dynamic"
 
 const loginSchema = z.object({
   phone_number: z.preprocess(
-    (val) => toEnglishDigits(val as string).trim(),
-    z.string().regex(/^09\d{9}$/, { message: "شماره تلفن باید ۱۱ رقم و با ۰۹ شروع شود" })
+    (val) => toEnglishDigits((val as string) || "").trim(),
+    z
+      .string()
+      .min(1, { message: "لطفاً شماره موبایل را وارد کنید" })
+      .regex(/^09\d{9}$/, { message: "شماره تلفن باید ۱۱ رقم و با ۰۹ شروع شود" })
   ),
-  password: z.string().min(6, { message: "رمز عبور باید حداقل ۶ کاراکتر باشد" }),
+  password: z
+    .string()
+    .min(1, { message: "لطفاً رمز عبور را وارد کنید" })
+    .min(6, { message: "رمز عبور باید حداقل ۶ کاراکتر باشد" }),
 })
 
 type LoginForm = z.infer<typeof loginSchema>
@@ -186,7 +192,7 @@ export default function LoginPage() {
 
       {/* Authentic Glass Card - Translucent to show the living colorful mesh underneath */}
       <section className="relative z-10 mx-auto flex max-h-[78svh] w-full max-w-[560px] shrink-0 flex-col rounded-t-[2.25rem] border-t border-glass-border glass-auth-card pt-6 shadow-sheet sm:mb-8 sm:max-h-none sm:max-w-[460px] sm:rounded-[1.75rem] sm:border sm:pt-8 animate-in fade-in-0 zoom-in-[0.98] slide-in-from-bottom-5 duration-700 delay-100 ease-out fill-mode-both">
-        <form onSubmit={handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
+        <form noValidate onSubmit={handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
           <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 pb-3 sm:px-8">
             <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-500 delay-200 fill-mode-both">
               <Field
