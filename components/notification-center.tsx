@@ -19,6 +19,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/lib/auth-context'
 
 export type NotificationType =
   | 'food_ready'
@@ -53,29 +54,43 @@ interface NotificationCenterProps {
   onViewOrders?: () => void
 }
 
-const STORAGE_KEY = 'javanfoods_notifications_store_v2'
-const NOTIFIED_READY_KEY = 'javanfoods_notified_ready_orders_v2'
-
 export function NotificationCenter({
   reservations = [],
   onViewOrders,
 }: NotificationCenterProps) {
+  const { user } = useAuth()
+  const userKey = user ? String(user.id || user.phone_number) : null
+
   const [isOpen, setIsOpen] = useState(false)
   const [notifications, setNotifications] = useState<AppNotification[]>([])
   const [permissionState, setPermissionState] = useState<NotificationPermission>('default')
   const [isClient, setIsClient] = useState(false)
 
-  // Initialize notifications from localStorage
+  // Initialize notifications from localStorage scoped strictly to current user
   useEffect(() => {
     setIsClient(true)
     if (typeof window === 'undefined') return
+
+    // Purge any legacy shared keys so previous accounts never leak to another student
+    try {
+      localStorage.removeItem('javanfoods_notifications_store_v1')
+      localStorage.removeItem('javanfoods_notifications_store_v2')
+      localStorage.removeItem('javanfoods_notified_ready_orders')
+      localStorage.removeItem('javanfoods_notified_ready_orders_v2')
+    } catch {}
 
     if ('Notification' in window) {
       setPermissionState(Notification.permission)
     }
 
+    if (!userKey) {
+      setNotifications([])
+      return
+    }
+
+    const storageKey = `javanfoods_notifications_${userKey}`
     try {
-      const stored = localStorage.getItem(STORAGE_KEY)
+      const stored = localStorage.getItem(storageKey)
       if (stored) {
         const parsed = JSON.parse(stored) as AppNotification[]
         setNotifications(parsed)
@@ -85,19 +100,19 @@ export function NotificationCenter({
     } catch {
       setNotifications([])
     }
-  }, [])
+  }, [userKey])
 
-  // Sync notifications to localStorage
+  // Sync notifications to user-isolated localStorage
   const persistNotifications = useCallback((items: AppNotification[]) => {
     setNotifications(items)
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && userKey) {
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
+        localStorage.setItem(`javanfoods_notifications_${userKey}`, JSON.stringify(items))
       } catch (err) {
         console.error('Failed to persist notifications:', err)
       }
     }
-  }, [])
+  }, [userKey])
 
   // Request browser Notification Permission
   const requestNotificationPermission = async () => {
@@ -140,7 +155,6 @@ export function NotificationCenter({
     } as NotificationOptions & { vibrate?: number[] }
 
     try {
-      // Priority 1: Service Worker Registration (Required for Android & Mobile Chrome & iOS PWA)
       if ('serviceWorker' in navigator) {
         const reg = await navigator.serviceWorker.ready
         if (reg && reg.showNotification) {
@@ -149,7 +163,6 @@ export function NotificationCenter({
         }
       }
 
-      // Priority 2: Standard Desktop Notification Constructor
       if (typeof Notification === 'function') {
         new Notification(title, options)
       }
@@ -158,34 +171,14 @@ export function NotificationCenter({
     }
   }
 
-  // Send a test notification to device
-  const sendTestNotification = async () => {
-    if (typeof window === 'undefined') return
-
-    if (!('Notification' in window)) {
-      toast.error('مرورگر شما از نوتیفیکیشن پشتیبانی نمی‌کند')
-      return
-    }
-
-    if (Notification.permission !== 'granted') {
-      await requestNotificationPermission()
-      return
-    }
-
-    await sendNativeNotification(
-      'تست اعلان جوان‌فودز 🔔',
-      'نوتیفیکیشن با موفقیت روی گوشی شما دریافت شد! آماده‌باش سلف فعال است.'
-    )
-    toast.success('اعلان تست به گوشی شما ارسال شد! 🔔')
-  }
-
-  // Detect when an order becomes ready and trigger notification
+  // Detect when an order of THIS STUDENT becomes ready and trigger notification
   useEffect(() => {
-    if (!reservations || reservations.length === 0 || !isClient) return
+    if (!reservations || reservations.length === 0 || !isClient || !userKey) return
 
+    const notifiedKey = `javanfoods_notified_ready_${userKey}`
     let notifiedIds: number[] = []
     try {
-      const raw = localStorage.getItem(NOTIFIED_READY_KEY)
+      const raw = localStorage.getItem(notifiedKey)
       if (raw) notifiedIds = JSON.parse(raw)
     } catch {
       notifiedIds = []
@@ -221,20 +214,22 @@ export function NotificationCenter({
       })
 
       try {
-        localStorage.setItem(NOTIFIED_READY_KEY, JSON.stringify(notifiedIds))
+        localStorage.setItem(notifiedKey, JSON.stringify(notifiedIds))
       } catch (err) {
         console.error('Failed to update notified orders:', err)
       }
 
       setNotifications((prev) => {
         const updated = [...newItems, ...prev]
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
-        } catch {}
+        if (userKey) {
+          try {
+            localStorage.setItem(`javanfoods_notifications_${userKey}`, JSON.stringify(updated))
+          } catch {}
+        }
         return updated
       })
     }
-  }, [reservations, isClient])
+  }, [reservations, isClient, userKey])
 
   // Listen for custom notification events
   useEffect(() => {
@@ -377,28 +372,16 @@ export function NotificationCenter({
             )}
           </div>
 
-          <div className="flex items-center gap-1.5">
+          {unreadCount > 0 && (
             <button
               type="button"
-              onClick={sendTestNotification}
-              title="ارسال یک اعلان آزمایشی به این گوشی"
-              className="text-[11px] font-medium text-orange-600 hover:text-orange-700 bg-orange-500/10 hover:bg-orange-500/20 px-2 py-0.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+              onClick={handleMarkAllAsRead}
+              className="text-[11px] font-medium text-neutral-500 hover:text-orange-600 dark:text-neutral-400 dark:hover:text-orange-400 flex items-center gap-1 transition-colors cursor-pointer"
             >
-              <Volume2 className="size-3" />
-              <span>تست اعلان</span>
+              <CheckCheck className="size-3.5" />
+              <span>خواندن همه</span>
             </button>
-
-            {unreadCount > 0 && (
-              <button
-                type="button"
-                onClick={handleMarkAllAsRead}
-                className="text-[11px] font-medium text-neutral-500 hover:text-orange-600 dark:text-neutral-400 dark:hover:text-orange-400 flex items-center gap-1 transition-colors cursor-pointer"
-              >
-                <CheckCheck className="size-3.5" />
-                <span>خواندن همه</span>
-              </button>
-            )}
-          </div>
+          )}
         </div>
 
         {/* Compact, clean permission banner */}

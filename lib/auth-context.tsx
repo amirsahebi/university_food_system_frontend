@@ -61,6 +61,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('refresh_token')
     localStorage.removeItem('user_data')
     localStorage.removeItem('user_role')
+    try {
+      localStorage.removeItem('javanfoods_notifications_store_v1')
+      localStorage.removeItem('javanfoods_notifications_store_v2')
+      localStorage.removeItem('javanfoods_notified_ready_orders')
+      localStorage.removeItem('javanfoods_notified_ready_orders_v2')
+    } catch {}
     delete api.defaults.headers.common['Authorization']
   }, [])
 
