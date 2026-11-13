@@ -27,6 +27,7 @@ import { API_ROUTES, createApiUrl } from "@/lib/api"
 import { toEnglishDigits, toPersianDigits } from "@/lib/formatters"
 import { Field } from "@/components/account/Field"
 import { VerificationCode } from "@/components/account/VerificationCode"
+import { AuthBackground } from "@/components/account/AuthBackground"
 
 export const dynamic = "force-dynamic"
 
@@ -303,8 +304,6 @@ export default function SignUp() {
       dir="rtl"
       className="relative flex h-svh flex-col overflow-hidden bg-page font-sans sm:h-auto sm:min-h-svh sm:justify-center sm:overflow-visible sm:overflow-x-hidden"
     >
-      <div aria-hidden className="pointer-events-none absolute inset-0 bg-hero" />
-
       <Toaster
         position="top-center"
         toastOptions={{
@@ -350,23 +349,8 @@ export default function SignUp() {
         </div>
       )}
 
-      {/* Background Ambience with Dynamic Living Mesh */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 bg-hero" />
-
-      {/* Floating Animated Living Mesh Orbs with Soft Color Fluidity */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-        {/* Saffron / Orange Flame Orb */}
-        <div className="absolute -top-24 right-[-10%] size-[28rem] rounded-full bg-gradient-to-br from-orange-500/40 via-amber-400/30 to-transparent blur-3xl opacity-75 animate-living-mesh-1" />
-
-        {/* Sunset Coral / Rose Radiance Orb */}
-        <div className="absolute top-1/4 -left-20 size-[26rem] rounded-full bg-gradient-to-tr from-rose-500/35 via-orange-400/25 to-transparent blur-3xl opacity-70 animate-living-mesh-2" />
-
-        {/* Golden Honey / Saffron Sunbeam Orb (under the card) */}
-        <div className="absolute -bottom-20 left-1/4 size-[30rem] rounded-full bg-gradient-to-t from-amber-400/40 via-orange-300/25 to-transparent blur-3xl opacity-65 animate-living-mesh-3" />
-
-        {/* Deep Coral / Terracotta Accent Orb */}
-        <div className="absolute top-1/2 right-1/4 size-[22rem] rounded-full bg-gradient-to-br from-orange-600/25 via-pink-500/15 to-transparent blur-3xl opacity-50 animate-living-mesh-4" />
-      </div>
+      {/* Unified High-Performance Living Gravity Mesh Background */}
+      <AuthBackground />
 
       {/* Header with Official Borderless Logo and Gentle Entrance Animation */}
       <header className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-end gap-3 px-6 pb-5 pt-8 text-center sm:flex-none sm:gap-4 sm:pb-8 sm:pt-12 animate-in fade-in-0 slide-in-from-top-4 duration-700 ease-out fill-mode-both">

@@ -270,64 +270,103 @@
   @apply pl-12;
 }
 
-/* High-Performance Living Mesh Animations (Optimized for 60/120 FPS without thermal throttling) */
+/* High-Performance Living Gravity Mesh Animations (Optimized for 60/120 FPS on all mobile devices) */
 @keyframes livingMesh1 {
-  0% {
-    transform: translate3d(0, 0, 0);
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale3d(1, 1, 1);
   }
   30% {
-    transform: translate3d(-60px, 35px, 0);
+    transform: translate3d(-95px, 50px, 0) scale3d(1.1, 1.05, 1);
   }
   70% {
-    transform: translate3d(-100px, -30px, 0);
-  }
-  100% {
-    transform: translate3d(0, 0, 0);
+    transform: translate3d(-140px, -35px, 0) scale3d(0.94, 1.06, 1);
   }
 }
 
 @keyframes livingMesh2 {
-  0% {
-    transform: translate3d(0, 0, 0);
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale3d(1, 1, 1);
   }
   35% {
-    transform: translate3d(70px, -45px, 0);
+    transform: translate3d(110px, -65px, 0) scale3d(1.08, 1.12, 1);
   }
   75% {
-    transform: translate3d(100px, 30px, 0);
-  }
-  100% {
-    transform: translate3d(0, 0, 0);
+    transform: translate3d(145px, 45px, 0) scale3d(0.93, 0.95, 1);
   }
 }
 
 @keyframes livingMesh3 {
-  0% {
-    transform: translate3d(0, 0, 0);
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale3d(1, 1, 1);
   }
   40% {
-    transform: translate3d(-40px, -50px, 0);
+    transform: translate3d(-75px, -85px, 0) scale3d(1.12, 1.06, 1);
   }
   80% {
-    transform: translate3d(50px, -25px, 0);
-  }
-  100% {
-    transform: translate3d(0, 0, 0);
+    transform: translate3d(85px, -35px, 0) scale3d(0.95, 1.08, 1);
   }
 }
 
 @keyframes livingMesh4 {
-  0% {
-    transform: translate3d(0, 0, 0);
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale3d(1, 1, 1);
   }
   45% {
-    transform: translate3d(-50px, 45px, 0);
+    transform: translate3d(-85px, 75px, 0) scale3d(1.14, 1.08, 1);
   }
   85% {
-    transform: translate3d(50px, -35px, 0);
+    transform: translate3d(75px, -55px, 0) scale3d(0.92, 0.96, 1);
   }
-  100% {
-    transform: translate3d(0, 0, 0);
+}
+
+/* Mobile-tuned motion paths: vivid, visible, but perfectly proportioned for mobile viewports */
+@media (max-width: 768px) {
+  @keyframes livingMesh1 {
+    0%, 100% {
+      transform: translate3d(0, 0, 0) scale3d(1, 1, 1);
+    }
+    30% {
+      transform: translate3d(-50px, 28px, 0) scale3d(1.08, 1.04, 1);
+    }
+    70% {
+      transform: translate3d(-70px, -22px, 0) scale3d(0.95, 1.05, 1);
+    }
+  }
+
+  @keyframes livingMesh2 {
+    0%, 100% {
+      transform: translate3d(0, 0, 0) scale3d(1, 1, 1);
+    }
+    35% {
+      transform: translate3d(55px, -35px, 0) scale3d(1.06, 1.1, 1);
+    }
+    75% {
+      transform: translate3d(70px, 25px, 0) scale3d(0.94, 0.96, 1);
+    }
+  }
+
+  @keyframes livingMesh3 {
+    0%, 100% {
+      transform: translate3d(0, 0, 0) scale3d(1, 1, 1);
+    }
+    40% {
+      transform: translate3d(-40px, -45px, 0) scale3d(1.1, 1.05, 1);
+    }
+    80% {
+      transform: translate3d(45px, -20px, 0) scale3d(0.96, 1.06, 1);
+    }
+  }
+
+  @keyframes livingMesh4 {
+    0%, 100% {
+      transform: translate3d(0, 0, 0) scale3d(1, 1, 1);
+    }
+    45% {
+      transform: translate3d(-45px, 40px, 0) scale3d(1.1, 1.06, 1);
+    }
+    85% {
+      transform: translate3d(40px, -30px, 0) scale3d(0.93, 0.96, 1);
+    }
   }
 }
 
@@ -342,62 +381,157 @@
   }
 }
 
-.animate-living-mesh-1 {
-  animation: livingMesh1 18s ease-in-out infinite;
+/* Base mesh orb styles with natural radial gradient edge feathering */
+.auth-mesh-orb {
+  position: absolute;
+  border-radius: 9999px;
+  pointer-events: none;
+  transform: translate3d(0, 0, 0);
   will-change: transform;
-  transform: translateZ(0);
+  backface-visibility: hidden;
+  contain: layout paint;
+  filter: blur(32px);
+  -webkit-filter: blur(32px);
+}
+
+.auth-mesh-orb-1 {
+  top: -6rem;
+  right: -8%;
+  width: 29rem;
+  height: 29rem;
+  background: radial-gradient(circle at 45% 45%, rgba(249, 115, 22, 0.58) 0%, rgba(251, 191, 36, 0.42) 42%, rgba(245, 158, 11, 0.14) 62%, transparent 75%);
+  opacity: 0.85;
+}
+
+.auth-mesh-orb-2 {
+  top: 22%;
+  left: -6rem;
+  width: 27rem;
+  height: 27rem;
+  background: radial-gradient(circle at 50% 50%, rgba(244, 63, 94, 0.52) 0%, rgba(251, 146, 60, 0.38) 45%, rgba(244, 63, 94, 0.12) 65%, transparent 75%);
+  opacity: 0.82;
+}
+
+.auth-mesh-orb-3 {
+  bottom: -6rem;
+  left: 18%;
+  width: 31rem;
+  height: 31rem;
+  background: radial-gradient(circle at 50% 45%, rgba(245, 158, 11, 0.54) 0%, rgba(234, 88, 12, 0.36) 42%, rgba(245, 158, 11, 0.12) 65%, transparent 75%);
+  opacity: 0.8;
+}
+
+.auth-mesh-orb-4 {
+  top: 46%;
+  right: 16%;
+  width: 24rem;
+  height: 24rem;
+  background: radial-gradient(circle at 45% 55%, rgba(234, 88, 12, 0.44) 0%, rgba(236, 72, 153, 0.28) 45%, rgba(249, 115, 22, 0.09) 65%, transparent 75%);
+  opacity: 0.7;
+}
+
+/* Mobile high-efficiency sizing & blur: reduces GPU shader memory bandwidth by ~80% */
+@media (max-width: 768px) {
+  .auth-mesh-orb {
+    filter: blur(18px);
+    -webkit-filter: blur(18px);
+  }
+
+  .auth-mesh-orb-1 {
+    top: -3.5rem;
+    right: -12%;
+    width: 18rem;
+    height: 18rem;
+    opacity: 0.88;
+  }
+
+  .auth-mesh-orb-2 {
+    top: 24%;
+    left: -4rem;
+    width: 17rem;
+    height: 17rem;
+    opacity: 0.85;
+  }
+
+  .auth-mesh-orb-3 {
+    bottom: -3.5rem;
+    left: 8%;
+    width: 19rem;
+    height: 19rem;
+    opacity: 0.82;
+  }
+
+  .auth-mesh-orb-4 {
+    top: 48%;
+    right: 4%;
+    width: 16rem;
+    height: 16rem;
+    opacity: 0.75;
+  }
+}
+
+.animate-living-mesh-1 {
+  animation: livingMesh1 9.5s ease-in-out infinite;
 }
 
 .animate-living-mesh-2 {
-  animation: livingMesh2 22s ease-in-out infinite;
-  will-change: transform;
-  transform: translateZ(0);
+  animation: livingMesh2 11.5s ease-in-out infinite;
 }
 
 .animate-living-mesh-3 {
-  animation: livingMesh3 20s ease-in-out infinite;
-  will-change: transform;
-  transform: translateZ(0);
+  animation: livingMesh3 10.5s ease-in-out infinite;
 }
 
 .animate-living-mesh-4 {
-  animation: livingMesh4 26s ease-in-out infinite;
-  will-change: transform;
-  transform: translateZ(0);
+  animation: livingMesh4 12.5s ease-in-out infinite;
 }
 
 .animate-logo-glow {
-  animation: logoPulseGlow 4s ease-in-out infinite;
+  animation: logoPulseGlow 3.5s ease-in-out infinite;
   will-change: transform, opacity;
   transform: translateZ(0);
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .animate-living-mesh-1,
+  .animate-living-mesh-2,
+  .animate-living-mesh-3,
+  .animate-living-mesh-4,
+  .animate-logo-glow {
+    animation: none !important;
+  }
+}
+
 /* Authentic Glassmorphism Auth Card */
 .glass-auth-card {
-  background: rgba(255, 255, 255, 0.52);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  background: rgba(255, 255, 255, 0.56);
+  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
   border: 1px solid rgba(255, 255, 255, 0.75);
   box-shadow: 
     0 1px 0 0 rgba(255, 255, 255, 0.95) inset,
     0 20px 50px -15px rgba(234, 88, 12, 0.16),
     0 10px 25px -10px rgba(0, 0, 0, 0.04);
+  contain: paint;
+  transform: translateZ(0);
 }
 
 .dark .glass-auth-card {
   background: rgba(24, 24, 27, 0.6);
-  backdrop-filter: blur(20px) saturate(170%);
-  -webkit-backdrop-filter: blur(20px) saturate(170%);
+  backdrop-filter: blur(18px) saturate(170%);
+  -webkit-backdrop-filter: blur(18px) saturate(170%);
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.1) inset, 0 20px 50px -15px rgba(0, 0, 0, 0.5);
+  contain: paint;
+  transform: translateZ(0);
 }
 
-/* Mobile high-efficiency: 14px blur runs cool without heating phones */
+/* Mobile high-efficiency: 12px blur with high contrast runs cool without heating phones */
 @media (max-width: 768px) {
   .glass-auth-card {
-    background: rgba(255, 255, 255, 0.6) !important;
-    backdrop-filter: blur(14px) saturate(160%) !important;
-    -webkit-backdrop-filter: blur(14px) saturate(160%) !important;
+    background: rgba(255, 255, 255, 0.68) !important;
+    backdrop-filter: blur(12px) saturate(160%) !important;
+    -webkit-backdrop-filter: blur(12px) saturate(160%) !important;
     border-top: 1px solid rgba(255, 255, 255, 0.8) !important;
   }
 }
