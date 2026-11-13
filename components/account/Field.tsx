@@ -41,15 +41,15 @@ export function Field({
   const isLtr = dir === "ltr"
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-1.5 text-right">
       <div className="flex items-center justify-between">
-        <Label htmlFor={id} className="text-xs sm:text-sm font-bold text-gray-800 text-right">
+        <Label htmlFor={id} className="text-xs sm:text-sm font-bold text-gray-800 dark:text-gray-200">
           {label}
         </Label>
         {error && <span className="text-xs text-red-500 font-medium animate-shake">{error}</span>}
       </div>
       <div className="relative">
-        <Icon className="pointer-events-none absolute right-4 top-1/2 size-5 -translate-y-1/2 text-orange-500" />
+        <Icon className="pointer-events-none absolute right-3.5 top-1/2 size-4.5 -translate-y-1/2 text-[#F47B20] shrink-0" />
         <Input
           id={id}
           type={inputType}
@@ -57,8 +57,8 @@ export function Field({
           onInvalid={(e) => e.preventDefault()}
           {...props}
           className={cn(
-            "h-12 rounded-2xl border border-orange-200/90 bg-white/80 pr-11 text-sm font-medium text-gray-900 placeholder:text-gray-400 placeholder:font-normal shadow-xs transition-all focus-visible:bg-white focus-visible:border-orange-500 focus-visible:ring-2 focus-visible:ring-orange-500/25",
-            isPassword ? "pl-12" : "pl-4",
+            "h-12 sm:h-12.5 rounded-2xl border border-orange-200/90 dark:border-white/15 bg-white/80 dark:bg-neutral-800/80 pr-11 text-sm shadow-xs transition-all focus-visible:bg-white focus-visible:border-[#F47B20] focus-visible:ring-2 focus-visible:ring-orange-400/25",
+            isPassword ? "pl-11" : "pl-4",
             isLtr && "text-left font-sans tracking-wide",
             error && "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-500/20",
             className
@@ -71,7 +71,7 @@ export function Field({
             size="icon"
             aria-label={shown ? "پنهان کردن رمز عبور" : "نمایش رمز عبور"}
             aria-pressed={shown}
-            className="absolute left-2 top-1/2 size-9 -translate-y-1/2 rounded-xl text-gray-400 hover:text-orange-600 hover:bg-orange-50/80 transition-colors"
+            className="absolute left-1.5 top-1/2 size-9 -translate-y-1/2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-black/5"
             onClick={() => setShown((v) => !v)}
           >
             {shown ? <EyeOff className="size-4.5" /> : <Eye className="size-4.5" />}
@@ -86,7 +86,7 @@ export function Field({
                 key={index}
                 className={cn(
                   "flex-1 rounded-full transition-colors",
-                  index <= strength(String(props.value)) ? "bg-orange-500" : "bg-neutral-200"
+                  index <= strength(String(props.value)) ? "bg-brand" : "bg-neutral-200"
                 )}
               />
             ))}

@@ -15,7 +15,7 @@ import api from "@/lib/axios"
 import { API_ROUTES, createApiUrl } from "@/lib/api"
 import { toEnglishDigits } from "@/lib/formatters"
 import { Field } from "@/components/account/Field"
-import { AuthPageBackground } from "@/components/account/AuthPageBackground"
+import { WavyAuthBackground } from "@/components/account/WavyAuthBackground"
 
 export const dynamic = "force-dynamic"
 
@@ -39,13 +39,11 @@ export default function LoginPage() {
   const { login: authLogin, isAuthenticated, isLoading, user } = useAuth()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [loginError, setLoginError] = useState<string | null>(null)
-  const [isClient, setIsClient] = useState(false)
   const [hasStoredToken, setHasStoredToken] = useState(false)
 
   const router = useRouter()
 
   useEffect(() => {
-    setIsClient(true)
     const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null
     const cachedRole = typeof window !== "undefined" ? localStorage.getItem("user_role") : null
     if (token) {
@@ -93,16 +91,15 @@ export default function LoginPage() {
     }
   }
 
-  const hasToken = typeof window !== "undefined" ? !!localStorage.getItem("access_token") : false
-  if (!isClient || hasStoredToken || (hasToken && (isAuthenticated || isLoading))) {
+  if (hasStoredToken) {
     return (
       <div
         dir="rtl"
-        className="relative flex min-h-svh flex-col items-center justify-center bg-page font-sans"
+        className="relative flex min-h-svh flex-col items-center justify-center bg-[#FFF8F2] font-sans"
       >
-        <div aria-hidden className="pointer-events-none absolute inset-0 bg-hero" />
+        <WavyAuthBackground variant="login" />
         <div className="relative z-10 flex flex-col items-center space-y-4">
-          <div className="relative size-24 animate-pulse">
+          <div className="relative size-20 animate-pulse">
             <Image
               src="/images/javanfoods_logo.png"
               alt="رستوران جوان"
@@ -129,10 +126,10 @@ export default function LoginPage() {
   return (
     <div
       dir="rtl"
-      className="relative flex min-h-svh flex-col justify-between overflow-x-hidden font-sans sm:justify-center py-6 sm:py-10"
+      className="relative flex min-h-screen flex-col justify-between overflow-x-hidden bg-[#FFF8F2] font-sans px-4 py-6 sm:py-10 selection:bg-orange-500/20"
     >
-      {/* Decorative Wave & Doodle Background */}
-      <AuthPageBackground variant="login" />
+      {/* Background with Layered Waves & Vector Food Illustrations */}
+      <WavyAuthBackground variant="login" />
 
       <Toaster
         position="top-center"
@@ -145,14 +142,14 @@ export default function LoginPage() {
         }}
       />
 
-      {/* Header matching the mockup: Logo + رستوران جوان + Subtitle */}
-      <header className="relative z-10 flex flex-col items-center justify-center gap-1.5 px-6 pt-5 pb-3 text-center sm:pt-6 sm:pb-4 animate-in fade-in-0 slide-in-from-top-4 duration-700 ease-out fill-mode-both">
+      {/* Header with Logo, Title, and Decorative Subtitle Dashes */}
+      <header className="relative z-10 flex flex-col items-center justify-center text-center pt-2 sm:pt-4 pb-4 animate-in fade-in-0 slide-in-from-top-4 duration-700 ease-out fill-mode-both">
         <Link
           href="/"
           aria-label="رستوران جوان"
-          className="relative flex items-center justify-center transition-transform hover:scale-105 active:scale-95"
+          className="relative mb-3 flex items-center justify-center transition-transform hover:scale-105 active:scale-95"
         >
-          <div className="relative w-16 h-16 sm:w-20 sm:h-20 drop-shadow-md">
+          <div className="relative size-20 sm:size-22 drop-shadow-md">
             <Image
               src="/images/javanfoods_logo.png"
               alt="رستوران جوان"
@@ -163,61 +160,64 @@ export default function LoginPage() {
           </div>
         </Link>
 
-        {/* Title */}
-        <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight mt-1 drop-shadow-xs">
+        <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-gray-900 drop-shadow-xs">
           رستوران جوان
         </h1>
 
-        {/* Subtitle with divider lines: — طعم خوب، تجربه‌ای خوشمزه‌تر — */}
-        <div className="flex items-center justify-center gap-2 text-xs sm:text-sm font-semibold text-gray-700 mt-0.5">
-          <span className="w-5 sm:w-7 h-[1.5px] bg-orange-400 rounded-full" />
+        {/* Subtitle with dual orange dashes matching exact design */}
+        <div className="flex items-center justify-center gap-2 text-xs sm:text-sm text-gray-600 font-medium mt-1.5">
+          <span className="w-5 h-0.5 bg-[#F47B20] rounded-full inline-block" />
           <span>طعم خوب، تجربه‌ای خوشمزه‌تر</span>
-          <span className="w-5 sm:w-7 h-[1.5px] bg-orange-400 rounded-full" />
+          <span className="w-5 h-0.5 bg-[#F47B20] rounded-full inline-block" />
         </div>
       </header>
 
       {/* Authentic Frosted Glass Card */}
-      <section className="relative z-10 mx-auto flex w-[calc(100%-2rem)] sm:w-full max-w-[390px] shrink-0 flex-col rounded-[2.25rem] border border-white/90 bg-white/85 dark:bg-neutral-900/85 backdrop-blur-xl px-6 sm:px-7 py-6 sm:py-7 shadow-[0_15px_35px_-5px_rgba(249,115,22,0.12),0_4px_12px_rgba(0,0,0,0.03)] modal-glass my-auto animate-in fade-in-0 zoom-in-[0.98] slide-in-from-bottom-5 duration-700 delay-100 ease-out fill-mode-both">
-        <form noValidate onSubmit={handleSubmit(onSubmit)} className="space-y-4 sm:space-y-5">
-          <Field
-            id="phone_number"
-            label="شماره موبایل"
-            icon={Phone}
-            type="tel"
-            inputMode="tel"
-            autoComplete="tel"
-            dir="ltr"
-            placeholder="09123456789"
-            required
-            value={phoneValue}
-            onChange={(e) => {
-              setValue("phone_number", toEnglishDigits(e.target.value).trim(), {
-                shouldValidate: true,
-              })
-            }}
-            error={errors.phone_number?.message}
-          />
+      <section className="relative z-10 mx-auto w-full max-w-[420px] rounded-[2rem] bg-white/85 dark:bg-neutral-900/85 backdrop-blur-xl border border-white/90 dark:border-white/20 shadow-xl shadow-orange-500/10 p-5 sm:p-7 animate-in fade-in-0 zoom-in-[0.98] slide-in-from-bottom-5 duration-700 delay-100 ease-out fill-mode-both">
+        <form noValidate onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <div>
+            <Field
+              id="phone_number"
+              label="شماره موبایل"
+              icon={Phone}
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              dir="ltr"
+              placeholder="09123456789"
+              required
+              value={phoneValue}
+              onChange={(e) => {
+                setValue("phone_number", toEnglishDigits(e.target.value).trim(), {
+                  shouldValidate: true,
+                })
+              }}
+              error={errors.phone_number?.message}
+            />
+          </div>
 
-          <Field
-            id="password"
-            label="رمز عبور"
-            icon={Lock}
-            type="password"
-            autoComplete="current-password"
-            dir="ltr"
-            placeholder="رمز عبور خود را وارد کنید"
-            required
-            value={passwordValue}
-            onChange={(e) => {
-              setValue("password", e.target.value, { shouldValidate: true })
-            }}
-            error={errors.password?.message}
-          />
+          <div>
+            <Field
+              id="password"
+              label="رمز عبور"
+              icon={Lock}
+              type="password"
+              autoComplete="current-password"
+              dir="ltr"
+              placeholder="رمز عبور خود را وارد کنید"
+              required
+              value={passwordValue}
+              onChange={(e) => {
+                setValue("password", e.target.value, { shouldValidate: true })
+              }}
+              error={errors.password?.message}
+            />
+          </div>
 
           <div className="text-center pt-0.5">
             <Link
               href="/forgot-password"
-              className="inline-block py-1 text-xs sm:text-sm font-semibold text-gray-600 hover:text-orange-600 transition-colors"
+              className="inline-block text-xs text-gray-500 transition-colors hover:text-[#F47B20] font-medium"
             >
               رمز عبور خود را فراموش کرده‌اید؟
             </Link>
@@ -226,32 +226,34 @@ export default function LoginPage() {
           {loginError && (
             <div
               role="alert"
-              className="rounded-2xl border border-red-200 bg-red-50/80 px-4 py-3 text-xs leading-5 text-red-700 animate-shake"
+              className="rounded-2xl border border-red-200 bg-red-50/90 px-4 py-2.5 text-xs leading-5 text-red-700 animate-shake text-right"
             >
               {loginError}
             </div>
           )}
 
-          <Button
-            type="submit"
-            disabled={isSubmitting}
-            className="h-12 w-full rounded-2xl bg-gradient-to-r from-[#FF7A1A] via-orange-500 to-[#EA580C] hover:from-[#EA580C] hover:to-[#C2410C] text-white text-base font-bold shadow-[0_8px_20px_rgba(234,88,12,0.35)] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <span>{isSubmitting ? "در حال ورود..." : "ورود به حساب"}</span>
-            {!isSubmitting && <ArrowLeft className="size-5" />}
-          </Button>
+          <div className="pt-2">
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="h-12 sm:h-12.5 w-full rounded-2xl bg-gradient-to-r from-[#F47B20] to-[#E06A10] hover:from-[#E06A10] hover:to-[#D05A00] text-white font-bold text-sm sm:text-base shadow-lg shadow-orange-500/25 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              {isSubmitting ? "در حال ورود..." : "ورود به حساب"}
+              {!isSubmitting && <ArrowLeft className="size-4 shrink-0" />}
+            </Button>
+          </div>
 
-          <div className="pt-2 text-center text-xs sm:text-sm">
-            <span className="text-gray-600 font-medium">حساب کاربری ندارید؟ </span>
-            <Link href="/sign-up" className="font-extrabold text-orange-600 hover:text-orange-700 hover:underline">
+          <div className="pt-3 text-center text-xs sm:text-sm">
+            <span className="text-gray-500">حساب کاربری ندارید؟ </span>
+            <Link href="/sign-up" className="font-bold text-[#F47B20] hover:underline">
               ثبت‌نام کنید
             </Link>
           </div>
         </form>
       </section>
 
-      {/* Breathing space for bottom wave and doodles */}
-      <div className="h-6 sm:h-10 pointer-events-none" />
+      {/* Spacer to balance vertical layout */}
+      <div className="h-6 sm:h-8" />
     </div>
   )
 }

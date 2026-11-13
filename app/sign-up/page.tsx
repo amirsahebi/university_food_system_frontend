@@ -27,7 +27,7 @@ import { API_ROUTES, createApiUrl } from "@/lib/api"
 import { toEnglishDigits, toPersianDigits } from "@/lib/formatters"
 import { Field } from "@/components/account/Field"
 import { VerificationCode } from "@/components/account/VerificationCode"
-import { AuthPageBackground } from "@/components/account/AuthPageBackground"
+import { WavyAuthBackground } from "@/components/account/WavyAuthBackground"
 
 export const dynamic = "force-dynamic"
 
@@ -302,10 +302,10 @@ export default function SignUp() {
   return (
     <div
       dir="rtl"
-      className="relative flex min-h-svh flex-col justify-between overflow-x-hidden font-sans sm:justify-center py-6 sm:py-10"
+      className="relative flex min-h-screen flex-col justify-between overflow-x-hidden bg-[#FFF8F2] font-sans px-4 py-6 sm:py-10 selection:bg-orange-500/20"
     >
-      {/* Decorative Wave & Doodle Background */}
-      <AuthPageBackground variant="signup" />
+      {/* Background with Layered Waves & Vector Student/Book Illustrations */}
+      <WavyAuthBackground variant="signup" />
 
       <Toaster
         position="top-center"
@@ -352,14 +352,14 @@ export default function SignUp() {
         </div>
       )}
 
-      {/* Header matching the mockup: Logo + ثبت نام دانشجو + Subtitle */}
-      <header className="relative z-10 flex flex-col items-center justify-center gap-1.5 px-6 pt-5 pb-3 text-center sm:pt-6 sm:pb-4 animate-in fade-in-0 slide-in-from-top-4 duration-700 ease-out fill-mode-both">
+      {/* Header with Logo, Title, and Subtitle */}
+      <header className="relative z-10 flex flex-col items-center justify-center text-center pt-2 sm:pt-4 pb-4 animate-in fade-in-0 slide-in-from-top-4 duration-700 ease-out fill-mode-both">
         <Link
           href="/"
           aria-label="رستوران جوان"
-          className="relative flex items-center justify-center transition-transform hover:scale-105 active:scale-95"
+          className="relative mb-3 flex items-center justify-center transition-transform hover:scale-105 active:scale-95"
         >
-          <div className="relative w-16 h-16 sm:w-20 sm:h-20 drop-shadow-md">
+          <div className="relative size-20 sm:size-22 drop-shadow-md">
             <Image
               src="/images/javanfoods_logo.png"
               alt="رستوران جوان"
@@ -370,47 +370,45 @@ export default function SignUp() {
           </div>
         </Link>
 
-        {/* Title */}
-        <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight mt-1 drop-shadow-xs">
-          ثبت نام دانشجو
+        <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-gray-900 drop-shadow-xs">
+          ثبت‌نام دانشجو
         </h1>
-
-        {/* Subtitle */}
-        <p className="text-xs sm:text-sm font-semibold text-gray-700 mt-0.5">
+        <p className="text-xs sm:text-sm text-gray-600 font-medium mt-1">
           ساخت حساب دانشجویی جوان
         </p>
       </header>
 
       {/* Authentic Frosted Glass Card */}
-      <section className="relative z-10 mx-auto flex w-[calc(100%-2rem)] sm:w-full max-w-[390px] shrink-0 flex-col rounded-[2.25rem] border border-white/90 bg-white/85 dark:bg-neutral-900/85 backdrop-blur-xl px-6 sm:px-7 py-6 sm:py-7 shadow-[0_15px_35px_-5px_rgba(249,115,22,0.12),0_4px_12px_rgba(0,0,0,0.03)] modal-glass my-auto animate-in fade-in-0 zoom-in-[0.98] slide-in-from-bottom-5 duration-700 delay-100 ease-out fill-mode-both">
-        {/* Step Indicator Header matching the mockup */}
-        <div className="mb-5 space-y-2">
-          <div className="flex items-baseline justify-between text-xs sm:text-sm">
-            <span className="font-extrabold text-orange-600">
-              {step === 0 && "اطلاعات فردی"}
-              {step === 1 && "شماره دانشجویی و موبایل"}
-              {step === 2 && "تأیید شماره موبایل"}
-              {step === 3 && "تعیین رمز عبور"}
+      <section className="relative z-10 mx-auto w-full max-w-[420px] rounded-[2rem] bg-white/85 dark:bg-neutral-900/85 backdrop-blur-xl border border-white/90 dark:border-white/20 shadow-xl shadow-orange-500/10 p-5 sm:p-7 animate-in fade-in-0 zoom-in-[0.98] slide-in-from-bottom-5 duration-700 delay-100 ease-out fill-mode-both">
+        {/* Step Indicator matching reference screenshot */}
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs sm:text-sm font-bold text-[#F47B20]">
+              {step === 0
+                ? "اطلاعات فردی"
+                : step === 1
+                ? "اطلاعات دانشجویی"
+                : step === 2
+                ? "تأیید شماره موبایل"
+                : "تعیین رمز عبور"}
             </span>
-            <span className="text-gray-500 font-medium">
+            <span className="text-xs text-gray-400 font-medium">
               مرحله {toPersianDigits(step + 1)} از ۴
             </span>
           </div>
-
-          {/* Progress Bar Track */}
-          <div className="h-2 w-full overflow-hidden rounded-full bg-orange-100/90">
+          <div className="h-1.5 w-full bg-gray-200/80 dark:bg-neutral-800 rounded-full overflow-hidden">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-orange-400 to-orange-600 transition-all duration-500"
+              className="h-full bg-gradient-to-r from-[#F47B20] to-[#E06A10] rounded-full transition-all duration-300"
               style={{ width: `${(step + 1) * 25}%` }}
             />
           </div>
         </div>
 
-        {/* Form Body based on step */}
+        {/* Form Body */}
         <div className="space-y-4">
-          {/* Step 0: Personal Info (نام و نام خانوادگی) */}
+          {/* Step 0: Personal Info */}
           {step === 0 && (
-            <div className="space-y-4 animate-in fade-in-0 slide-in-from-bottom-2 duration-300 fill-mode-both">
+            <div className="space-y-3.5 animate-in fade-in-0 duration-300 fill-mode-both">
               <Field
                 id="firstName"
                 label="نام"
@@ -440,14 +438,14 @@ export default function SignUp() {
 
           {/* Step 1: Student & Phone Info */}
           {step === 1 && (
-            <div className="space-y-4 animate-in fade-in-0 slide-in-from-bottom-2 duration-300 fill-mode-both">
+            <div className="space-y-3.5 animate-in fade-in-0 duration-300 fill-mode-both">
               <Field
                 id="studentNumber"
                 label="شماره دانشجویی"
                 icon={Hash}
                 inputMode="numeric"
                 dir="ltr"
-                placeholder="مثال: 401123456"
+                placeholder="401123456"
                 required
                 value={studentNumber}
                 onChange={(e) =>
@@ -480,10 +478,10 @@ export default function SignUp() {
 
           {/* Step 2: Verification Code */}
           {step === 2 && (
-            <div className="space-y-4 animate-in fade-in-0 slide-in-from-bottom-2 duration-300 fill-mode-both">
-              <div className="text-center pb-1">
-                <h2 className="text-sm font-bold text-gray-800">کد تأیید پیامک‌شده را وارد کنید</h2>
-                <p className="mt-1 text-xs text-gray-500 font-mono" dir="ltr">
+            <div className="space-y-3.5 animate-in fade-in-0 duration-300 fill-mode-both">
+              <div className="text-center">
+                <p className="text-xs font-semibold text-gray-700">کد ۶ رقمی ارسال‌شده به شماره زیر را وارد کنید:</p>
+                <p className="mt-1 text-sm text-[#F47B20] font-mono font-bold" dir="ltr">
                   {phoneNumber}
                 </p>
               </div>
@@ -508,7 +506,7 @@ export default function SignUp() {
                     variant="link"
                     onClick={handleResendCode}
                     disabled={isVerifying}
-                    className="p-0 h-auto text-xs text-orange-600 font-bold hover:underline"
+                    className="p-0 h-auto text-xs text-[#F47B20] font-bold"
                   >
                     ارسال مجدد کد تأیید
                   </Button>
@@ -518,7 +516,7 @@ export default function SignUp() {
                 <button
                   type="button"
                   onClick={() => setStep(1)}
-                  className="text-xs text-gray-500 hover:text-orange-600 transition-colors font-medium cursor-pointer"
+                  className="text-xs text-gray-500 hover:text-[#F47B20] transition-colors cursor-pointer"
                 >
                   ویرایش شماره
                 </button>
@@ -528,7 +526,7 @@ export default function SignUp() {
 
           {/* Step 3: Passwords */}
           {step === 3 && (
-            <div className="space-y-4 animate-in fade-in-0 slide-in-from-bottom-2 duration-300 fill-mode-both">
+            <div className="space-y-3.5 animate-in fade-in-0 duration-300 fill-mode-both">
               <Field
                 id="password"
                 label="رمز عبور"
@@ -565,7 +563,7 @@ export default function SignUp() {
           <div className="pt-2 text-center text-xs sm:text-sm">
             <Link
               href="/"
-              className="inline-flex items-center gap-1.5 font-bold text-gray-600 hover:text-orange-600 transition-colors"
+              className="inline-flex items-center justify-center gap-1.5 text-gray-600 hover:text-[#F47B20] font-medium transition-colors"
             >
               <span>حساب کاربری دارید؟ بازگشت به صفحه ورود</span>
               <ArrowLeft className="size-3.5" />
@@ -573,36 +571,38 @@ export default function SignUp() {
           </div>
 
           {/* Action Button */}
-          <Button
-            type="button"
-            disabled={isVerifying}
-            onClick={handlePrimaryClick}
-            className="h-12 w-full rounded-2xl bg-gradient-to-r from-[#FF7A1A] via-orange-500 to-[#EA580C] hover:from-orange-600 hover:to-[#C2410C] text-white text-base font-bold shadow-[0_8px_20px_rgba(234,88,12,0.35)] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer mt-3"
-          >
-            <span>{isVerifying ? "در حال بررسی..." : submitLabel}</span>
-            {!isVerifying && (step === 1 ? <Send className="size-4.5" /> : <ArrowLeft className="size-5" />)}
-          </Button>
-
-          {step > 0 && (
+          <div className="pt-2">
             <Button
               type="button"
-              variant="ghost"
               disabled={isVerifying}
-              className="h-11 w-full rounded-2xl text-xs sm:text-sm font-semibold text-gray-500 hover:text-orange-600 hover:bg-orange-50/50"
-              onClick={() => {
-                setStep((s) => s - 1)
-                setCodeError(false)
-              }}
+              onClick={handlePrimaryClick}
+              className="h-12 sm:h-12.5 w-full rounded-2xl bg-gradient-to-r from-[#F47B20] to-[#E06A10] hover:from-[#E06A10] hover:to-[#D05A00] text-white font-bold text-sm sm:text-base shadow-lg shadow-orange-500/25 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
-              <ArrowRight className="size-4 ml-1.5" />
-              مرحله قبل
+              {isVerifying ? "در حال بررسی..." : submitLabel}
+              {!isVerifying && (step === 1 ? <Send className="size-4 shrink-0" /> : <ArrowLeft className="size-4 shrink-0" />)}
             </Button>
-          )}
+
+            {step > 0 && (
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={isVerifying}
+                className="mt-2 h-10 w-full rounded-xl text-gray-500 hover:text-gray-800 text-xs cursor-pointer"
+                onClick={() => {
+                  setStep((s) => s - 1)
+                  setCodeError(false)
+                }}
+              >
+                <ArrowRight className="size-3.5 ml-1" />
+                مرحله قبل
+              </Button>
+            )}
+          </div>
         </div>
       </section>
 
-      {/* Breathing space for bottom wave and doodles */}
-      <div className="h-6 sm:h-10 pointer-events-none" />
+      {/* Spacer to balance vertical layout */}
+      <div className="h-6 sm:h-8" />
     </div>
   )
 }

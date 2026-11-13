@@ -1,0 +1,32 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="512" height="512" fill="#E5E5E5"/>
+<g id="Generated illustration">
+<g id="open-book">
+<path id="Vector" d="M256 333C210 305 150 297 78 305V420C146 411 207 419 256 444C305 419 366 411 434 420V305C362 297 302 305 256 333Z" fill="#FFF0DC" stroke="#C76A2B" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_2" d="M256 324C213 295 160 283 91 289V406C155 400 209 412 256 438C303 412 357 400 421 406V289C352 283 299 295 256 324Z" fill="#FFFAF2" stroke="#D97B35" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_3" d="M256 325V437" stroke="#D97B35" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<g id="left-page-lines">
+<path id="Vector_4" d="M120 323C161 323 198 332 229 347" stroke="#E7A36B" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_5" d="M120 347C161 347 198 356 229 371" stroke="#E7A36B" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_6" d="M120 371C149 371 175 375 199 383" stroke="#E7A36B" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g id="right-page-lines">
+<path id="Vector_7" d="M283 347C314 332 351 323 392 323" stroke="#E7A36B" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_8" d="M283 371C314 356 351 347 392 347" stroke="#E7A36B" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_9" d="M313 383C337 375 363 371 392 371" stroke="#E7A36B" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+</g>
+<g id="graduation-cap">
+<path id="Vector_10" d="M151 177V235C174 255 213 268 256 268C299 268 338 255 361 235V177H151Z" fill="#FFE6C4" stroke="#C76A2B" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_11" d="M177 232C197 243 225 250 256 250" stroke="#E3A064" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_12" d="M83 155L256 88L429 155L256 222L83 155Z" fill="#FFF6E9" stroke="#C76A2B" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_13" d="M256 155L402 183V242" stroke="#DD873C" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_14" d="M256 161C261.523 161 266 158.314 266 155C266 151.686 261.523 149 256 149C250.477 149 246 151.686 246 155C246 158.314 250.477 161 256 161Z" fill="#E4944A" stroke="#C76A2B" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<g id="tassel">
+<path id="Vector_15" d="M397 247C391 254 389 266 389 278C397 282 407 282 415 278C415 266 413 254 407 247H397Z" fill="#FFD9A6" stroke="#C76A2B" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_16" d="M402 257V278" stroke="#DD873C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_17" d="M402 251C405.314 251 408 248.314 408 245C408 241.686 405.314 239 402 239C398.686 239 396 241.686 396 245C396 248.314 398.686 251 402 251Z" fill="#EAA35A" stroke="#C76A2B" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+</g>
+</g>
+</svg>
