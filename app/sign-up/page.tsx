@@ -13,7 +13,6 @@ import {
   Phone,
   Lock,
   ShieldCheck,
-  Check,
   ArrowRight,
   ArrowLeft,
   Send,
@@ -21,13 +20,11 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toast, Toaster } from "react-hot-toast"
-import { cn } from "@/lib/utils"
 import api from "@/lib/axios"
 import { API_ROUTES, createApiUrl } from "@/lib/api"
 import { toEnglishDigits, toPersianDigits } from "@/lib/formatters"
 import { Field } from "@/components/account/Field"
 import { VerificationCode } from "@/components/account/VerificationCode"
-import { WavyAuthBackground } from "@/components/account/WavyAuthBackground"
 
 export const dynamic = "force-dynamic"
 
@@ -70,10 +67,6 @@ const signUpSchema = z
 
 type SignUpForm = z.infer<typeof signUpSchema>
 
-const steps = ["اطلاعات فردی", "اطلاعات دانشجویی", "تأیید موبایل", "رمز عبور"]
-const stepIcons = [UserRound, Hash, ShieldCheck, Lock]
-const faDigits = ["۱", "۲", "۳", "۴"]
-
 export default function SignUp() {
   const [step, setStep] = useState(0)
   const [verificationCode, setVerificationCode] = useState("")
@@ -88,7 +81,6 @@ export default function SignUp() {
   const router = useRouter()
 
   const {
-    register,
     handleSubmit,
     setValue,
     watch,
@@ -302,11 +294,9 @@ export default function SignUp() {
   return (
     <div
       dir="rtl"
-      className="relative flex min-h-screen flex-col justify-between overflow-x-hidden font-sans px-4 py-6 sm:py-10 selection:bg-orange-500/20"
+      className="relative min-h-screen bg-white font-sans overflow-x-hidden flex flex-col justify-between selection:bg-orange-500/20"
+      style={{ fontFamily: "'Vazirmatn', 'Segoe UI', system-ui, sans-serif" }}
     >
-      {/* Background with Layered Waves & Vector Student/Book Illustrations */}
-      <WavyAuthBackground variant="signup" />
-
       <Toaster
         position="top-center"
         toastOptions={{
@@ -321,7 +311,7 @@ export default function SignUp() {
       {/* Success Modal */}
       {showSuccessModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="relative w-full max-w-md rounded-3xl bg-white/95 p-6 text-center shadow-2xl backdrop-blur-md">
+          <div className="relative w-full max-w-md rounded-3xl bg-white p-6 text-center shadow-2xl">
             <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-2xl bg-orange-50 p-2 shadow-inner">
               <Image
                 src="/images/javanfoods_logo.png"
@@ -343,8 +333,7 @@ export default function SignUp() {
             </div>
             <Button
               onClick={() => router.push("/")}
-              variant="brand"
-              className="h-12 w-full font-bold"
+              className="h-12 w-full rounded-2xl bg-gradient-to-r from-[#F97316] to-[#EA580C] hover:from-[#EA580C] hover:to-[#C2410C] text-white font-bold"
             >
               ورود به حساب کاربری
             </Button>
@@ -352,257 +341,331 @@ export default function SignUp() {
         </div>
       )}
 
-      {/* Header with Logo, Title, and Subtitle */}
-      <header className="relative z-10 flex flex-col items-center justify-center text-center pt-2 sm:pt-4 pb-4 animate-in fade-in-0 slide-in-from-top-4 duration-700 ease-out fill-mode-both">
-        <Link
-          href="/"
-          aria-label="رستوران جوان"
-          className="relative mb-3 flex items-center justify-center transition-transform hover:scale-105 active:scale-95"
-        >
-          <div className="relative size-20 sm:size-22 drop-shadow-md">
-            <Image
-              src="/images/javanfoods_logo.png"
-              alt="رستوران جوان"
-              fill
-              className="object-contain"
-              priority
-            />
-          </div>
-        </Link>
+      {/* ───── HERO SECTION (Design A) ───── */}
+      <div
+        className="relative w-full overflow-hidden shrink-0"
+        style={{
+          height: "46vh",
+          minHeight: 250,
+          background: "linear-gradient(145deg, #ff7a00 0%, #f95d00 40%, #e84b00 70%, #c73a00 100%)",
+        }}
+      >
+        {/* Soft radial glow */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              "radial-gradient(ellipse 80% 70% at 50% 110%, rgba(255,255,255,0.16) 0%, transparent 70%)",
+          }}
+        />
+        {/* Subtle decorative circles */}
+        <div
+          className="absolute pointer-events-none rounded-full"
+          style={{
+            top: -60,
+            right: -60,
+            width: 240,
+            height: 240,
+            background: "rgba(255,255,255,0.07)",
+          }}
+        />
+        <div
+          className="absolute pointer-events-none rounded-full"
+          style={{
+            top: -20,
+            right: -20,
+            width: 140,
+            height: 140,
+            background: "rgba(255,255,255,0.07)",
+          }}
+        />
+        <div
+          className="absolute pointer-events-none rounded-full"
+          style={{
+            bottom: -40,
+            left: -50,
+            width: 200,
+            height: 200,
+            background: "rgba(0,0,0,0.06)",
+          }}
+        />
 
-        <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-gray-900 drop-shadow-xs">
-          ثبت‌نام دانشجو
-        </h1>
-        <p className="text-xs sm:text-sm text-gray-600 font-medium mt-1">
-          ساخت حساب دانشجویی جوان
-        </p>
-      </header>
-
-      {/* Authentic Frosted Glass Card */}
-      <section className="relative z-10 mx-auto w-full max-w-[420px] rounded-[2rem] bg-white/85 dark:bg-neutral-900/85 backdrop-blur-xl border border-white/90 dark:border-white/20 shadow-xl shadow-orange-500/10 p-5 sm:p-7 animate-in fade-in-0 zoom-in-[0.98] slide-in-from-bottom-5 duration-700 delay-100 ease-out fill-mode-both">
-        {/* Step Indicator matching reference screenshot */}
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs sm:text-sm font-bold text-[#F47B20]">
-              {step === 0
-                ? "اطلاعات فردی"
-                : step === 1
-                ? "اطلاعات دانشجویی"
-                : step === 2
-                ? "تأیید شماره موبایل"
-                : "تعیین رمز عبور"}
-            </span>
-            <span className="text-xs text-gray-400 font-medium">
-              مرحله {toPersianDigits(step + 1)} از ۴
-            </span>
-          </div>
-          <div className="h-1.5 w-full bg-gray-200/80 dark:bg-neutral-800 rounded-full overflow-hidden">
+        {/* Logo + Title centered in hero */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 text-white text-center px-6">
+          <Link
+            href="/"
+            aria-label="رستوران جوان"
+            className="relative transition-transform hover:scale-105 active:scale-95"
+          >
             <div
-              className="h-full bg-gradient-to-r from-[#F47B20] to-[#E06A10] rounded-full transition-all duration-300"
-              style={{ width: `${(step + 1) * 25}%` }}
-            />
-          </div>
+              className="relative"
+              style={{
+                width: 82,
+                height: 82,
+                filter: "drop-shadow(0 8px 24px rgba(0,0,0,0.28)) brightness(1.05)",
+              }}
+            >
+              <Image
+                src="/images/javanfoods_logo.png"
+                alt="رستوران جوان"
+                fill
+                className="object-contain"
+                priority
+              />
+            </div>
+          </Link>
+          <h1
+            className="text-2xl sm:text-3xl font-black tracking-tight"
+            style={{ textShadow: "0 2px 12px rgba(0,0,0,0.25)" }}
+          >
+            ثبت‌نام دانشجو
+          </h1>
+          <p className="text-xs sm:text-sm text-white/90 font-medium">
+            ساخت حساب دانشجویی جوان
+          </p>
         </div>
+      </div>
 
-        {/* Form Body */}
-        <div className="space-y-4">
-          {/* Step 0: Personal Info */}
-          {step === 0 && (
-            <div className="space-y-3.5 animate-in fade-in-0 duration-300 fill-mode-both">
-              <Field
-                id="firstName"
-                label="نام"
-                icon={UserRound}
-                autoComplete="given-name"
-                placeholder="نام شما"
-                dir="rtl"
-                required
-                value={firstName}
-                onChange={(e) => setValue("firstName", e.target.value, { shouldValidate: true })}
-                error={errors.firstName?.message}
-              />
-              <Field
-                id="lastName"
-                label="نام خانوادگی"
-                icon={UserRound}
-                autoComplete="family-name"
-                placeholder="نام خانوادگی شما"
-                dir="rtl"
-                required
-                value={lastName}
-                onChange={(e) => setValue("lastName", e.target.value, { shouldValidate: true })}
-                error={errors.lastName?.message}
+      {/* ───── CARD SHEET ───── */}
+      <div
+        className="relative flex-1 w-full bg-white px-5 pt-6 pb-10 sm:px-8 sm:pt-8"
+        style={{
+          marginTop: "-2rem",
+          borderTopLeftRadius: "2rem",
+          borderTopRightRadius: "2rem",
+          boxShadow: "0 -4px 30px rgba(0,0,0,0.07)",
+        }}
+      >
+        {/* Handle bar */}
+        <div className="mx-auto mb-6 h-1.5 w-12 rounded-full bg-gray-200" />
+
+        <div className="mx-auto w-full max-w-[420px]">
+          {/* Step Indicator */}
+          <div className="mb-5">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs sm:text-sm font-bold text-[#F97316]">
+                {step === 0
+                  ? "اطلاعات فردی"
+                  : step === 1
+                  ? "اطلاعات دانشجویی"
+                  : step === 2
+                  ? "تأیید شماره موبایل"
+                  : "تعیین رمز عبور"}
+              </span>
+              <span className="text-xs text-gray-400 font-medium">
+                مرحله {toPersianDigits(step + 1)} از ۴
+              </span>
+            </div>
+            <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-[#F97316] to-[#EA580C] rounded-full transition-all duration-300"
+                style={{ width: `${(step + 1) * 25}%` }}
               />
             </div>
-          )}
-
-          {/* Step 1: Student & Phone Info */}
-          {step === 1 && (
-            <div className="space-y-3.5 animate-in fade-in-0 duration-300 fill-mode-both">
-              <Field
-                id="studentNumber"
-                label="شماره دانشجویی"
-                icon={Hash}
-                inputMode="numeric"
-                dir="ltr"
-                placeholder="401123456"
-                required
-                value={studentNumber}
-                onChange={(e) =>
-                  setValue("studentNumber", toEnglishDigits(e.target.value).trim(), {
-                    shouldValidate: true,
-                  })
-                }
-                error={errors.studentNumber?.message}
-              />
-              <Field
-                id="phoneNumber"
-                label="شماره موبایل"
-                icon={Phone}
-                type="tel"
-                inputMode="tel"
-                autoComplete="tel"
-                dir="ltr"
-                placeholder="09123456789"
-                required
-                value={phoneNumber}
-                onChange={(e) =>
-                  setValue("phoneNumber", toEnglishDigits(e.target.value).trim(), {
-                    shouldValidate: true,
-                  })
-                }
-                error={errors.phoneNumber?.message}
-              />
-            </div>
-          )}
-
-          {/* Step 2: Verification Code */}
-          {step === 2 && (
-            <div className="space-y-3.5 animate-in fade-in-0 duration-300 fill-mode-both">
-              <div className="text-center">
-                <p className="text-xs font-semibold text-gray-700">کد ۶ رقمی ارسال‌شده به شماره زیر را وارد کنید:</p>
-                <p className="mt-1 text-sm text-[#F47B20] font-mono font-bold" dir="ltr">
-                  {phoneNumber}
-                </p>
-              </div>
-
-              <VerificationCode
-                value={verificationCode}
-                onChange={(val) => {
-                  setVerificationCode(val)
-                  setCodeError(false)
-                  if (val.length === 6) {
-                    handleVerifyCode(val)
-                  }
-                }}
-                error={codeError}
-                disabled={isVerifying}
-              />
-
-              <div className="flex items-center justify-between text-xs text-gray-500 pt-1">
-                {canResend ? (
-                  <Button
-                    type="button"
-                    variant="link"
-                    onClick={handleResendCode}
-                    disabled={isVerifying}
-                    className="p-0 h-auto text-xs text-[#F47B20] font-bold"
-                  >
-                    ارسال مجدد کد تأیید
-                  </Button>
-                ) : (
-                  <span>ارسال مجدد کد پس از {formatTimer(resendTimer)}</span>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setStep(1)}
-                  className="text-xs text-gray-500 hover:text-[#F47B20] transition-colors cursor-pointer"
-                >
-                  ویرایش شماره
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Step 3: Passwords */}
-          {step === 3 && (
-            <div className="space-y-3.5 animate-in fade-in-0 duration-300 fill-mode-both">
-              <Field
-                id="password"
-                label="رمز عبور"
-                icon={Lock}
-                type="password"
-                autoComplete="new-password"
-                dir="ltr"
-                placeholder="حداقل ۶ کاراکتر"
-                showStrength
-                required
-                value={password}
-                onChange={(e) => setValue("password", e.target.value, { shouldValidate: true })}
-                error={errors.password?.message}
-              />
-              <Field
-                id="confirmPassword"
-                label="تکرار رمز عبور"
-                icon={ShieldCheck}
-                type="password"
-                autoComplete="new-password"
-                dir="ltr"
-                placeholder="رمز عبور را دوباره وارد کنید"
-                required
-                value={confirmPassword}
-                onChange={(e) =>
-                  setValue("confirmPassword", e.target.value, { shouldValidate: true })
-                }
-                error={errors.confirmPassword?.message}
-              />
-            </div>
-          )}
-
-          {/* Back to Login link */}
-          <div className="pt-2 text-center text-xs sm:text-sm">
-            <Link
-              href="/"
-              className="inline-flex items-center justify-center gap-1.5 text-gray-600 hover:text-[#F47B20] font-medium transition-colors"
-            >
-              <span>حساب کاربری دارید؟ بازگشت به صفحه ورود</span>
-              <ArrowLeft className="size-3.5" />
-            </Link>
           </div>
 
-          {/* Action Button */}
-          <div className="pt-2">
-            <Button
-              type="button"
-              disabled={isVerifying}
-              onClick={handlePrimaryClick}
-              className="h-12 sm:h-12.5 w-full rounded-2xl bg-gradient-to-r from-[#F47B20] to-[#E06A10] hover:from-[#E06A10] hover:to-[#D05A00] text-white font-bold text-sm sm:text-base shadow-lg shadow-orange-500/25 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer"
-            >
-              {isVerifying ? "در حال بررسی..." : submitLabel}
-              {!isVerifying && (step === 1 ? <Send className="size-4 shrink-0" /> : <ArrowLeft className="size-4 shrink-0" />)}
-            </Button>
+          {/* Form Body */}
+          <div className="space-y-4">
+            {/* Step 0: Personal Info (firstName and lastName: dir="rtl") */}
+            {step === 0 && (
+              <div className="space-y-3.5 animate-in fade-in-0 duration-300 fill-mode-both">
+                <Field
+                  id="firstName"
+                  label="نام"
+                  icon={UserRound}
+                  autoComplete="given-name"
+                  placeholder="نام شما"
+                  dir="rtl"
+                  required
+                  value={firstName}
+                  onChange={(e) => setValue("firstName", e.target.value, { shouldValidate: true })}
+                  error={errors.firstName?.message}
+                />
+                <Field
+                  id="lastName"
+                  label="نام خانوادگی"
+                  icon={UserRound}
+                  autoComplete="family-name"
+                  placeholder="نام خانوادگی شما"
+                  dir="rtl"
+                  required
+                  value={lastName}
+                  onChange={(e) => setValue("lastName", e.target.value, { shouldValidate: true })}
+                  error={errors.lastName?.message}
+                />
+              </div>
+            )}
 
-            {step > 0 && (
+            {/* Step 1: Student & Phone Info (studentNumber and phoneNumber: dir="ltr") */}
+            {step === 1 && (
+              <div className="space-y-3.5 animate-in fade-in-0 duration-300 fill-mode-both">
+                <Field
+                  id="studentNumber"
+                  label="شماره دانشجویی"
+                  icon={Hash}
+                  inputMode="numeric"
+                  dir="ltr"
+                  placeholder="401123456"
+                  required
+                  value={studentNumber}
+                  onChange={(e) =>
+                    setValue("studentNumber", toEnglishDigits(e.target.value).trim(), {
+                      shouldValidate: true,
+                    })
+                  }
+                  error={errors.studentNumber?.message}
+                />
+                <Field
+                  id="phoneNumber"
+                  label="شماره موبایل"
+                  icon={Phone}
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  dir="ltr"
+                  placeholder="09123456789"
+                  required
+                  value={phoneNumber}
+                  onChange={(e) =>
+                    setValue("phoneNumber", toEnglishDigits(e.target.value).trim(), {
+                      shouldValidate: true,
+                    })
+                  }
+                  error={errors.phoneNumber?.message}
+                />
+              </div>
+            )}
+
+            {/* Step 2: Verification Code (verificationCode: dir="ltr") */}
+            {step === 2 && (
+              <div className="space-y-3.5 animate-in fade-in-0 duration-300 fill-mode-both">
+                <div className="text-center">
+                  <p className="text-xs font-semibold text-gray-700">کد ۶ رقمی ارسال‌شده به شماره زیر را وارد کنید:</p>
+                  <p className="mt-1 text-sm text-[#F97316] font-mono font-bold" dir="ltr">
+                    {phoneNumber}
+                  </p>
+                </div>
+
+                <VerificationCode
+                  value={verificationCode}
+                  onChange={(val) => {
+                    setVerificationCode(val)
+                    setCodeError(false)
+                    if (val.length === 6) {
+                      handleVerifyCode(val)
+                    }
+                  }}
+                  error={codeError}
+                  disabled={isVerifying}
+                />
+
+                <div className="flex items-center justify-between text-xs text-gray-500 pt-1">
+                  {canResend ? (
+                    <Button
+                      type="button"
+                      variant="link"
+                      onClick={handleResendCode}
+                      disabled={isVerifying}
+                      className="p-0 h-auto text-xs text-[#F97316] font-bold"
+                    >
+                      ارسال مجدد کد تأیید
+                    </Button>
+                  ) : (
+                    <span>ارسال مجدد کد پس از {formatTimer(resendTimer)}</span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setStep(1)}
+                    className="text-xs text-gray-500 hover:text-[#F97316] transition-colors cursor-pointer"
+                  >
+                    ویرایش شماره
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 3: Passwords (password and confirmPassword: dir="ltr") */}
+            {step === 3 && (
+              <div className="space-y-3.5 animate-in fade-in-0 duration-300 fill-mode-both">
+                <Field
+                  id="password"
+                  label="رمز عبور"
+                  icon={Lock}
+                  type="password"
+                  autoComplete="new-password"
+                  dir="ltr"
+                  placeholder="حداقل ۸ کاراکتر"
+                  showStrength
+                  required
+                  value={password}
+                  onChange={(e) => setValue("password", e.target.value, { shouldValidate: true })}
+                  error={errors.password?.message}
+                />
+                <Field
+                  id="confirmPassword"
+                  label="تکرار رمز عبور"
+                  icon={ShieldCheck}
+                  type="password"
+                  autoComplete="new-password"
+                  dir="ltr"
+                  placeholder="رمز عبور را دوباره وارد کنید"
+                  required
+                  value={confirmPassword}
+                  onChange={(e) =>
+                    setValue("confirmPassword", e.target.value, { shouldValidate: true })
+                  }
+                  error={errors.confirmPassword?.message}
+                />
+              </div>
+            )}
+
+            {/* Back to Login link */}
+            <div className="pt-2 text-center text-xs sm:text-sm">
+              <Link
+                href="/"
+                className="inline-flex items-center justify-center gap-1.5 text-gray-600 hover:text-[#F97316] font-medium transition-colors"
+              >
+                <span>حساب کاربری دارید؟ بازگشت به صفحه ورود</span>
+                <ArrowLeft className="size-3.5" />
+              </Link>
+            </div>
+
+            {/* Action Button */}
+            <div className="pt-2">
               <Button
                 type="button"
-                variant="ghost"
                 disabled={isVerifying}
-                className="mt-2 h-10 w-full rounded-xl text-gray-500 hover:text-gray-800 text-xs cursor-pointer"
-                onClick={() => {
-                  setStep((s) => s - 1)
-                  setCodeError(false)
-                }}
+                onClick={handlePrimaryClick}
+                className="h-12 sm:h-12.5 w-full rounded-2xl bg-gradient-to-r from-[#F97316] to-[#EA580C] hover:from-[#EA580C] hover:to-[#C2410C] text-white font-bold text-sm sm:text-base shadow-lg shadow-orange-500/25 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
-                <ArrowRight className="size-3.5 ml-1" />
-                مرحله قبل
+                {isVerifying ? "در حال بررسی..." : submitLabel}
+                {!isVerifying &&
+                  (step === 1 ? (
+                    <Send className="size-4 shrink-0" />
+                  ) : (
+                    <ArrowLeft className="size-4 shrink-0" />
+                  ))}
               </Button>
-            )}
+
+              {step > 0 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={isVerifying}
+                  className="mt-2 h-10 w-full rounded-xl text-gray-500 hover:text-gray-800 text-xs cursor-pointer"
+                  onClick={() => {
+                    setStep((s) => s - 1)
+                    setCodeError(false)
+                  }}
+                >
+                  <ArrowRight className="size-3.5 ml-1" />
+                  مرحله قبل
+                </Button>
+              )}
+            </div>
           </div>
         </div>
-      </section>
-
-      {/* Spacer to balance vertical layout */}
-      <div className="h-6 sm:h-8" />
+      </div>
     </div>
   )
 }
