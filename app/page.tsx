@@ -126,7 +126,7 @@ export default function LoginPage() {
   return (
     <div
       dir="rtl"
-      className="relative flex min-h-screen flex-col justify-between overflow-x-hidden bg-[#FFF8F2] font-sans px-4 py-6 sm:py-10 selection:bg-orange-500/20"
+      className="relative flex min-h-screen flex-col justify-between overflow-x-hidden font-sans px-4 py-6 sm:py-10 selection:bg-orange-500/20"
     >
       {/* Background with Layered Waves & Vector Food Illustrations */}
       <WavyAuthBackground variant="login" />

@@ -66,18 +66,18 @@ function ChefHatIcon({ className = "" }: { className?: string }) {
       viewBox="0 0 48 48"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      className={`pointer-events-none ${className}`}
+      className={`pointer-events-none drop-shadow-xs ${className}`}
     >
       <path
         d="M12 36H36M14 36V40H34V36M12 36C9 36 7 33.5 7 30C7 26.5 9.5 24 13 24C12.5 22 12.5 19 14.5 17C17 14.5 20 15 21 16C22.5 13 25.5 13 27 16C28 15 31 14.5 33.5 17C35.5 19 35.5 22 35 24C38.5 24 41 26.5 41 30C41 33.5 39 36 36 36H12Z"
-        stroke="#FDBA74"
+        stroke="#D97706"
         strokeWidth="2.4"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <path d="M18 36V40" stroke="#FDBA74" strokeWidth="2.2" strokeLinecap="round" />
-      <path d="M24 36V40" stroke="#FDBA74" strokeWidth="2.2" strokeLinecap="round" />
-      <path d="M30 36V40" stroke="#FDBA74" strokeWidth="2.2" strokeLinecap="round" />
+      <path d="M18 36V40" stroke="#D97706" strokeWidth="2.2" strokeLinecap="round" />
+      <path d="M24 36V40" stroke="#D97706" strokeWidth="2.2" strokeLinecap="round" />
+      <path d="M30 36V40" stroke="#D97706" strokeWidth="2.2" strokeLinecap="round" />
     </svg>
   )
 }
@@ -91,14 +91,14 @@ function ClocheIcon({ className = "" }: { className?: string }) {
       viewBox="0 0 48 48"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      className={`pointer-events-none ${className}`}
+      className={`pointer-events-none drop-shadow-xs ${className}`}
     >
       {/* Top Handle Knob */}
-      <circle cx="24" cy="14" r="3" stroke="#FDBA74" strokeWidth="2.4" />
+      <circle cx="24" cy="14" r="3" stroke="#D97706" strokeWidth="2.4" />
       {/* Cloche Dome */}
       <path
         d="M8 32C8 23 15 17 24 17C33 17 40 23 40 32H8Z"
-        stroke="#FDBA74"
+        stroke="#D97706"
         strokeWidth="2.4"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -106,7 +106,7 @@ function ClocheIcon({ className = "" }: { className?: string }) {
       {/* Platter Base */}
       <path
         d="M5 34H43"
-        stroke="#FDBA74"
+        stroke="#D97706"
         strokeWidth="2.6"
         strokeLinecap="round"
       />
@@ -123,12 +123,12 @@ function ForkSpoonIcon({ className = "" }: { className?: string }) {
       viewBox="0 0 48 48"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      className={`pointer-events-none ${className}`}
+      className={`pointer-events-none drop-shadow-xs ${className}`}
     >
       {/* Fork */}
       <path
         d="M17 10V18C17 20 18.5 21.5 20.5 21.5V38M14 10V16M20 10V16"
-        stroke="#FDBA74"
+        stroke="#D97706"
         strokeWidth="2.4"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -136,7 +136,7 @@ function ForkSpoonIcon({ className = "" }: { className?: string }) {
       {/* Spoon */}
       <path
         d="M31 10C28.5 10 27 12.5 27 15.5C27 18.5 28.5 21 31 21C33.5 21 35 18.5 35 15.5C35 12.5 33.5 10 31 10ZM31 21V38"
-        stroke="#FDBA74"
+        stroke="#D97706"
         strokeWidth="2.4"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -154,13 +154,13 @@ function WheatIcon({ className = "" }: { className?: string }) {
       viewBox="0 0 42 42"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      className={`pointer-events-none ${className}`}
+      className={`pointer-events-none drop-shadow-xs ${className}`}
     >
-      <path d="M10 34C16 28 24 18 32 8" stroke="#FDBA74" strokeWidth="2.2" strokeLinecap="round" />
-      <path d="M26 12C28 10 31 10 33 12C33 14 31 17 29 17C27 17 26 14 26 12Z" stroke="#FDBA74" strokeWidth="2" />
-      <path d="M21 16C20 14 20 11 22 10C24 10 26 12 25 15C24 17 22 17 21 16Z" stroke="#FDBA74" strokeWidth="2" />
-      <path d="M21 21C23 19 26 19 28 21C28 23 26 26 24 26C22 26 21 23 21 21Z" stroke="#FDBA74" strokeWidth="2" />
-      <path d="M16 25C15 23 15 20 17 19C19 19 21 21 20 24C19 26 17 26 16 25Z" stroke="#FDBA74" strokeWidth="2" />
+      <path d="M10 34C16 28 24 18 32 8" stroke="#D97706" strokeWidth="2.2" strokeLinecap="round" />
+      <path d="M26 12C28 10 31 10 33 12C33 14 31 17 29 17C27 17 26 14 26 12Z" stroke="#D97706" strokeWidth="2" />
+      <path d="M21 16C20 14 20 11 22 10C24 10 26 12 25 15C24 17 22 17 21 16Z" stroke="#D97706" strokeWidth="2" />
+      <path d="M21 21C23 19 26 19 28 21C28 23 26 26 24 26C22 26 21 23 21 21Z" stroke="#D97706" strokeWidth="2" />
+      <path d="M16 25C15 23 15 20 17 19C19 19 21 21 20 24C19 26 17 26 16 25Z" stroke="#D97706" strokeWidth="2" />
     </svg>
   )
 }
@@ -174,12 +174,12 @@ function GraduationCapIcon({ className = "" }: { className?: string }) {
       viewBox="0 0 48 48"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      className={`pointer-events-none ${className}`}
+      className={`pointer-events-none drop-shadow-xs ${className}`}
     >
       {/* Top Diamond */}
       <path
         d="M24 10L42 19L24 28L6 19L24 10Z"
-        stroke="#FDBA74"
+        stroke="#D97706"
         strokeWidth="2.4"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -187,7 +187,7 @@ function GraduationCapIcon({ className = "" }: { className?: string }) {
       {/* Skull Cap Base */}
       <path
         d="M13 23V31C13 34 18 37 24 37C30 37 35 34 35 31V23"
-        stroke="#FDBA74"
+        stroke="#D97706"
         strokeWidth="2.4"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -195,7 +195,7 @@ function GraduationCapIcon({ className = "" }: { className?: string }) {
       {/* Hanging Tassel */}
       <path
         d="M40 20V32C40 33 39 34 38 34"
-        stroke="#FDBA74"
+        stroke="#D97706"
         strokeWidth="2.2"
         strokeLinecap="round"
       />
@@ -212,21 +212,21 @@ function OpenBookIcon({ className = "" }: { className?: string }) {
       viewBox="0 0 52 52"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      className={`pointer-events-none ${className}`}
+      className={`pointer-events-none drop-shadow-xs ${className}`}
     >
       {/* Spine and Left Page */}
       <path
         d="M26 16C21 13 14 13 8 16V36C14 33 21 33 26 36M26 16C31 13 38 13 44 16V36C38 33 31 33 26 36M26 16V36"
-        stroke="#FDBA74"
+        stroke="#D97706"
         strokeWidth="2.4"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       {/* Page lines */}
-      <path d="M12 22C16 20.5 20 20.5 23 22" stroke="#FDBA74" strokeWidth="1.8" strokeLinecap="round" />
-      <path d="M12 27C16 25.5 20 25.5 23 27" stroke="#FDBA74" strokeWidth="1.8" strokeLinecap="round" />
-      <path d="M29 22C32 20.5 36 20.5 40 22" stroke="#FDBA74" strokeWidth="1.8" strokeLinecap="round" />
-      <path d="M29 27C32 25.5 36 25.5 40 27" stroke="#FDBA74" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M12 22C16 20.5 20 20.5 23 22" stroke="#D97706" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M12 27C16 25.5 20 25.5 23 27" stroke="#D97706" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M29 22C32 20.5 36 20.5 40 22" stroke="#D97706" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M29 27C32 25.5 36 25.5 40 27" stroke="#D97706" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   )
 }
@@ -237,8 +237,7 @@ export const WavyAuthBackground = memo(function WavyAuthBackground({
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none fixed inset-0 -z-10 overflow-hidden select-none bg-[#FFF8F2]"
-      style={{ contain: "strict" }}
+      className="pointer-events-none fixed inset-0 z-0 overflow-hidden select-none bg-[#FFF8F2]"
     >
       {/* 1. TOP FLUID ORGANIC WAVES (Matching exact reference curves) */}
       <div className="absolute top-0 left-0 right-0 h-44 sm:h-52 w-full overflow-hidden">
