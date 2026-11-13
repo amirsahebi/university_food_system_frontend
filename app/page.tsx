@@ -189,7 +189,7 @@ export default function LoginPage() {
         />
 
         {/* Logo + Title centered in hero */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 text-white text-center px-6">
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 text-white text-center px-6 animate-hero-entrance">
           <Link
             href="/"
             aria-label="رستوران جوان"
@@ -226,7 +226,7 @@ export default function LoginPage() {
 
       {/* ───── CARD SHEET ───── */}
       <div
-        className="relative flex-1 w-full bg-white px-5 pt-6 pb-10 sm:px-8 sm:pt-8"
+        className="relative flex-1 w-full bg-white px-5 pt-6 pb-10 sm:px-8 sm:pt-8 animate-sheet-entrance"
         style={{
           marginTop: "-2rem",
           borderTopLeftRadius: "2rem",
@@ -239,7 +239,7 @@ export default function LoginPage() {
           className="mx-auto mb-6 h-1.5 w-12 rounded-full bg-gray-200"
         />
 
-        <div className="mx-auto w-full max-w-[420px]">
+        <div className="mx-auto w-full max-w-[420px] animate-form-content">
           <form noValidate onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div>
               <Field

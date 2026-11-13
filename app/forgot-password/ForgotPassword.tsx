@@ -190,7 +190,7 @@ export default function ForgotPassword() {
         />
 
         {/* Logo + Title centered in hero */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 text-white text-center px-6">
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 text-white text-center px-6 animate-hero-entrance">
           <Link
             href="/"
             aria-label="رستوران جوان"
@@ -227,7 +227,7 @@ export default function ForgotPassword() {
 
       {/* ───── CARD SHEET ───── */}
       <div
-        className="relative flex-1 w-full bg-white px-5 pt-6 pb-10 sm:px-8 sm:pt-8"
+        className="relative flex-1 w-full bg-white px-5 pt-6 pb-10 sm:px-8 sm:pt-8 animate-sheet-entrance"
         style={{
           marginTop: "-2rem",
           borderTopLeftRadius: "2rem",
@@ -238,7 +238,7 @@ export default function ForgotPassword() {
         {/* Handle bar */}
         <div className="mx-auto mb-6 h-1.5 w-12 rounded-full bg-gray-200" />
 
-        <div className="mx-auto w-full max-w-[420px]">
+        <div className="mx-auto w-full max-w-[420px] animate-form-content">
           {/* Info Header Box */}
           <div className="rounded-2xl bg-orange-50 border border-orange-200/60 p-3.5 flex items-center gap-3 mb-5">
             <div className="size-10 rounded-xl bg-orange-100 text-[#F97316] flex items-center justify-center shrink-0 border border-orange-200 shadow-xs">

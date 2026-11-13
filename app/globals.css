@@ -167,6 +167,52 @@
   animation: slideLeft 0.3s ease-out;
 }
 
+/* Smooth Page Entrance Animations (Hardware accelerated, 60fps on mobile) */
+@keyframes heroEntrance {
+  0% {
+    opacity: 0;
+    transform: translateY(-14px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes sheetEntrance {
+  0% {
+    opacity: 0;
+    transform: translateY(44px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes formContentEntrance {
+  0% {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-hero-entrance {
+  animation: heroEntrance 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-sheet-entrance {
+  animation: sheetEntrance 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.08s both;
+}
+
+.animate-form-content {
+  animation: formContentEntrance 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.18s both;
+}
+
 .blob-animate-1 {
   animation: moveBlob1 15s ease-in-out infinite alternate;
   transform-origin: center;
