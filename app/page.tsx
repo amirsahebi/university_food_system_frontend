@@ -146,13 +146,13 @@ export default function LoginPage() {
       />
 
       {/* Header matching the mockup: Logo + رستوران جوان + Subtitle */}
-      <header className="relative z-10 flex flex-col items-center justify-center gap-2 px-6 pt-6 pb-4 text-center sm:pt-4 sm:pb-5 animate-in fade-in-0 slide-in-from-top-4 duration-700 ease-out fill-mode-both">
+      <header className="relative z-10 flex flex-col items-center justify-center gap-1.5 px-6 pt-5 pb-3 text-center sm:pt-6 sm:pb-4 animate-in fade-in-0 slide-in-from-top-4 duration-700 ease-out fill-mode-both">
         <Link
           href="/"
           aria-label="رستوران جوان"
           className="relative flex items-center justify-center transition-transform hover:scale-105 active:scale-95"
         >
-          <div className="relative size-20 sm:size-24 drop-shadow-md">
+          <div className="relative size-18 sm:size-20 drop-shadow-md">
             <Image
               src="/images/javanfoods_logo.png"
               alt="رستوران جوان"
@@ -169,15 +169,15 @@ export default function LoginPage() {
         </h1>
 
         {/* Subtitle with divider lines: — طعم خوب، تجربه‌ای خوشمزه‌تر — */}
-        <div className="flex items-center justify-center gap-2.5 text-xs sm:text-sm font-bold text-orange-950/80 mt-0.5">
-          <span className="w-6 sm:w-10 h-0.5 bg-orange-400/60 rounded-full" />
+        <div className="flex items-center justify-center gap-2 text-xs sm:text-sm font-semibold text-gray-700 mt-0.5">
+          <span className="w-5 sm:w-7 h-[1.5px] bg-orange-400 rounded-full" />
           <span>طعم خوب، تجربه‌ای خوشمزه‌تر</span>
-          <span className="w-6 sm:w-10 h-0.5 bg-orange-400/60 rounded-full" />
+          <span className="w-5 sm:w-7 h-[1.5px] bg-orange-400 rounded-full" />
         </div>
       </header>
 
       {/* Authentic Frosted Glass Card */}
-      <section className="relative z-10 mx-auto flex w-full max-w-[460px] shrink-0 flex-col rounded-t-[2.5rem] sm:rounded-[2.25rem] border border-white/80 bg-white/85 dark:bg-neutral-900/85 backdrop-blur-2xl px-6 sm:px-8 pt-7 pb-6 shadow-[0_20px_50px_-15px_rgba(249,115,22,0.18)] modal-glass mb-2 sm:mb-6 animate-in fade-in-0 zoom-in-[0.98] slide-in-from-bottom-5 duration-700 delay-100 ease-out fill-mode-both">
+      <section className="relative z-10 mx-auto flex w-[calc(100%-2rem)] sm:w-full max-w-[390px] shrink-0 flex-col rounded-[2.25rem] border border-white/90 bg-white/85 dark:bg-neutral-900/85 backdrop-blur-xl px-6 sm:px-7 py-6 sm:py-7 shadow-[0_15px_35px_-5px_rgba(249,115,22,0.12),0_4px_12px_rgba(0,0,0,0.03)] modal-glass my-auto animate-in fade-in-0 zoom-in-[0.98] slide-in-from-bottom-5 duration-700 delay-100 ease-out fill-mode-both">
         <form noValidate onSubmit={handleSubmit(onSubmit)} className="space-y-4 sm:space-y-5">
           <Field
             id="phone_number"
@@ -235,7 +235,7 @@ export default function LoginPage() {
           <Button
             type="submit"
             disabled={isSubmitting}
-            className="h-13 sm:h-12 w-full rounded-2xl bg-gradient-to-r from-[#FF7A1A] via-orange-500 to-[#EA580C] hover:from-[#EA580C] hover:to-[#C2410C] text-white text-base font-bold shadow-[0_10px_25px_-5px_rgba(234,88,12,0.45)] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer"
+            className="h-12 w-full rounded-2xl bg-gradient-to-r from-[#FF7A1A] via-orange-500 to-[#EA580C] hover:from-[#EA580C] hover:to-[#C2410C] text-white text-base font-bold shadow-[0_8px_20px_rgba(234,88,12,0.35)] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
             <span>{isSubmitting ? "در حال ورود..." : "ورود به حساب"}</span>
             {!isSubmitting && <ArrowLeft className="size-5" />}
@@ -249,6 +249,9 @@ export default function LoginPage() {
           </div>
         </form>
       </section>
+
+      {/* Breathing space for bottom wave and doodles */}
+      <div className="h-6 sm:h-10 pointer-events-none" />
     </div>
   )
 }

@@ -57,7 +57,7 @@ export function Field({
           onInvalid={(e) => e.preventDefault()}
           {...props}
           className={cn(
-            "h-13 sm:h-12 rounded-2xl border border-orange-200/90 bg-white/80 pr-11 text-sm font-medium text-gray-900 placeholder:text-gray-400 placeholder:font-normal shadow-xs transition-all focus-visible:bg-white focus-visible:border-orange-500 focus-visible:ring-2 focus-visible:ring-orange-500/25",
+            "h-12 rounded-2xl border border-orange-200/90 bg-white/80 pr-11 text-sm font-medium text-gray-900 placeholder:text-gray-400 placeholder:font-normal shadow-xs transition-all focus-visible:bg-white focus-visible:border-orange-500 focus-visible:ring-2 focus-visible:ring-orange-500/25",
             isPassword ? "pl-12" : "pl-4",
             isLtr && "text-left font-sans tracking-wide",
             error && "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-500/20",

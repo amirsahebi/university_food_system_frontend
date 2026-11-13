@@ -144,13 +144,13 @@ export default function ForgotPassword() {
       />
 
       {/* Header matching the mockup: Logo + بازیابی رمز عبور + Subtitle */}
-      <header className="relative z-10 flex flex-col items-center justify-center gap-2 px-6 pt-6 pb-4 text-center sm:pt-4 sm:pb-5 animate-in fade-in-0 slide-in-from-top-4 duration-700 ease-out fill-mode-both">
+      <header className="relative z-10 flex flex-col items-center justify-center gap-1.5 px-6 pt-5 pb-3 text-center sm:pt-6 sm:pb-4 animate-in fade-in-0 slide-in-from-top-4 duration-700 ease-out fill-mode-both">
         <Link
           href="/"
           aria-label="رستوران جوان"
           className="relative flex items-center justify-center transition-transform hover:scale-105 active:scale-95"
         >
-          <div className="relative size-20 sm:size-24 drop-shadow-md">
+          <div className="relative size-18 sm:size-20 drop-shadow-md">
             <Image
               src="/images/javanfoods_logo.png"
               alt="رستوران جوان"
@@ -167,25 +167,25 @@ export default function ForgotPassword() {
         </h1>
 
         {/* Subtitle */}
-        <p className="text-xs sm:text-sm font-bold text-orange-950/80 mt-0.5">
+        <p className="text-xs sm:text-sm font-semibold text-gray-700 mt-0.5">
           دسترسی دوباره به حساب شما
         </p>
       </header>
 
       {/* Authentic Frosted Glass Card */}
-      <section className="relative z-10 mx-auto flex w-full max-w-[460px] shrink-0 flex-col rounded-t-[2.5rem] sm:rounded-[2.25rem] border border-white/80 bg-white/85 dark:bg-neutral-900/85 backdrop-blur-2xl px-6 sm:px-8 pt-7 pb-6 shadow-[0_20px_50px_-15px_rgba(249,115,22,0.18)] modal-glass mb-2 sm:mb-6 animate-in fade-in-0 zoom-in-[0.98] slide-in-from-bottom-5 duration-700 delay-100 ease-out fill-mode-both">
+      <section className="relative z-10 mx-auto flex w-[calc(100%-2rem)] sm:w-full max-w-[390px] shrink-0 flex-col rounded-[2.25rem] border border-white/90 bg-white/85 dark:bg-neutral-900/85 backdrop-blur-xl px-6 sm:px-7 py-6 sm:py-7 shadow-[0_15px_35px_-5px_rgba(249,115,22,0.12),0_4px_12px_rgba(0,0,0,0.03)] modal-glass my-auto animate-in fade-in-0 zoom-in-[0.98] slide-in-from-bottom-5 duration-700 delay-100 ease-out fill-mode-both">
         {/* Info Box matching the center mockup */}
-        <div className="flex items-center gap-3 p-3 sm:p-3.5 rounded-2xl bg-orange-100/70 border border-orange-200/80 mb-5">
-          <div className="size-10 rounded-xl bg-orange-500/15 text-orange-600 flex items-center justify-center shrink-0">
-            <KeyRound className="size-5" />
-          </div>
+        <div className="flex items-center justify-between p-3 sm:p-3.5 rounded-2xl bg-[#FFF5EB] border border-orange-200/80 mb-5">
           <div className="text-right flex-1 min-w-0">
-            <p className="text-xs sm:text-sm font-bold text-gray-900 truncate">
+            <p className="text-xs sm:text-sm font-bold text-gray-800 truncate">
               {step === 0 ? "شماره حساب شما" : "تأیید و رمز عبور جدید"}
             </p>
-            <p className="text-[11px] sm:text-xs text-gray-600 truncate mt-0.5">
+            <p className="text-[11px] sm:text-xs text-gray-500 truncate mt-0.5">
               {step === 0 ? "شماره موبایل ثبت‌شده در حساب کاربری" : phoneNumber}
             </p>
+          </div>
+          <div className="size-9 rounded-xl bg-orange-100 flex items-center justify-center text-orange-600 shrink-0">
+            <KeyRound className="size-5" />
           </div>
         </div>
 
@@ -213,7 +213,7 @@ export default function ForgotPassword() {
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="h-13 sm:h-12 w-full rounded-2xl bg-gradient-to-r from-[#FF7A1A] via-orange-500 to-[#EA580C] hover:from-orange-600 hover:to-[#C2410C] text-white text-base font-bold shadow-[0_10px_25px_-5px_rgba(234,88,12,0.45)] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer mt-4"
+              className="h-12 w-full rounded-2xl bg-gradient-to-r from-[#FF7A1A] via-orange-500 to-[#EA580C] hover:from-orange-600 hover:to-[#C2410C] text-white text-base font-bold shadow-[0_8px_20px_rgba(234,88,12,0.35)] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer mt-4"
             >
               <span>{isSubmitting ? "در حال ارسال..." : "ارسال کد تأیید"}</span>
               {!isSubmitting && <ArrowLeft className="size-5" />}
@@ -278,7 +278,7 @@ export default function ForgotPassword() {
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="h-13 sm:h-12 w-full rounded-2xl bg-gradient-to-r from-[#FF7A1A] via-orange-500 to-[#EA580C] hover:from-orange-600 hover:to-[#C2410C] text-white text-base font-bold shadow-[0_10px_25px_-5px_rgba(234,88,12,0.45)] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer mt-4"
+              className="h-12 w-full rounded-2xl bg-gradient-to-r from-[#FF7A1A] via-orange-500 to-[#EA580C] hover:from-orange-600 hover:to-[#C2410C] text-white text-base font-bold shadow-[0_8px_20px_rgba(234,88,12,0.35)] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer mt-4"
             >
               <span>{isSubmitting ? "در حال تغییر رمز..." : "ثبت رمز عبور جدید"}</span>
               {!isSubmitting && <ArrowLeft className="size-5" />}
@@ -296,6 +296,9 @@ export default function ForgotPassword() {
           </form>
         )}
       </section>
+
+      {/* Breathing space for bottom wave and doodles */}
+      <div className="h-6 sm:h-10 pointer-events-none" />
     </div>
   )
 }

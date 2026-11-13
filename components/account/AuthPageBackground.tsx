@@ -10,7 +10,7 @@ interface AuthPageBackgroundProps {
 function Leaf({ className, style }: { className?: string; style?: React.CSSProperties }) {
   return (
     <div className={`pointer-events-none select-none ${className || ""}`} style={style}>
-      <svg viewBox="0 0 44 44" className="w-full h-full drop-shadow-sm" fill="none">
+      <svg viewBox="0 0 44 44" className="w-full h-full drop-shadow-xs" fill="none">
         <defs>
           <linearGradient id="leafGradient" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="#4ADE80" />
@@ -55,16 +55,16 @@ function Leaf({ className, style }: { className?: string; style?: React.CSSPrope
 function DotGrid({ className, style }: { className?: string; style?: React.CSSProperties }) {
   return (
     <div className={`pointer-events-none select-none ${className || ""}`} style={style}>
-      <svg width="56" height="70" viewBox="0 0 56 70" fill="none">
+      <svg width="44" height="56" viewBox="0 0 44 56" fill="none">
         {[0, 1, 2, 3, 4].map((row) =>
           [0, 1, 2, 3].map((col) => (
             <circle
               key={`${row}-${col}`}
-              cx={col * 16 + 4}
-              cy={row * 15 + 4}
-              r="2.5"
+              cx={col * 12 + 4}
+              cy={row * 12 + 4}
+              r="2"
               fill="#FDBA74"
-              opacity="0.6"
+              opacity="0.65"
             />
           ))
         )}
@@ -151,14 +151,14 @@ export const AuthPageBackground = memo(function AuthPageBackground({
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none fixed inset-0 -z-10 overflow-hidden select-none bg-[#FFFBF7]"
+      className="pointer-events-none fixed inset-0 -z-10 overflow-hidden select-none bg-[#FAF5F0]"
       style={{ contain: "strict" }}
     >
-      {/* 1. TOP FLUID WAVES (Multi-layered organic gradients) */}
-      <div className="absolute top-0 inset-x-0 h-64 sm:h-80 overflow-hidden">
+      {/* 1. TOP FLUID WAVES - Compact graceful curve matching the mockup */}
+      <div className="absolute top-0 inset-x-0 h-32 sm:h-40 overflow-hidden">
         <svg
-          viewBox="0 0 1440 380"
-          className="w-full h-full object-cover preserve-3d"
+          viewBox="0 0 1440 180"
+          className="w-full h-full object-cover"
           preserveAspectRatio="none"
           fill="none"
         >
@@ -173,42 +173,42 @@ export const AuthPageBackground = memo(function AuthPageBackground({
             {/* Middle soft amber wave */}
             <linearGradient id="topWave2" x1="0%" y1="0%" x2="100%" y2="80%">
               <stop offset="0%" stopColor="#F97316" stopOpacity="0.85" />
-              <stop offset="50%" stopColor="#FB923C" stopOpacity="0.65" />
-              <stop offset="100%" stopColor="#FDBA74" stopOpacity="0.45" />
+              <stop offset="50%" stopColor="#FB923C" stopOpacity="0.6" />
+              <stop offset="100%" stopColor="#FDBA74" stopOpacity="0.35" />
             </linearGradient>
 
             {/* Subtle peach transition wave */}
             <linearGradient id="topWave3" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#FED7AA" stopOpacity="0.6" />
-              <stop offset="60%" stopColor="#FFEDD5" stopOpacity="0.4" />
-              <stop offset="100%" stopColor="#FFF7ED" stopOpacity="0" />
+              <stop offset="0%" stopColor="#FED7AA" stopOpacity="0.55" />
+              <stop offset="60%" stopColor="#FFEDD5" stopOpacity="0.35" />
+              <stop offset="100%" stopColor="#FAF5F0" stopOpacity="0" />
             </linearGradient>
           </defs>
 
           {/* Layer 3 - Light peach outer ripple */}
           <path
-            d="M0 0 L1440 0 L1440 280 C1250 330, 1050 210, 850 270 C650 330, 450 380, 250 320 C120 280, 50 300, 0 320 Z"
+            d="M0 0 L1440 0 L1440 135 C1200 170, 950 110, 720 145 C480 180, 240 135, 0 155 Z"
             fill="url(#topWave3)"
           />
 
           {/* Layer 2 - Mid amber wave */}
           <path
-            d="M0 0 L1440 0 L1440 220 C1200 270, 980 180, 780 230 C580 280, 360 270, 180 210 C80 175, 20 200, 0 210 Z"
+            d="M0 0 L1440 0 L1440 110 C1220 140, 960 90, 720 120 C460 150, 240 100, 0 125 Z"
             fill="url(#topWave2)"
           />
 
           {/* Layer 1 - Deep vibrant orange curve */}
           <path
-            d="M0 0 L1440 0 L1440 160 C1220 200, 1020 140, 820 175 C600 215, 380 180, 200 130 C90 100, 30 130, 0 140 Z"
+            d="M0 0 L1440 0 L1440 80 C1240 110, 980 65, 740 95 C480 125, 250 70, 0 95 Z"
             fill="url(#topWave1)"
           />
         </svg>
       </div>
 
       {/* 2. BOTTOM FLUID WAVES */}
-      <div className="absolute bottom-0 inset-x-0 h-48 sm:h-64 overflow-hidden">
+      <div className="absolute bottom-0 inset-x-0 h-24 sm:h-32 overflow-hidden">
         <svg
-          viewBox="0 0 1440 280"
+          viewBox="0 0 1440 160"
           className="w-full h-full object-cover"
           preserveAspectRatio="none"
           fill="none"
@@ -223,99 +223,99 @@ export const AuthPageBackground = memo(function AuthPageBackground({
             <linearGradient id="bottomWave2" x1="0%" y1="100%" x2="100%" y2="20%">
               <stop offset="0%" stopColor="#FDBA74" stopOpacity="0.7" />
               <stop offset="60%" stopColor="#FED7AA" stopOpacity="0.45" />
-              <stop offset="100%" stopColor="#FFF7ED" stopOpacity="0" />
+              <stop offset="100%" stopColor="#FAF5F0" stopOpacity="0" />
             </linearGradient>
           </defs>
 
           {/* Soft peach backdrop wave */}
           <path
-            d="M0 280 L1440 280 L1440 120 C1240 70, 1020 170, 820 110 C620 50, 420 160, 220 90 C110 50, 40 80, 0 70 Z"
+            d="M0 160 L1440 160 L1440 70 C1220 30, 980 90, 720 50 C460 10, 240 80, 0 40 Z"
             fill="url(#bottomWave2)"
           />
 
           {/* Warm orange base wave */}
           <path
-            d="M0 280 L1440 280 L1440 180 C1260 140, 1080 230, 900 170 C720 110, 500 200, 300 160 C150 130, 60 180, 0 170 Z"
+            d="M0 160 L1440 160 L1440 105 C1240 75, 960 120, 720 85 C480 50, 240 110, 0 85 Z"
             fill="url(#bottomWave1)"
           />
         </svg>
       </div>
 
-      {/* 3. FLOATING DECORATIVE ELEMENTS (leaves, dots, and food/academic doodles) */}
+      {/* 3. FLOATING DECORATIVE ELEMENTS (matched to exact mockup positions) */}
 
       {/* Top Left Dot Grid */}
-      <DotGrid className="absolute top-14 left-4 sm:left-16 opacity-75" />
+      <DotGrid className="absolute top-10 sm:top-12 left-4 sm:left-14 opacity-75" />
 
       {/* Additional Dot Grid on right side */}
-      <DotGrid className="absolute top-52 right-3 sm:right-14 opacity-55 scale-90" />
+      <DotGrid className="absolute top-36 sm:top-40 right-3 sm:right-14 opacity-50 scale-75" />
 
       {/* Leaf 1 - Top Left Floating */}
-      <Leaf className="absolute top-16 left-20 sm:left-36 w-8 h-8 sm:w-10 sm:h-10 rotate-[25deg]" />
+      <Leaf className="absolute top-14 sm:top-16 left-16 sm:left-28 w-6 h-6 sm:w-8 sm:h-8 rotate-[25deg]" />
 
-      {/* Leaf 2 - Top Center pointing left */}
-      <Leaf className="absolute top-28 right-[32%] sm:right-[38%] w-7 h-7 sm:w-9 sm:h-9 -rotate-[45deg]" />
+      {/* Leaf 2 - Mid Left near card */}
+      <Leaf className="absolute top-28 sm:top-32 left-2 sm:left-8 w-6 h-6 sm:w-7 sm:h-7 -rotate-[35deg]" />
 
       {/* Leaf 3 - Right of Logo */}
-      <Leaf className="absolute top-24 right-6 sm:right-24 w-8 h-8 sm:w-10 sm:h-10 rotate-[65deg]" />
+      <Leaf className="absolute top-20 sm:top-24 right-5 sm:right-20 w-6 h-6 sm:w-8 sm:h-8 rotate-[65deg]" />
 
-      {/* Leaf 4 - Mid-Left behind card */}
-      <Leaf className="absolute top-[42%] left-2 sm:left-8 w-8 h-8 sm:w-9 sm:h-9 -rotate-[15deg]" />
+      {/* Leaf 4 - Far Left Floating */}
+      <Leaf className="absolute top-[48%] left-2 sm:left-6 w-6 h-6 sm:w-7 sm:h-7 -rotate-[15deg]" />
 
       {/* Leaf 5 - Bottom Left */}
-      <Leaf className="absolute bottom-10 left-6 sm:left-20 w-9 h-9 sm:w-11 sm:h-11 rotate-[35deg]" />
+      <Leaf className="absolute bottom-6 sm:bottom-8 left-6 sm:left-16 w-7 h-7 sm:w-9 sm:h-9 rotate-[35deg]" />
 
       {/* Leaf 6 - Bottom Right */}
-      <Leaf className="absolute bottom-14 right-10 sm:right-32 w-8 h-8 sm:w-10 sm:h-10 -rotate-[60deg]" />
+      <Leaf className="absolute bottom-8 sm:bottom-10 right-8 sm:right-24 w-6 h-6 sm:w-8 sm:h-8 -rotate-[60deg]" />
 
       {/* Variant-specific Doodles */}
       {variant === "login" && (
         <>
           {/* Chef Hat - Top Right */}
-          <ChefHatDoodle className="absolute top-12 right-12 sm:right-28 w-12 h-12 sm:w-16 sm:h-16 opacity-70 drop-shadow-xs" />
+          <ChefHatDoodle className="absolute top-10 sm:top-12 right-6 sm:right-20 w-10 h-10 sm:w-12 sm:h-12 opacity-75 drop-shadow-xs" />
 
           {/* Cloche - Top Left */}
-          <ClocheDoodle className="absolute top-28 left-6 sm:left-20 w-11 h-11 sm:w-14 sm:h-14 opacity-65 drop-shadow-xs -rotate-6" />
+          <ClocheDoodle className="absolute top-24 sm:top-28 left-4 sm:left-16 w-9 h-9 sm:w-11 sm:h-11 opacity-70 drop-shadow-xs -rotate-6" />
 
           {/* Wheat / Herb Sprig - Top Right Edge */}
-          <WheatSprigDoodle className="absolute top-24 right-4 sm:right-16 w-8 h-10 opacity-70 rotate-12" />
+          <WheatSprigDoodle className="absolute top-20 sm:top-24 right-3 sm:right-12 w-6 h-8 sm:w-7 sm:h-9 opacity-70 rotate-12" />
 
           {/* Cutlery (Fork & Spoon) - Bottom Right */}
-          <CutleryDoodle className="absolute bottom-8 right-16 sm:right-36 w-12 h-12 sm:w-14 sm:h-14 opacity-75 drop-shadow-xs rotate-12" />
+          <CutleryDoodle className="absolute bottom-4 sm:bottom-6 right-8 sm:right-24 w-10 h-10 sm:w-12 sm:h-12 opacity-75 drop-shadow-xs rotate-12" />
 
           {/* Cloche - Bottom Left */}
-          <ClocheDoodle className="absolute bottom-12 left-16 sm:left-36 w-10 h-10 sm:w-12 sm:h-12 opacity-60 drop-shadow-xs" />
+          <ClocheDoodle className="absolute bottom-5 sm:bottom-8 left-14 sm:left-28 w-8 h-8 sm:w-10 sm:h-10 opacity-60 drop-shadow-xs" />
         </>
       )}
 
       {variant === "forgot" && (
         <>
           {/* Cloche - Top Right */}
-          <ClocheDoodle className="absolute top-14 right-12 sm:right-28 w-12 h-12 sm:w-15 sm:h-15 opacity-70 drop-shadow-xs" />
+          <ClocheDoodle className="absolute top-10 sm:top-12 right-6 sm:right-20 w-10 h-10 sm:w-12 sm:h-12 opacity-75 drop-shadow-xs" />
 
           {/* Chef Hat - Top Left */}
-          <ChefHatDoodle className="absolute top-16 left-8 sm:left-24 w-10 h-10 sm:w-14 sm:h-14 opacity-60 drop-shadow-xs" />
+          <ChefHatDoodle className="absolute top-22 sm:top-26 left-4 sm:left-16 w-9 h-9 sm:w-11 sm:h-11 opacity-65 drop-shadow-xs" />
 
           {/* Cloche - Bottom Right */}
-          <ClocheDoodle className="absolute bottom-10 right-16 sm:right-36 w-11 h-11 sm:w-13 sm:h-13 opacity-70 drop-shadow-xs" />
+          <ClocheDoodle className="absolute bottom-5 sm:bottom-7 right-8 sm:right-24 w-9 h-9 sm:w-11 sm:h-11 opacity-70 drop-shadow-xs" />
 
           {/* Cutlery - Bottom Left */}
-          <CutleryDoodle className="absolute bottom-8 left-16 sm:left-36 w-10 h-10 sm:w-12 sm:h-12 opacity-65 drop-shadow-xs -rotate-12" />
+          <CutleryDoodle className="absolute bottom-5 sm:bottom-7 left-14 sm:left-28 w-9 h-9 sm:w-11 sm:h-11 opacity-65 drop-shadow-xs -rotate-12" />
         </>
       )}
 
       {variant === "signup" && (
         <>
           {/* Graduation Cap - Top Right */}
-          <GraduationCapDoodle className="absolute top-12 right-10 sm:right-28 w-13 h-13 sm:w-18 sm:h-18 opacity-75 drop-shadow-xs -rotate-6" />
+          <GraduationCapDoodle className="absolute top-8 sm:top-10 right-6 sm:right-20 w-12 h-12 sm:w-14 sm:h-14 opacity-75 drop-shadow-xs -rotate-6" />
 
           {/* Open Book - Bottom Right */}
-          <BookDoodle className="absolute bottom-8 right-12 sm:right-32 w-14 h-12 sm:w-20 sm:h-16 opacity-75 drop-shadow-xs rotate-6" />
+          <BookDoodle className="absolute bottom-4 sm:bottom-6 right-8 sm:right-24 w-12 h-10 sm:w-14 sm:h-12 opacity-75 drop-shadow-xs rotate-6" />
 
           {/* Chef Hat - Top Left */}
-          <ChefHatDoodle className="absolute top-20 left-8 sm:left-24 w-10 h-10 sm:w-12 sm:h-12 opacity-50 drop-shadow-xs" />
+          <ChefHatDoodle className="absolute top-22 sm:top-26 left-4 sm:left-16 w-8 h-8 sm:w-10 sm:h-10 opacity-55 drop-shadow-xs" />
 
           {/* Cloche - Bottom Left */}
-          <ClocheDoodle className="absolute bottom-12 left-12 sm:left-28 w-10 h-10 sm:w-12 sm:h-12 opacity-55 drop-shadow-xs" />
+          <ClocheDoodle className="absolute bottom-5 sm:bottom-8 left-14 sm:left-28 w-8 h-8 sm:w-10 sm:h-10 opacity-55 drop-shadow-xs" />
         </>
       )}
     </div>
