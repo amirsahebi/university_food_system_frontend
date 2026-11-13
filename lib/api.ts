@@ -19,6 +19,7 @@ export const API_ROUTES = {
   ADD_STUDENT: '/auth/students/',
   UPDATE_STUDENT: (id: string) => `/auth/students/${id}/`,
   DELETE_STUDENT: (id: string) => `/auth/students/${id}/`,
+  PUSH_SUBSCRIPTION: '/auth/push-subscription/',
   
   
   // Trust Score

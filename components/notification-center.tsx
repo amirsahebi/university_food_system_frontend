@@ -20,6 +20,44 @@ import {
 } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/auth-context'
+import { toPersianDigits } from '@/lib/formatters'
+import api from '@/lib/axios'
+import { API_ROUTES, createApiUrl } from '@/lib/api'
+
+const VAPID_PUBLIC_KEY = 'BLymNQ0DAvVqm6zISqV6s7z9tc8-UgRmIZ4Utz4Bj0WsyK8Y-QxEUNugVCaspGhJ2lzYR__gSh1fGsnkyiP9OAI'
+
+function urlB64ToUint8Array(base64String: string) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const rawData = window.atob(base64)
+  const outputArray = new Uint8Array(rawData.length)
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i)
+  }
+  return outputArray
+}
+
+async function registerWebPushSubscription() {
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+    return
+  }
+  try {
+    const reg = await navigator.serviceWorker.ready
+    let sub = await reg.pushManager.getSubscription()
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlB64ToUint8Array(VAPID_PUBLIC_KEY),
+      })
+    }
+    if (sub) {
+      const subJson = sub.toJSON()
+      await api.post(createApiUrl(API_ROUTES.PUSH_SUBSCRIPTION), subJson)
+    }
+  } catch (err) {
+    console.warn('Could not register web push subscription:', err)
+  }
+}
 
 export type NotificationType =
   | 'food_ready'
@@ -34,11 +72,55 @@ export interface AppNotification {
   title: string
   description: string
   timestamp: string
+  createdAt?: number
   read: boolean
   orderId?: number
   foodName?: string
   actionLabel?: string
   actionType?: 'view_orders' | 'view_whats_new' | 'pwa_install' | 'custom'
+}
+
+function formatNotificationTime(item: AppNotification): string {
+  let timeMs: number | null = null
+
+  if (item.createdAt && typeof item.createdAt === 'number') {
+    timeMs = item.createdAt
+  } else if (item.timestamp && /^\d+$/.test(item.timestamp)) {
+    timeMs = parseInt(item.timestamp, 10)
+  } else if (item.id) {
+    const match = item.id.match(/-(\d{12,14})$/)
+    if (match) {
+      timeMs = parseInt(match[1], 10)
+    }
+  }
+
+  if (!timeMs && item.timestamp && item.timestamp !== 'هم‌اکنون') {
+    const parsed = Date.parse(item.timestamp)
+    if (!isNaN(parsed)) timeMs = parsed
+  }
+
+  if (!timeMs) return 'هم‌اکنون'
+
+  const now = Date.now()
+  const diffSec = Math.max(0, Math.floor((now - timeMs) / 1000))
+
+  if (diffSec < 60) return 'هم‌اکنون'
+  const diffMin = Math.floor(diffSec / 60)
+  if (diffMin < 60) return `${toPersianDigits(diffMin)} دقیقه پیش`
+  const diffHours = Math.floor(diffMin / 60)
+  if (diffHours < 24) return `${toPersianDigits(diffHours)} ساعت پیش`
+  const diffDays = Math.floor(diffHours / 24)
+  if (diffDays === 1) return 'دیروز'
+  if (diffDays < 7) return `${toPersianDigits(diffDays)} روز پیش`
+
+  try {
+    return new Intl.DateTimeFormat('fa-IR', {
+      month: 'numeric',
+      day: 'numeric',
+    }).format(new Date(timeMs))
+  } catch {
+    return `${toPersianDigits(diffDays)} روز پیش`
+  }
 }
 
 interface ReservationSummary {
@@ -81,6 +163,9 @@ export function NotificationCenter({
 
     if ('Notification' in window) {
       setPermissionState(Notification.permission)
+      if (Notification.permission === 'granted' && userKey) {
+        registerWebPushSubscription().catch(() => {})
+      }
     }
 
     if (!userKey) {
@@ -126,10 +211,11 @@ export function NotificationCenter({
       setPermissionState(permission)
 
       if (permission === 'granted') {
+        await registerWebPushSubscription()
         toast.success('اعلان‌های هوشمند سلف با موفقیت فعال شد')
         await sendNativeNotification(
           'اعلان‌های هوشمند فعال شد 🔔',
-          'به محض آماده شدن غذای شما در سلف، از این طریق مطلع خواهید شد.'
+          'به محض آماده شدن غذای شما در سلف، حتی در صورت بسته بودن مرورگر مطلع خواهید شد.'
         )
       } else {
         toast.error('اجازه ارسال اعلان داده نشد')
@@ -195,13 +281,15 @@ export function NotificationCenter({
         const foodName = order.food?.name || 'سفارش غذا'
         const title = 'غذای شما آماده تحویل است 🍲'
         const description = `سفارش «${foodName}» (شماره #${order.id}) آماده تحویل می‌باشد.`
+        const now = Date.now()
 
         newItems.push({
-          id: `food-ready-${order.id}-${Date.now()}`,
+          id: `food-ready-${order.id}-${now}`,
           type: 'food_ready',
           title,
           description,
-          timestamp: 'هم‌اکنون',
+          timestamp: new Date(now).toISOString(),
+          createdAt: now,
           read: false,
           orderId: order.id,
           foodName,
@@ -237,12 +325,14 @@ export function NotificationCenter({
       const customEvent = e as CustomEvent<Partial<AppNotification>>
       if (!customEvent.detail) return
 
+      const now = Date.now()
       const newNotif: AppNotification = {
-        id: customEvent.detail.id || `notif-${Date.now()}`,
+        id: customEvent.detail.id || `notif-${now}`,
         type: customEvent.detail.type || 'announcement',
         title: customEvent.detail.title || 'اعلان جدید',
         description: customEvent.detail.description || '',
-        timestamp: 'هم‌اکنون',
+        timestamp: new Date(now).toISOString(),
+        createdAt: now,
         read: false,
         actionLabel: customEvent.detail.actionLabel,
         actionType: customEvent.detail.actionType,
@@ -437,7 +527,7 @@ export function NotificationCenter({
                       {item.title}
                     </span>
                     <span className="text-[10px] text-neutral-400 font-mono shrink-0">
-                      {item.timestamp}
+                      {formatNotificationTime(item)}
                     </span>
                   </div>
 

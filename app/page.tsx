@@ -226,7 +226,7 @@ export default function LoginPage() {
 
       {/* ───── CARD SHEET ───── */}
       <div
-        className="relative flex-1 w-full bg-white px-5 pt-6 pb-10 sm:px-8 sm:pt-8 animate-sheet-entrance"
+        className="relative flex-1 w-full bg-white px-5 pt-6 pb-10 sm:px-8 sm:pt-8"
         style={{
           marginTop: "-2rem",
           borderTopLeftRadius: "2rem",
