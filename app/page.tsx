@@ -15,7 +15,7 @@ import api from "@/lib/axios"
 import { API_ROUTES, createApiUrl } from "@/lib/api"
 import { toEnglishDigits } from "@/lib/formatters"
 import { Field } from "@/components/account/Field"
-import { AuthBackground } from "@/components/account/AuthBackground"
+import { AuthPageBackground } from "@/components/account/AuthPageBackground"
 
 export const dynamic = "force-dynamic"
 
@@ -129,10 +129,10 @@ export default function LoginPage() {
   return (
     <div
       dir="rtl"
-      className="relative flex h-svh flex-col overflow-hidden bg-page font-sans sm:h-auto sm:min-h-svh sm:justify-center sm:overflow-visible sm:overflow-x-hidden"
+      className="relative flex min-h-svh flex-col justify-between overflow-x-hidden font-sans sm:justify-center py-6 sm:py-10"
     >
-      {/* Unified High-Performance Living Gravity Mesh Background */}
-      <AuthBackground />
+      {/* Decorative Wave & Doodle Background */}
+      <AuthPageBackground variant="login" />
 
       <Toaster
         position="top-center"
@@ -145,115 +145,107 @@ export default function LoginPage() {
         }}
       />
 
-      {/* Header with borderless logo and elegant entrance animation */}
-      <header className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-6 pt-10 pb-4 text-center sm:flex-none sm:gap-3.5 sm:pt-14 sm:pb-6 animate-in fade-in-0 slide-in-from-top-4 duration-700 ease-out fill-mode-both">
-        {/* Borderless Floating Logo Container with Breathing Radiant Halo */}
-        <div className="relative group">
-          <div className="absolute -inset-5 rounded-full bg-radial from-orange-500/35 via-amber-400/20 to-transparent blur-xl animate-logo-glow" />
-          <Link
-            href="/"
-            aria-label="رستوران جوان"
-            className="relative flex items-center justify-center transition-transform hover:scale-105 active:scale-95"
-          >
-            <div className="relative size-20 sm:size-24 drop-shadow-md">
-              <Image
-                src="/images/javanfoods_logo.png"
-                alt="رستوران جوان"
-                fill
-                className="object-contain"
-                priority
-              />
-            </div>
-          </Link>
-        </div>
+      {/* Header matching the mockup: Logo + رستوران جوان + Subtitle */}
+      <header className="relative z-10 flex flex-col items-center justify-center gap-2 px-6 pt-6 pb-4 text-center sm:pt-4 sm:pb-5 animate-in fade-in-0 slide-in-from-top-4 duration-700 ease-out fill-mode-both">
+        <Link
+          href="/"
+          aria-label="رستوران جوان"
+          className="relative flex items-center justify-center transition-transform hover:scale-105 active:scale-95"
+        >
+          <div className="relative size-20 sm:size-24 drop-shadow-md">
+            <Image
+              src="/images/javanfoods_logo.png"
+              alt="رستوران جوان"
+              fill
+              className="object-contain"
+              priority
+            />
+          </div>
+        </Link>
 
-        {/* Title ONLY - No text underneath */}
-        <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl drop-shadow-xs">
-            رستوران جوان
-          </h1>
+        {/* Title */}
+        <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight mt-1 drop-shadow-xs">
+          رستوران جوان
+        </h1>
+
+        {/* Subtitle with divider lines: — طعم خوب، تجربه‌ای خوشمزه‌تر — */}
+        <div className="flex items-center justify-center gap-2.5 text-xs sm:text-sm font-bold text-orange-950/80 mt-0.5">
+          <span className="w-6 sm:w-10 h-0.5 bg-orange-400/60 rounded-full" />
+          <span>طعم خوب، تجربه‌ای خوشمزه‌تر</span>
+          <span className="w-6 sm:w-10 h-0.5 bg-orange-400/60 rounded-full" />
         </div>
       </header>
 
-      {/* Authentic Glass Card - Translucent to show the living colorful mesh underneath */}
-      <section className="relative z-10 mx-auto flex max-h-[78svh] w-full max-w-[560px] shrink-0 flex-col rounded-t-[2.25rem] border-t border-glass-border glass-auth-card pt-6 shadow-sheet sm:mb-8 sm:max-h-none sm:max-w-[460px] sm:rounded-[1.75rem] sm:border sm:pt-8 animate-in fade-in-0 zoom-in-[0.98] slide-in-from-bottom-5 duration-700 delay-100 ease-out fill-mode-both">
-        <form noValidate onSubmit={handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
-          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 pb-3 sm:px-8">
-            <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-500 delay-200 fill-mode-both">
-              <Field
-                id="phone_number"
-                label="شماره موبایل"
-                icon={Phone}
-                type="tel"
-                inputMode="tel"
-                autoComplete="tel"
-                dir="ltr"
-                placeholder="09123456789"
-                required
-                value={phoneValue}
-                onChange={(e) => {
-                  setValue("phone_number", toEnglishDigits(e.target.value).trim(), {
-                    shouldValidate: true,
-                  })
-                }}
-                error={errors.phone_number?.message}
-              />
-            </div>
+      {/* Authentic Frosted Glass Card */}
+      <section className="relative z-10 mx-auto flex w-full max-w-[460px] shrink-0 flex-col rounded-t-[2.5rem] sm:rounded-[2.25rem] border border-white/80 bg-white/85 dark:bg-neutral-900/85 backdrop-blur-2xl px-6 sm:px-8 pt-7 pb-6 shadow-[0_20px_50px_-15px_rgba(249,115,22,0.18)] modal-glass mb-2 sm:mb-6 animate-in fade-in-0 zoom-in-[0.98] slide-in-from-bottom-5 duration-700 delay-100 ease-out fill-mode-both">
+        <form noValidate onSubmit={handleSubmit(onSubmit)} className="space-y-4 sm:space-y-5">
+          <Field
+            id="phone_number"
+            label="شماره موبایل"
+            icon={Phone}
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
+            dir="ltr"
+            placeholder="09123456789"
+            required
+            value={phoneValue}
+            onChange={(e) => {
+              setValue("phone_number", toEnglishDigits(e.target.value).trim(), {
+                shouldValidate: true,
+              })
+            }}
+            error={errors.phone_number?.message}
+          />
 
-            <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-500 delay-300 fill-mode-both">
-              <Field
-                id="password"
-                label="رمز عبور"
-                icon={Lock}
-                type="password"
-                autoComplete="current-password"
-                dir="ltr"
-                placeholder="حداقل ۶ کاراکتر"
-                required
-                value={passwordValue}
-                onChange={(e) => {
-                  setValue("password", e.target.value, { shouldValidate: true })
-                }}
-                error={errors.password?.message}
-              />
-            </div>
+          <Field
+            id="password"
+            label="رمز عبور"
+            icon={Lock}
+            type="password"
+            autoComplete="current-password"
+            dir="ltr"
+            placeholder="رمز عبور خود را وارد کنید"
+            required
+            value={passwordValue}
+            onChange={(e) => {
+              setValue("password", e.target.value, { shouldValidate: true })
+            }}
+            error={errors.password?.message}
+          />
 
-            <div className="text-left animate-in fade-in-0 slide-in-from-bottom-2 duration-500 delay-350 fill-mode-both">
-              <Link
-                href="/forgot-password"
-                className="inline-block py-1 text-xs text-muted-foreground transition-colors hover:text-orange-600 font-medium"
-              >
-                رمز عبور خود را فراموش کرده‌اید؟
-              </Link>
-            </div>
-
-            {loginError && (
-              <div
-                role="alert"
-                className="rounded-2xl border border-red-200 bg-red-50/80 px-4 py-3 text-xs leading-5 text-red-700 animate-shake"
-              >
-                {loginError}
-              </div>
-            )}
-
-            <div className="border-t border-black/5 dark:border-white/10 pt-3 text-center text-sm animate-in fade-in-0 slide-in-from-bottom-2 duration-500 delay-400 fill-mode-both">
-              <span className="text-muted-foreground">حساب کاربری ندارید؟ </span>
-              <Link href="/sign-up" className="font-bold text-orange-600 hover:underline">
-                ثبت‌نام کنید
-              </Link>
-            </div>
+          <div className="text-center pt-0.5">
+            <Link
+              href="/forgot-password"
+              className="inline-block py-1 text-xs sm:text-sm font-semibold text-gray-600 hover:text-orange-600 transition-colors"
+            >
+              رمز عبور خود را فراموش کرده‌اید؟
+            </Link>
           </div>
 
-          <div className="shrink-0 border-t border-black/5 dark:border-white/10 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3 sm:px-8 animate-in fade-in-0 slide-in-from-bottom-2 duration-500 delay-300 fill-mode-both">
-            <Button
-              type="submit"
-              variant="brand"
-              disabled={isSubmitting}
-              className="h-14 w-full text-base font-bold sm:h-12 sm:text-sm flex items-center justify-center gap-2 shadow-glow hover:brightness-105 active:scale-[0.99] transition-all"
+          {loginError && (
+            <div
+              role="alert"
+              className="rounded-2xl border border-red-200 bg-red-50/80 px-4 py-3 text-xs leading-5 text-red-700 animate-shake"
             >
-              {isSubmitting ? "در حال ورود..." : "ورود به حساب"}
-              {!isSubmitting && <ArrowLeft className="size-4" />}
-            </Button>
+              {loginError}
+            </div>
+          )}
+
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+            className="h-13 sm:h-12 w-full rounded-2xl bg-gradient-to-r from-[#FF7A1A] via-orange-500 to-[#EA580C] hover:from-[#EA580C] hover:to-[#C2410C] text-white text-base font-bold shadow-[0_10px_25px_-5px_rgba(234,88,12,0.45)] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <span>{isSubmitting ? "در حال ورود..." : "ورود به حساب"}</span>
+            {!isSubmitting && <ArrowLeft className="size-5" />}
+          </Button>
+
+          <div className="pt-2 text-center text-xs sm:text-sm">
+            <span className="text-gray-600 font-medium">حساب کاربری ندارید؟ </span>
+            <Link href="/sign-up" className="font-extrabold text-orange-600 hover:text-orange-700 hover:underline">
+              ثبت‌نام کنید
+            </Link>
           </div>
         </form>
       </section>
