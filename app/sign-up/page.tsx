@@ -359,7 +359,7 @@ export default function SignUp() {
           aria-label="رستوران جوان"
           className="relative flex items-center justify-center transition-transform hover:scale-105 active:scale-95"
         >
-          <div className="relative size-18 sm:size-20 drop-shadow-md">
+          <div className="relative w-16 h-16 sm:w-20 sm:h-20 drop-shadow-md">
             <Image
               src="/images/javanfoods_logo.png"
               alt="رستوران جوان"

@@ -150,7 +150,7 @@ export default function ForgotPassword() {
           aria-label="رستوران جوان"
           className="relative flex items-center justify-center transition-transform hover:scale-105 active:scale-95"
         >
-          <div className="relative size-18 sm:size-20 drop-shadow-md">
+          <div className="relative w-16 h-16 sm:w-20 sm:h-20 drop-shadow-md">
             <Image
               src="/images/javanfoods_logo.png"
               alt="رستوران جوان"
@@ -175,7 +175,10 @@ export default function ForgotPassword() {
       {/* Authentic Frosted Glass Card */}
       <section className="relative z-10 mx-auto flex w-[calc(100%-2rem)] sm:w-full max-w-[390px] shrink-0 flex-col rounded-[2.25rem] border border-white/90 bg-white/85 dark:bg-neutral-900/85 backdrop-blur-xl px-6 sm:px-7 py-6 sm:py-7 shadow-[0_15px_35px_-5px_rgba(249,115,22,0.12),0_4px_12px_rgba(0,0,0,0.03)] modal-glass my-auto animate-in fade-in-0 zoom-in-[0.98] slide-in-from-bottom-5 duration-700 delay-100 ease-out fill-mode-both">
         {/* Info Box matching the center mockup */}
-        <div className="flex items-center justify-between p-3 sm:p-3.5 rounded-2xl bg-[#FFF5EB] border border-orange-200/80 mb-5">
+        <div className="flex items-center gap-3 p-3 sm:p-3.5 rounded-2xl bg-[#FFF5EB] border border-orange-200/80 mb-5">
+          <div className="size-9 rounded-xl bg-orange-100 flex items-center justify-center text-orange-600 shrink-0">
+            <KeyRound className="size-5" />
+          </div>
           <div className="text-right flex-1 min-w-0">
             <p className="text-xs sm:text-sm font-bold text-gray-800 truncate">
               {step === 0 ? "شماره حساب شما" : "تأیید و رمز عبور جدید"}
@@ -183,9 +186,6 @@ export default function ForgotPassword() {
             <p className="text-[11px] sm:text-xs text-gray-500 truncate mt-0.5">
               {step === 0 ? "شماره موبایل ثبت‌شده در حساب کاربری" : phoneNumber}
             </p>
-          </div>
-          <div className="size-9 rounded-xl bg-orange-100 flex items-center justify-center text-orange-600 shrink-0">
-            <KeyRound className="size-5" />
           </div>
         </div>
 

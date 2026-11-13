@@ -155,9 +155,9 @@ export const AuthPageBackground = memo(function AuthPageBackground({
       style={{ contain: "strict" }}
     >
       {/* 1. TOP FLUID WAVES - Compact graceful curve matching the mockup */}
-      <div className="absolute top-0 inset-x-0 h-32 sm:h-40 overflow-hidden">
+      <div className="absolute top-0 inset-x-0 h-24 sm:h-32 overflow-hidden">
         <svg
-          viewBox="0 0 1440 180"
+          viewBox="0 0 1440 140"
           className="w-full h-full object-cover"
           preserveAspectRatio="none"
           fill="none"
@@ -187,19 +187,19 @@ export const AuthPageBackground = memo(function AuthPageBackground({
 
           {/* Layer 3 - Light peach outer ripple */}
           <path
-            d="M0 0 L1440 0 L1440 135 C1200 170, 950 110, 720 145 C480 180, 240 135, 0 155 Z"
+            d="M0 0 L1440 0 L1440 105 C1200 135, 950 85, 720 115 C480 140, 240 105, 0 120 Z"
             fill="url(#topWave3)"
           />
 
           {/* Layer 2 - Mid amber wave */}
           <path
-            d="M0 0 L1440 0 L1440 110 C1220 140, 960 90, 720 120 C460 150, 240 100, 0 125 Z"
+            d="M0 0 L1440 0 L1440 85 C1220 110, 960 70, 720 95 C460 120, 240 80, 0 100 Z"
             fill="url(#topWave2)"
           />
 
           {/* Layer 1 - Deep vibrant orange curve */}
           <path
-            d="M0 0 L1440 0 L1440 80 C1240 110, 980 65, 740 95 C480 125, 250 70, 0 95 Z"
+            d="M0 0 L1440 0 L1440 60 C1240 85, 980 50, 740 75 C480 100, 250 55, 0 75 Z"
             fill="url(#topWave1)"
           />
         </svg>
