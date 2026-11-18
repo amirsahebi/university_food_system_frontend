@@ -109,6 +109,7 @@ interface Food {
   created_at?: string
   updated_at?: string
   allowed_vouchers?: VoucherType[]
+  allowed_extra_vouchers?: VoucherType[]
   supports_extra_voucher?: boolean
 }
 
@@ -122,6 +123,7 @@ interface MenuItemSpec {
     category_id?: number | null
     category_name?: string | null
     allowed_vouchers?: VoucherType[]
+    allowed_extra_vouchers?: VoucherType[]
     supports_extra_voucher?: boolean // Add this property to the food object
   }
   start_time: string
@@ -1212,17 +1214,56 @@ export default function AdminDashboard() {
             <div className="space-y-0.5">
               <Label htmlFor="supports_extra_voucher" className="text-xs font-bold text-gray-900 cursor-pointer flex items-center gap-1.5">
                 <Coins className="w-3.5 h-3.5 text-[#F47B20]" />
-                پشتیبانی از ژتون اضافی / آزاد
+                پشتیبانی از ژتون اضافی / آزاد (غذای دونفره)
               </Label>
               <p className="text-[11px] text-gray-500">
-                امکان رزرو پرس دوم یا سهمیه مازاد دانشجویان با نرخ ژتون آزاد
+                امکان رزرو با دو فیش یا سهمیه مازاد دانشجویان (مانند پیتزا دونفره)
               </p>
             </div>
             <Switch
               id="supports_extra_voucher"
               name="supports_extra_voucher"
               defaultChecked={false}
+              onCheckedChange={(checked) => {
+                const extraSection = document.getElementById("add_extra_vouchers_section")
+                if (extraSection) {
+                  extraSection.style.display = checked ? "block" : "none"
+                }
+              }}
             />
+          </div>
+
+          {/* Allowed Extra Vouchers Selection */}
+          <div id="add_extra_vouchers_section" style={{ display: "none" }} className="space-y-2 p-3 rounded-2xl border border-blue-200/80 bg-blue-50/40">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-bold text-blue-900 flex items-center gap-1.5">
+                <Ticket className="w-3.5 h-3.5 text-blue-600" />
+                ژتون‌های مجاز برای فیش دوم (فیش اضافه / همراه):
+              </Label>
+              <span className="text-[11px] text-blue-600 font-medium">سهمیه نفر دوم</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-0.5">
+              {voucherTypes.map((vt) => (
+                <label
+                  key={vt.id}
+                  className="relative flex items-center justify-between p-2.5 rounded-xl border border-blue-200/90 hover:border-blue-400 hover:bg-blue-50/60 cursor-pointer text-xs transition-all bg-white has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50/60 has-[:checked]:shadow-2xs group"
+                >
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      name="add_allowed_extra_vouchers"
+                      value={vt.id}
+                      defaultChecked={true}
+                      className="rounded text-blue-600 focus:ring-blue-600 h-4 w-4 border-gray-300"
+                    />
+                    <span className="font-bold text-gray-800">{vt.name}</span>
+                  </div>
+                  <span className="text-blue-700 font-extrabold text-[11px] bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-200/60">
+                    {formatPersianPrice(vt.discount_amount)} ت
+                  </span>
+                </label>
+              ))}
+            </div>
           </div>
 
           {/* Allowed Vouchers Selection */}
@@ -1230,7 +1271,7 @@ export default function AdminDashboard() {
             <div className="flex items-center justify-between">
               <Label className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
                 <Ticket className="w-3.5 h-3.5 text-[#F47B20]" />
-                ژتون‌های مجاز برای خرید این غذا:
+                ژتون‌های مجاز برای فیش اول (فیش معمولی):
               </Label>
               <span className="text-[11px] text-gray-500 font-medium">({toPersianDigits(voucherTypes.length)} نوع ژتون فعال)</span>
             </div>
@@ -1300,7 +1341,32 @@ export default function AdminDashboard() {
               }
               const selectedVouchers = Array.from(document.querySelectorAll<HTMLInputElement>('input[name="add_allowed_vouchers"]:checked')).map(el => el.value)
               selectedVouchers.forEach(id => formData.append("allowed_vouchers", id))
+              
+              const selectedExtraVouchers = supportsExtraVoucher
+                ? Array.from(document.querySelectorAll<HTMLInputElement>('input[name="add_allowed_extra_vouchers"]:checked')).map(el => el.value)
+                : []
+              selectedExtraVouchers.forEach(id => formData.append("allowed_extra_vouchers", id))
               formData.append("supports_extra_voucher", supportsExtraVoucher.toString())
+
+              // Price validation: Discount 1 + Discount 2 <= Food Price
+              if (supportsExtraVoucher && selectedExtraVouchers.length > 0 && selectedVouchers.length > 0) {
+                let invalidMessage = ""
+                for (const v1Id of selectedVouchers) {
+                  const v1 = voucherTypes.find(v => v.id.toString() === v1Id)
+                  for (const v2Id of selectedExtraVouchers) {
+                    const v2 = voucherTypes.find(v => v.id.toString() === v2Id)
+                    if (v1 && v2 && (Number(v1.discount_amount) + Number(v2.discount_amount)) > price) {
+                      invalidMessage = `مجموع تخفیف فیش اول (${v1.name}: ${formatPersianPrice(v1.discount_amount)}) و فیش اضافه (${v2.name}: ${formatPersianPrice(v2.discount_amount)}) برابر ${formatPersianPrice(Number(v1.discount_amount) + Number(v2.discount_amount))} تومان است که از قیمت کل غذا (${formatPersianPrice(price)} تومان) بیشتر می‌شود.`
+                      break
+                    }
+                  }
+                  if (invalidMessage) break
+                }
+                if (invalidMessage) {
+                  toast.error(invalidMessage)
+                  return
+                }
+              }
 
               try {
                 await api.post(createApiUrl(API_ROUTES.ADD_FOOD), formData, {
@@ -1399,17 +1465,63 @@ export default function AdminDashboard() {
               <div className="space-y-0.5">
                 <Label htmlFor="supports_extra_voucher" className="text-xs font-bold text-gray-900 cursor-pointer flex items-center gap-1.5">
                   <Coins className="w-3.5 h-3.5 text-[#F47B20]" />
-                  پشتیبانی از ژتون اضافی / آزاد
+                  پشتیبانی از ژتون اضافی / آزاد (غذای دونفره)
                 </Label>
                 <p className="text-[11px] text-gray-500">
-                  امکان رزرو پرس دوم یا سهمیه مازاد دانشجویان با نرخ ژتون آزاد
+                  امکان رزرو با دو فیش یا سهمیه مازاد دانشجویان (مانند پیتزا دونفره)
                 </p>
               </div>
               <Switch
                 id="supports_extra_voucher"
                 name="supports_extra_voucher"
                 defaultChecked={food.supports_extra_voucher || false}
+                onCheckedChange={(checked) => {
+                  const extraSection = document.getElementById("edit_extra_vouchers_section")
+                  if (extraSection) {
+                    extraSection.style.display = checked ? "block" : "none"
+                  }
+                }}
               />
+            </div>
+
+            {/* Allowed Extra Vouchers Selection */}
+            <div
+              id="edit_extra_vouchers_section"
+              style={{ display: food.supports_extra_voucher ? "block" : "none" }}
+              className="space-y-2 p-3 rounded-2xl border border-blue-200/80 bg-blue-50/40"
+            >
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-bold text-blue-900 flex items-center gap-1.5">
+                  <Ticket className="w-3.5 h-3.5 text-blue-600" />
+                  ژتون‌های مجاز برای فیش دوم (فیش اضافه / همراه):
+                </Label>
+                <span className="text-[11px] text-blue-600 font-medium">سهمیه نفر دوم</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-0.5">
+                {voucherTypes.map((vt) => {
+                  const isChecked = food.allowed_extra_vouchers?.some(v => v.id === vt.id) ?? true
+                  return (
+                    <label
+                      key={vt.id}
+                      className="relative flex items-center justify-between p-2.5 rounded-xl border border-blue-200/90 hover:border-blue-400 hover:bg-blue-50/60 cursor-pointer text-xs transition-all bg-white has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50/60 has-[:checked]:shadow-2xs group"
+                    >
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          name="edit_allowed_extra_vouchers"
+                          value={vt.id}
+                          defaultChecked={isChecked}
+                          className="rounded text-blue-600 focus:ring-blue-600 h-4 w-4 border-gray-300"
+                        />
+                        <span className="font-bold text-gray-800">{vt.name}</span>
+                      </div>
+                      <span className="text-blue-700 font-extrabold text-[11px] bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-200/60">
+                        {formatPersianPrice(vt.discount_amount)} ت
+                      </span>
+                    </label>
+                  )
+                })}
+              </div>
             </div>
 
             {/* Multi-tier voucher selection */}
@@ -1417,7 +1529,7 @@ export default function AdminDashboard() {
               <div className="flex items-center justify-between">
                 <Label className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
                   <Ticket className="w-3.5 h-3.5 text-[#F47B20]" />
-                  ژتون‌های مجاز برای خرید این غذا:
+                  ژتون‌های مجاز برای فیش اول (فیش معمولی):
                 </Label>
                 <span className="text-[11px] text-gray-500 font-medium">({toPersianDigits(voucherTypes.length)} نوع ژتون فعال)</span>
               </div>
@@ -1500,7 +1612,32 @@ export default function AdminDashboard() {
                 }
                 const selectedVouchers = Array.from(document.querySelectorAll<HTMLInputElement>('input[name="edit_allowed_vouchers"]:checked')).map(el => el.value)
                 selectedVouchers.forEach(id => formData.append("allowed_vouchers", id))
+                
+                const selectedExtraVouchers = supportsExtraVoucher
+                  ? Array.from(document.querySelectorAll<HTMLInputElement>('input[name="edit_allowed_extra_vouchers"]:checked')).map(el => el.value)
+                  : []
+                selectedExtraVouchers.forEach(id => formData.append("allowed_extra_vouchers", id))
                 formData.append("supports_extra_voucher", supportsExtraVoucher.toString())
+
+                // Price validation: Discount 1 + Discount 2 <= Food Price
+                if (supportsExtraVoucher && selectedExtraVouchers.length > 0 && selectedVouchers.length > 0) {
+                  let invalidMessage = ""
+                  for (const v1Id of selectedVouchers) {
+                    const v1 = voucherTypes.find(v => v.id.toString() === v1Id)
+                    for (const v2Id of selectedExtraVouchers) {
+                      const v2 = voucherTypes.find(v => v.id.toString() === v2Id)
+                      if (v1 && v2 && (Number(v1.discount_amount) + Number(v2.discount_amount)) > price) {
+                        invalidMessage = `مجموع تخفیف فیش اول (${v1.name}: ${formatPersianPrice(v1.discount_amount)}) و فیش اضافه (${v2.name}: ${formatPersianPrice(v2.discount_amount)}) برابر ${formatPersianPrice(Number(v1.discount_amount) + Number(v2.discount_amount))} تومان است که از قیمت کل غذا (${formatPersianPrice(price)} تومان) بیشتر می‌شود.`
+                        break
+                      }
+                    }
+                    if (invalidMessage) break
+                  }
+                  if (invalidMessage) {
+                    toast.error(invalidMessage)
+                    return
+                  }
+                }
 
                 try {
                   await api.put(createApiUrl(API_ROUTES.UPDATE_FOOD(food.id)), formData, {

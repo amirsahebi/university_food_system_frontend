@@ -1,60 +1,38 @@
 'use client'
 
-import { motion } from 'framer-motion'
+import Image from 'next/image'
 
-export const LoadingSpinner = () => {
+interface LoadingSpinnerProps {
+  text?: string
+}
+
+export const LoadingSpinner = ({ text = "در حال بارگذاری..." }: LoadingSpinnerProps) => {
   return (
-    <div className="flex items-center justify-center h-screen bg-gradient-to-bl from-orange-100 to-red-100">
-      <motion.div
-        className="relative w-32 h-32"
-        animate={{
-          rotate: 360
-        }}
-        transition={{
-          duration: 2,
-          repeat: Infinity,
-          ease: "linear"
-        }}
-      >
-        <motion.span
-          className="absolute w-full h-full border-4 border-transparent border-t-orange-500 rounded-full"
-          animate={{
-            scale: [1, 1.2, 1],
-            opacity: [1, 0.5, 1]
-          }}
-          transition={{
-            duration: 1.5,
-            repeat: Infinity,
-            ease: "easeInOut"
-          }}
-        />
-        <motion.span
-          className="absolute w-full h-full border-4 border-transparent border-r-red-500 rounded-full"
-          animate={{
-            scale: [1.2, 1, 1.2],
-            opacity: [0.5, 1, 0.5]
-          }}
-          transition={{
-            duration: 1.5,
-            repeat: Infinity,
-            ease: "easeInOut"
-          }}
-        />
-      </motion.div>
-      <motion.p
-        className="absolute mt-36 text-xl font-semibold text-gray-700"
-        animate={{
-          opacity: [0, 1, 0]
-        }}
-        transition={{
-          duration: 1.5,
-          repeat: Infinity,
-          ease: "easeInOut"
-        }}
-      >
-        در حال بارگذاری...
-      </motion.p>
+    <div
+      dir="rtl"
+      className="relative flex min-h-screen flex-col items-center justify-center bg-white font-sans selection:bg-orange-500/20"
+      style={{ fontFamily: "'Vazirmatn', 'Segoe UI', system-ui, sans-serif" }}
+    >
+      <div className="flex flex-col items-center space-y-4">
+        <div className="relative size-20 animate-pulse">
+          <Image
+            src="/images/javanfoods_logo.png"
+            alt="رستوران جوان"
+            fill
+            className="object-contain filter drop-shadow-md"
+            priority
+          />
+        </div>
+        <div className="flex flex-col items-center gap-2">
+          <h1 className="text-xl font-bold text-gray-800">رستوران جوان</h1>
+          <div className="h-1.5 w-36 overflow-hidden rounded-full bg-orange-100">
+            <div className="h-full w-full animate-pulse rounded-full bg-gradient-to-r from-orange-400 to-orange-600" />
+          </div>
+          <p className="text-xs text-muted-foreground animate-pulse">{text}</p>
+        </div>
+      </div>
     </div>
   )
 }
 
+export default LoadingSpinner

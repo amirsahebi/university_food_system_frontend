@@ -28,6 +28,7 @@ import {
   ChevronDown,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Switch } from "@/components/ui/switch"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
   DropdownMenu,
@@ -105,6 +106,7 @@ interface MenuItem {
     category_id: number
     category_name: string
     allowed_vouchers?: VoucherType[]
+    allowed_extra_vouchers?: VoucherType[]
     supports_extra_voucher?: boolean
   }
   start_time: string
@@ -146,8 +148,10 @@ interface Reservation {
   time_slot: TimeSlot
   reserved_date: string
   voucher_type?: VoucherType
+  extra_voucher_type?: VoucherType
   voucher_discount_applied?: number
   has_voucher: boolean
+  has_extra_voucher?: boolean
   price: number
   status: ReservationStatus
   delivery_code: string
@@ -338,6 +342,8 @@ export default function StudentDashboard() {
   const [selectedFood, setSelectedFood] = useState<MenuItem | null>(null)
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<number | null>(null)
   const [selectedVoucherId, setSelectedVoucherId] = useState<number | null>(null)
+  const [selectedExtraVoucherId, setSelectedExtraVoucherId] = useState<number | null>(null)
+  const [isExtraVoucherEnabled, setIsExtraVoucherEnabled] = useState(false)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false)
   const [isPaymentProcessing, setIsPaymentProcessing] = useState(false)
@@ -470,17 +476,32 @@ export default function StudentDashboard() {
         totalPrice -= Number(vt.discount_amount)
       }
     }
+    if (isExtraVoucherEnabled && selectedExtraVoucherId) {
+      const extVt = voucherTypes.find((v) => v.id === selectedExtraVoucherId)
+      if (extVt) {
+        totalPrice -= Number(extVt.discount_amount)
+      }
+    }
     return Math.max(0, totalPrice)
-  }, [selectedFood, selectedVoucherId, voucherTypes])
+  }, [selectedFood, selectedVoucherId, isExtraVoucherEnabled, selectedExtraVoucherId, voucherTypes])
 
   const selectedVoucher = useMemo(() => {
     if (!selectedVoucherId) return null
     return voucherTypes.find((v) => v.id === selectedVoucherId) || null
   }, [selectedVoucherId, voucherTypes])
 
+  const selectedExtraVoucher = useMemo(() => {
+    if (!isExtraVoucherEnabled || !selectedExtraVoucherId) return null
+    return voucherTypes.find((v) => v.id === selectedExtraVoucherId) || null
+  }, [isExtraVoucherEnabled, selectedExtraVoucherId, voucherTypes])
+
   const voucherDiscount = useMemo(() => {
     return selectedVoucher ? Number(selectedVoucher.discount_amount) : 0
   }, [selectedVoucher])
+
+  const extraVoucherDiscount = useMemo(() => {
+    return selectedExtraVoucher ? Number(selectedExtraVoucher.discount_amount) : 0
+  }, [selectedExtraVoucher])
 
   /* ---------- Dialog & Order Handlers ---------- */
   const handleOpenFood = (item: MenuItem) => {
@@ -495,6 +516,8 @@ export default function StudentDashboard() {
     const firstAvailableSlot = validTimeSlots.find((s) => s.capacity === undefined || s.capacity > 0)
     setSelectedTimeSlot(firstAvailableSlot ? firstAvailableSlot.id : null)
     setSelectedVoucherId(null)
+    setSelectedExtraVoucherId(null)
+    setIsExtraVoucherEnabled(false)
     setIsDialogOpen(true)
   }
 
@@ -508,7 +531,7 @@ export default function StudentDashboard() {
       userProfile?.trust_score_data?.can_use_vouchers ??
       (userProfile?.trust_score !== undefined ? userProfile.trust_score >= 0 : true)
 
-    if (!canUseVouchers && selectedVoucherId) {
+    if (!canUseVouchers && (selectedVoucherId || selectedExtraVoucherId)) {
       toast.error("به دلیل امتیاز اعتبار منفی، امکان استفاده از ژتون وجود ندارد")
       return
     }
@@ -518,6 +541,19 @@ export default function StudentDashboard() {
       const isAllowed = allowed.some((v) => v.id === selectedVoucherId)
       if (!isAllowed) {
         toast.error("این غذا از ژتون انتخاب‌شده پشتیبانی نمی‌کند")
+        return
+      }
+    }
+
+    if (isExtraVoucherEnabled && selectedExtraVoucherId) {
+      if (!selectedVoucherId) {
+        toast.error("استفاده از فیش اضافه تنها همراه با فیش اول امکان‌پذیر است")
+        return
+      }
+      const allowedExtra = selectedFood.food.allowed_extra_vouchers || []
+      const isAllowed = allowedExtra.some((v) => v.id === selectedExtraVoucherId)
+      if (!isAllowed) {
+        toast.error("این غذا از فیش اضافه انتخاب‌شده پشتیبانی نمی‌کند")
         return
       }
     }
@@ -544,7 +580,9 @@ export default function StudentDashboard() {
         meal_type: selectedMeal,
         reserved_date: new DateObject(selectedDate).format("YYYY-MM-DD"),
         voucher_type: selectedVoucherId,
+        extra_voucher_type: isExtraVoucherEnabled ? selectedExtraVoucherId : null,
         has_voucher: Boolean(selectedVoucherId),
+        has_extra_voucher: isExtraVoucherEnabled && Boolean(selectedExtraVoucherId),
       })
 
       if (totalPrice === 0) {
@@ -1223,14 +1261,14 @@ export default function StudentDashboard() {
 
               {/* Voucher Selection */}
               {((selectedFood.food.allowed_vouchers && selectedFood.food.allowed_vouchers.length > 0) || voucherTypes.length > 0) && (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <h4 className="flex items-center gap-1.5 text-sm font-bold text-foreground">
                       <Ticket className="size-4 text-primary" />
-                      <span>انتخاب فیش / ژتون</span>
+                      <span>تخصیص فیش / ژتون</span>
                     </h4>
                     <span className="text-[0.7rem] text-muted-foreground">
-                      یک گزینه را انتخاب کنید
+                      {selectedFood.food.supports_extra_voucher ? "پشتیبانی از ۲ فیش" : "یک فیش"}
                     </span>
                   </div>
 
@@ -1240,113 +1278,215 @@ export default function StudentDashboard() {
                     </div>
                   )}
 
-                  {/* Stacked and Justified Voucher List */}
-                  <div className="flex flex-col gap-2 w-full max-h-48 overflow-y-auto pr-1 overscroll-contain custom-scrollbar">
-                    {/* Option: No Voucher */}
-                    <button
-                      type="button"
-                      onClick={() => setSelectedVoucherId(null)}
-                      className={cn(
-                        "w-full rounded-2xl p-3 sm:p-3.5 flex items-center justify-between transition-all cursor-pointer border text-right",
-                        selectedVoucherId === null
-                          ? "border-primary bg-primary/10 shadow-xs"
-                          : "border-glass-border bg-glass/60 hover:bg-glass-strong"
-                      )}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div
-                          className={cn(
-                            "size-5 rounded-full border-2 flex items-center justify-center transition-colors shrink-0",
-                            selectedVoucherId === null
-                              ? "border-primary bg-primary"
-                              : "border-muted-foreground/40 bg-transparent"
-                          )}
-                        >
-                          {selectedVoucherId === null && (
-                            <div className="size-1.5 rounded-full bg-white" />
-                          )}
-                        </div>
-                        <div>
-                          <div className="font-bold text-xs sm:text-sm text-foreground">
-                            بدون ژتون
-                          </div>
-                          <div className="text-[0.65rem] text-muted-foreground">
-                            پرداخت کامل مبلغ غذا (قیمت آزاد)
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="shrink-0">
-                        <span className="rounded-full bg-glass px-2.5 py-1 text-[0.7rem] font-medium text-muted-foreground border border-glass-border">
-                          قیمت پایه
+                  {/* Section 1: Regular Voucher */}
+                  <div className="space-y-2 rounded-2xl bg-glass/40 border border-glass-border p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                        <span className="size-4.5 rounded-md bg-primary/10 text-primary flex items-center justify-center text-[10px] font-black">۱</span>
+                        فیش اول (سهمیه شما):
+                      </span>
+                      {selectedVoucher && (
+                        <span className="text-[10px] font-bold text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                          {formatPersianPrice(selectedVoucher.discount_amount)}− ت
                         </span>
-                      </div>
-                    </button>
+                      )}
+                    </div>
 
-                    {/* Voucher Options */}
-                    {voucherTypes.map((vt) => {
-                      const isAllowed = selectedFood.food.allowed_vouchers?.some(
-                        (v) => v.id === vt.id
-                      )
-                      const isTrustBlocked =
-                        userProfile?.trust_score !== undefined && userProfile.trust_score < 0
-                      const isDisabled = !isAllowed || isTrustBlocked
-                      const isSelected = selectedVoucherId === vt.id
-
-                      return (
-                        <button
-                          key={vt.id}
-                          type="button"
-                          disabled={isDisabled}
-                          onClick={() => setSelectedVoucherId(vt.id)}
-                          className={cn(
-                            "w-full rounded-2xl p-3 sm:p-3.5 flex items-center justify-between transition-all border text-right",
-                            isDisabled
-                              ? "opacity-45 cursor-not-allowed border-dashed border-glass-border bg-glass/30"
-                              : isSelected
-                              ? "border-primary bg-primary/10 shadow-xs cursor-pointer"
-                              : "border-glass-border bg-glass/60 hover:bg-glass-strong cursor-pointer"
-                          )}
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div
-                              className={cn(
-                                "size-5 rounded-full border-2 flex items-center justify-center transition-colors shrink-0",
-                                isSelected
-                                  ? "border-primary bg-primary"
-                                  : "border-muted-foreground/40 bg-transparent"
-                              )}
-                            >
-                              {isSelected && (
-                                <div className="size-1.5 rounded-full bg-white" />
-                              )}
-                            </div>
-                            <div className="min-w-0">
-                              <div className="font-bold text-xs sm:text-sm text-foreground truncate">
-                                {vt.name}
-                              </div>
-                              <div className="text-[0.65rem] text-muted-foreground truncate">
-                                {isDisabled
-                                  ? "غیرقابل استفاده برای این غذا"
-                                  : "کسر از مبلغ نهایی سفارش"}
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="shrink-0">
-                            {vt.discount_amount ? (
-                              <span className="rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-2.5 py-1 text-[0.7rem] font-bold">
-                                {formatPersianPrice(vt.discount_amount)}− تومان
-                              </span>
-                            ) : (
-                              <span className="rounded-full bg-primary/10 text-primary border border-primary/20 px-2.5 py-1 text-[0.7rem] font-bold">
-                                رایگان
-                              </span>
+                    <div className="flex flex-col gap-1.5 w-full max-h-40 overflow-y-auto pr-1 overscroll-contain custom-scrollbar">
+                      {/* Option: No Voucher */}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedVoucherId(null)}
+                        className={cn(
+                          "w-full rounded-xl p-2.5 sm:p-3 flex items-center justify-between transition-all cursor-pointer border text-right",
+                          selectedVoucherId === null
+                            ? "border-primary bg-primary/10 shadow-xs"
+                            : "border-glass-border bg-glass/60 hover:bg-glass-strong"
+                        )}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div
+                            className={cn(
+                              "size-4 rounded-full border-2 flex items-center justify-center transition-colors shrink-0",
+                              selectedVoucherId === null
+                                ? "border-primary bg-primary"
+                                : "border-muted-foreground/40 bg-transparent"
+                            )}
+                          >
+                            {selectedVoucherId === null && (
+                              <div className="size-1 rounded-full bg-white" />
                             )}
                           </div>
-                        </button>
-                      )
-                    })}
+                          <div>
+                            <div className="font-bold text-xs text-foreground">بدون ژتون</div>
+                            <div className="text-[0.65rem] text-muted-foreground">پرداخت آزاد</div>
+                          </div>
+                        </div>
+                        <span className="rounded-full bg-glass px-2 py-0.5 text-[0.65rem] font-medium text-muted-foreground border border-glass-border">
+                          قیمت پایه
+                        </span>
+                      </button>
+
+                      {/* Voucher Options */}
+                      {voucherTypes.map((vt) => {
+                        const isAllowed = selectedFood.food.allowed_vouchers?.some((v) => v.id === vt.id)
+                        const isTrustBlocked = userProfile?.trust_score !== undefined && userProfile.trust_score < 0
+                        const isDisabled = !isAllowed || isTrustBlocked
+                        const isSelected = selectedVoucherId === vt.id
+
+                        return (
+                          <button
+                            key={vt.id}
+                            type="button"
+                            disabled={isDisabled}
+                            onClick={() => setSelectedVoucherId(vt.id)}
+                            className={cn(
+                              "w-full rounded-xl p-2.5 sm:p-3 flex items-center justify-between transition-all border text-right",
+                              isDisabled
+                                ? "opacity-45 cursor-not-allowed border-dashed border-glass-border bg-glass/30"
+                                : isSelected
+                                ? "border-primary bg-primary/10 shadow-xs cursor-pointer"
+                                : "border-glass-border bg-glass/60 hover:bg-glass-strong cursor-pointer"
+                            )}
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div
+                                className={cn(
+                                  "size-4 rounded-full border-2 flex items-center justify-center transition-colors shrink-0",
+                                  isSelected
+                                    ? "border-primary bg-primary"
+                                    : "border-muted-foreground/40 bg-transparent"
+                                )}
+                              >
+                                {isSelected && <div className="size-1 rounded-full bg-white" />}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="font-bold text-xs text-foreground truncate">{vt.name}</div>
+                                <div className="text-[0.65rem] text-muted-foreground truncate">
+                                  {isDisabled ? "غیرمجاز برای این غذا" : "کسر از فیش اول"}
+                                </div>
+                              </div>
+                            </div>
+                            <span className="rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-2 py-0.5 text-[0.65rem] font-bold">
+                              {formatPersianPrice(vt.discount_amount)}− ت
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Section 2: Extra Voucher (Dual voucher / Shared meal) */}
+                  {(selectedFood.food.supports_extra_voucher || (selectedFood.food.allowed_extra_vouchers && selectedFood.food.allowed_extra_vouchers.length > 0)) && (
+                    <div className="space-y-2 rounded-2xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/80 dark:border-blue-900/60 p-3 transition-all">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                          <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                            <span className="size-4.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center text-[10px] font-black">۲</span>
+                            اعمال فیش دوم (همراه / اضافه)
+                          </span>
+                          <p className="text-[10px] text-muted-foreground">
+                            کسر سهمیه فیش دوم برای غذای دو نفره
+                          </p>
+                        </div>
+                        <Switch
+                          checked={isExtraVoucherEnabled}
+                          onCheckedChange={(checked: boolean) => {
+                            setIsExtraVoucherEnabled(checked)
+                            if (!checked) {
+                              setSelectedExtraVoucherId(null)
+                            } else if (!selectedExtraVoucherId) {
+                              const extraAllowed = selectedFood.food.allowed_extra_vouchers || voucherTypes
+                              if (extraAllowed.length > 0) {
+                                setSelectedExtraVoucherId(extraAllowed[0].id)
+                              }
+                            }
+                          }}
+                        />
+                      </div>
+
+                      {/* Extra Voucher Options (Collapsed when Switch is OFF) */}
+                      {isExtraVoucherEnabled && (
+                        <div className="pt-2 border-t border-blue-200/60 dark:border-blue-900/50 space-y-1.5 animate-in fade-in duration-200">
+                          <div className="text-[10px] font-semibold text-blue-900 dark:text-blue-300">
+                            انتخاب نوع فیش دوم:
+                          </div>
+                          <div className="flex flex-col gap-1.5 w-full max-h-36 overflow-y-auto pr-1 overscroll-contain custom-scrollbar">
+                            {voucherTypes.map((vt) => {
+                              const isAllowed = selectedFood.food.allowed_extra_vouchers
+                                ? selectedFood.food.allowed_extra_vouchers.some((v) => v.id === vt.id)
+                                : true
+                              const isTrustBlocked = userProfile?.trust_score !== undefined && userProfile.trust_score < 0
+                              const isDisabled = !isAllowed || isTrustBlocked
+                              const isSelected = selectedExtraVoucherId === vt.id
+
+                              return (
+                                <button
+                                  key={vt.id}
+                                  type="button"
+                                  disabled={isDisabled}
+                                  onClick={() => setSelectedExtraVoucherId(vt.id)}
+                                  className={cn(
+                                    "w-full rounded-xl p-2.5 sm:p-3 flex items-center justify-between transition-all border text-right",
+                                    isDisabled
+                                      ? "opacity-45 cursor-not-allowed border-dashed border-glass-border bg-glass/30"
+                                      : isSelected
+                                      ? "border-blue-600 bg-blue-50/80 dark:bg-blue-900/40 shadow-xs cursor-pointer"
+                                      : "border-glass-border bg-white dark:bg-slate-900/60 hover:bg-glass-strong cursor-pointer"
+                                  )}
+                                >
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <div
+                                      className={cn(
+                                        "size-4 rounded-full border-2 flex items-center justify-center transition-colors shrink-0",
+                                        isSelected
+                                          ? "border-blue-600 bg-blue-600"
+                                          : "border-muted-foreground/40 bg-transparent"
+                                      )}
+                                    >
+                                      {isSelected && <div className="size-1 rounded-full bg-white" />}
+                                    </div>
+                                    <div className="min-w-0">
+                                      <div className="font-bold text-xs text-foreground truncate">{vt.name} (همراه)</div>
+                                      <div className="text-[0.65rem] text-muted-foreground truncate">
+                                        {isDisabled ? "غیرمجاز به عنوان فیش اضافه" : "کسر از فیش دوم"}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <span className="rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 px-2 py-0.5 text-[0.65rem] font-bold">
+                                    {formatPersianPrice(vt.discount_amount)}− ت
+                                  </span>
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Live Transparent Price Breakdown Box */}
+                  <div className="rounded-2xl bg-glass/60 p-3 border border-glass-border text-xs space-y-1.5">
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>قیمت پایه غذا:</span>
+                      <span>{formatPersianPrice(selectedFood.food.price)} تومان</span>
+                    </div>
+                    {selectedVoucher && (
+                      <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-medium">
+                        <span>کسر فیش اول ({selectedVoucher.name}):</span>
+                        <span>{formatPersianPrice(voucherDiscount)}− تومان</span>
+                      </div>
+                    )}
+                    {isExtraVoucherEnabled && selectedExtraVoucher && (
+                      <div className="flex justify-between text-blue-600 dark:text-blue-400 font-medium">
+                        <span>کسر فیش دوم ({selectedExtraVoucher.name}):</span>
+                        <span>{formatPersianPrice(extraVoucherDiscount)}− تومان</span>
+                      </div>
+                    )}
+                    <div className="border-t border-glass-border pt-1.5 flex justify-between font-extrabold text-foreground text-sm">
+                      <span>مبلغ نهایی پرداختی:</span>
+                      <span className="text-primary font-black">{formatPersianPrice(calculateTotalPrice())} تومان</span>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1397,16 +1537,30 @@ export default function StudentDashboard() {
               <span>{formatPersianPrice(selectedFood?.food.price ?? 0)} تومان</span>
             </div>
             <div className="flex justify-between items-center text-muted-foreground">
-              <span>نوع ژتون:</span>
+              <span>فیش اول:</span>
               <span className="font-medium text-foreground">
                 {selectedVoucher ? selectedVoucher.name : "بدون ژتون (پرداخت نقدی)"}
               </span>
             </div>
             {voucherDiscount > 0 && (
               <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400 font-medium">
-                <span>تخفیف ژتون:</span>
+                <span>تخفیف فیش اول:</span>
                 <span>−{formatPersianPrice(voucherDiscount)} تومان</span>
               </div>
+            )}
+            {isExtraVoucherEnabled && selectedExtraVoucher && (
+              <>
+                <div className="flex justify-between items-center text-muted-foreground">
+                  <span>فیش دوم (همراه):</span>
+                  <span className="font-medium text-foreground">{selectedExtraVoucher.name}</span>
+                </div>
+                {extraVoucherDiscount > 0 && (
+                  <div className="flex justify-between items-center text-blue-600 dark:text-blue-400 font-medium">
+                    <span>تخفیف فیش دوم:</span>
+                    <span>−{formatPersianPrice(extraVoucherDiscount)} تومان</span>
+                  </div>
+                )}
+              </>
             )}
             <div className="border-t border-glass-border pt-3 flex justify-between items-center font-bold text-base">
               <span>مبلغ قابل پرداخت:</span>

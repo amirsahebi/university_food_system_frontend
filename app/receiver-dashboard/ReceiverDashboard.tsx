@@ -296,29 +296,36 @@ export default function ReceiverDashboard() {
         <head>
           <title>رسید تحویل غذا - سلف جوان</title>
           <style>
+            @page {
+              size: auto;
+              margin: 0;
+            }
             body { 
               font-family: Tahoma, Arial, sans-serif; 
               direction: rtl; 
               text-align: right; 
               width: 220px; 
-              margin: 10px auto; 
-              padding: 5px; 
+              margin: 6px auto; 
+              padding: 4px; 
               font-size: 11px;
+              color: #111;
             }
-            .header { text-align: center; border-bottom: 2px dashed #F47B20; padding-bottom: 8px; margin-bottom: 10px; }
-            .header h2 { margin: 0; color: #F47B20; font-size: 16px; }
-            .row { display: flex; justify-content: space-between; margin-bottom: 6px; }
+            .header { text-align: center; border-bottom: 2px dashed #F47B20; padding-bottom: 5px; margin-bottom: 7px; }
+            .header h2 { margin: 0; color: #F47B20; font-size: 15px; }
+            .header p { margin: 2px 0 0; font-size: 10px; color: #555; }
+            .row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+            .phone-val { direction: ltr; unicode-bidi: embed; font-size: 11px; }
             .code-box { 
               border: 2px solid #000; 
               text-align: center; 
-              font-size: 18px; 
+              font-size: 17px; 
               font-weight: bold; 
-              letter-spacing: 4px; 
-              padding: 8px; 
-              margin: 12px 0; 
+              letter-spacing: 3px; 
+              padding: 5px; 
+              margin: 8px 0; 
               background: #f9f9f9;
             }
-            .footer { text-align: center; font-size: 10px; color: #777; margin-top: 12px; border-top: 1px dotted #ccc; padding-top: 6px; }
+            .footer { text-align: center; font-size: 9px; color: #777; margin-top: 8px; border-top: 1px dotted #ccc; padding-top: 4px; }
           </style>
         </head>
         <body>
@@ -328,6 +335,7 @@ export default function ReceiverDashboard() {
           </div>
           <div class="row"><span>شماره رزرو:</span><strong>${toPersianDigits(order.reservation_number)}#</strong></div>
           <div class="row"><span>دانشجو:</span><strong>${order.student.first_name} ${order.student.last_name}</strong></div>
+          <div class="row"><span>شماره تماس:</span><strong class="phone-val">${toPersianDigits(order.student?.phone_number || '')}</strong></div>
           <div class="row"><span>غذا:</span><strong>${order.food.name}</strong></div>
           <div class="row"><span>تاریخ:</span><strong>${toPersianDigits(new Intl.DateTimeFormat("fa-IR").format(new Date(order.reserved_date)))}</strong></div>
           <div class="row"><span>ساعت توزیع:</span><strong>${order.time_slot ? toPersianDigits(order.time_slot.start_time.slice(0, 5)) + ' الی ' + toPersianDigits(order.time_slot.end_time.slice(0, 5)) : ''}</strong></div>

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'javanfoods-pwa-v12';
+const CACHE_NAME = 'javanfoods-pwa-v13';
 const OFFLINE_URL = '/offline.html';
 
 const PRECACHE_ASSETS = [
@@ -71,9 +71,12 @@ self.addEventListener('push', (event) => {
   const options = {
     body: data.body || 'سفارش شما در رستوران جوان آماده تحویل می‌باشد.',
     icon: data.icon || '/icons/icon-192x192.png',
-    badge: '/icons/icon-192x192.png',
-    vibrate: [200, 100, 200],
-    data: { url: data.url || '/student-dashboard' },
+    badge: data.badge || '/icons/icon-192x192.png',
+    vibrate: [300, 100, 300, 100, 300],
+    tag: data.tag || ('javanfoods-order-' + Date.now()),
+    renotify: true,
+    requireInteraction: true,
+    data: { url: data.url || '/student-dashboard?tab=orders' },
   };
   event.waitUntil(self.registration.showNotification(title, options));
 });

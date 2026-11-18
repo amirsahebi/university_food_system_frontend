@@ -126,6 +126,7 @@ function formatNotificationTime(item: AppNotification): string {
 interface ReservationSummary {
   id: number
   status: string
+  reserved_date?: string
   food?: {
     name: string
   }
@@ -178,7 +179,25 @@ export function NotificationCenter({
       const stored = localStorage.getItem(storageKey)
       if (stored) {
         const parsed = JSON.parse(stored) as AppNotification[]
-        setNotifications(parsed)
+        // Prune stale food_ready notifications from previous days
+        const todayStr = new Date().toLocaleDateString('en-CA')
+        const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000
+        const cleaned = parsed.filter((item) => {
+          if (item.type === 'food_ready') {
+            if (item.createdAt && item.createdAt < oneDayAgo) return false
+            if (item.createdAt) {
+              const itemDateStr = new Date(item.createdAt).toLocaleDateString('en-CA')
+              if (itemDateStr !== todayStr) return false
+            }
+          }
+          return true
+        })
+        setNotifications(cleaned)
+        if (cleaned.length !== parsed.length) {
+          try {
+            localStorage.setItem(storageKey, JSON.stringify(cleaned))
+          } catch {}
+        }
       } else {
         setNotifications([])
       }
@@ -270,8 +289,13 @@ export function NotificationCenter({
       notifiedIds = []
     }
 
+    const todayStr = new Date().toLocaleDateString('en-CA')
+
     const readyOrders = reservations.filter(
-      (r) => r.status === 'ready_to_pickup' && !notifiedIds.includes(r.id)
+      (r) =>
+        r.status === 'ready_to_pickup' &&
+        (!r.reserved_date || r.reserved_date === todayStr) &&
+        !notifiedIds.includes(r.id)
     )
 
     if (readyOrders.length > 0) {

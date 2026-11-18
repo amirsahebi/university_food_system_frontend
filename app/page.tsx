@@ -15,6 +15,7 @@ import api from "@/lib/axios"
 import { API_ROUTES, createApiUrl } from "@/lib/api"
 import { toEnglishDigits } from "@/lib/formatters"
 import { Field } from "@/components/account/Field"
+import { LoadingSpinner } from "@/components/LoadingSpinner"
 
 export const dynamic = "force-dynamic"
 
@@ -91,32 +92,7 @@ export default function LoginPage() {
   }
 
   if (hasStoredToken) {
-    return (
-      <div
-        dir="rtl"
-        className="relative flex min-h-screen flex-col items-center justify-center bg-white font-sans"
-        style={{ fontFamily: "'Vazirmatn', 'Segoe UI', system-ui, sans-serif" }}
-      >
-        <div className="flex flex-col items-center space-y-4">
-          <div className="relative size-20 animate-pulse">
-            <Image
-              src="/images/javanfoods_logo.png"
-              alt="رستوران جوان"
-              fill
-              className="object-contain filter drop-shadow-md"
-              priority
-            />
-          </div>
-          <div className="flex flex-col items-center gap-2">
-            <h1 className="text-xl font-bold text-gray-800">رستوران جوان</h1>
-            <div className="h-1.5 w-36 overflow-hidden rounded-full bg-orange-100">
-              <div className="h-full w-full animate-pulse rounded-full bg-gradient-to-r from-orange-400 to-orange-600" />
-            </div>
-            <p className="text-xs text-muted-foreground animate-pulse">در حال ورود به سامانه...</p>
-          </div>
-        </div>
-      </div>
-    )
+    return <LoadingSpinner text="در حال ورود به سامانه..." />
   }
 
   const phoneValue = watch("phone_number")
