@@ -1153,88 +1153,304 @@ export default function AdminDashboard() {
     }
   }, [currentCategory, fetchCategories])
 
-  const handleAddFood = useCallback(() => {
-    openDialog(
-      <div className="flex flex-col h-full" dir="rtl">
-        {/* Sticky Header */}
-        <div className="p-5 sm:p-6 pb-4 border-b border-orange-100/80 bg-white flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-orange-500/10 to-amber-500/20 text-[#F47B20] border border-orange-200/50 flex items-center justify-center shrink-0 shadow-xs">
-            <Utensils className="w-5 h-5" />
+interface FoodFormModalContentProps {
+  initialFood?: Food
+  categories: FoodCategory[]
+  voucherTypes: VoucherType[]
+  onClose: () => void
+  onSuccess: () => Promise<void> | void
+}
+
+function FoodFormModalContent({
+  initialFood,
+  categories,
+  voucherTypes,
+  onClose,
+  onSuccess,
+}: FoodFormModalContentProps) {
+  const isEdit = Boolean(initialFood)
+  const [name, setName] = useState(initialFood?.name || "")
+  // Ensure we round and clean the initial price so no decimals (.00) ever appear
+  const [priceStr, setPriceStr] = useState(() => {
+    if (initialFood?.price !== undefined && initialFood?.price !== null) {
+      const rounded = Math.round(Number(initialFood.price) || 0)
+      return rounded > 0 ? toPersianDigits(rounded) : ""
+    }
+    return ""
+  })
+  const [description, setDescription] = useState(initialFood?.description || "")
+  const [category, setCategory] = useState(
+    initialFood?.category_id ? initialFood.category_id.toString() : ""
+  )
+  const [supportsExtraVoucher, setSupportsExtraVoucher] = useState(
+    initialFood?.supports_extra_voucher || false
+  )
+
+  // Default checked vouchers:
+  // If editing: use food's allowed_vouchers if present, else all active vouchers
+  // If adding: all active vouchers
+  const [selectedVouchers, setSelectedVouchers] = useState<number[]>(() => {
+    if (initialFood && initialFood.allowed_vouchers && initialFood.allowed_vouchers.length > 0) {
+      return initialFood.allowed_vouchers.map((v) => v.id)
+    }
+    return voucherTypes.map((v) => v.id)
+  })
+
+  const [selectedExtraVouchers, setSelectedExtraVouchers] = useState<number[]>(() => {
+    if (initialFood && initialFood.allowed_extra_vouchers && initialFood.allowed_extra_vouchers.length > 0) {
+      return initialFood.allowed_extra_vouchers.map((v) => v.id)
+    }
+    return voucherTypes.map((v) => v.id)
+  })
+
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Parse price safely
+  const numericPrice = parsePersianInt(priceStr)
+
+  // Real-time price ceiling validation
+  const validationError = useMemo(() => {
+    if (numericPrice <= 0) return null
+
+    // 1. Single voucher discount cannot exceed food price
+    for (const vId of selectedVouchers) {
+      const v = voucherTypes.find((item) => item.id === vId)
+      if (v && Number(v.discount_amount) > numericPrice) {
+        return `تخفیف ژتون «${v.name}» (${formatPersianPrice(v.discount_amount)} تومان) از قیمت کل غذا (${formatPersianPrice(numericPrice)} تومان) بیشتر است.`
+      }
+    }
+
+    // 2. Extra voucher validations when enabled
+    if (supportsExtraVoucher) {
+      for (const v2Id of selectedExtraVouchers) {
+        const v2 = voucherTypes.find((item) => item.id === v2Id)
+        if (v2 && Number(v2.discount_amount) > numericPrice) {
+          return `تخفیف ژتون اضافه «${v2.name}» (${formatPersianPrice(v2.discount_amount)} تومان) از قیمت کل غذا (${formatPersianPrice(numericPrice)} تومان) بیشتر است.`
+        }
+      }
+
+      for (const v1Id of selectedVouchers) {
+        const v1 = voucherTypes.find((item) => item.id === v1Id)
+        for (const v2Id of selectedExtraVouchers) {
+          const v2 = voucherTypes.find((item) => item.id === v2Id)
+          if (v1 && v2 && Number(v1.discount_amount) + Number(v2.discount_amount) > numericPrice) {
+            return `مجموع تخفیف فیش اول (${v1.name}: ${formatPersianPrice(v1.discount_amount)}) و فیش اضافه (${v2.name}: ${formatPersianPrice(v2.discount_amount)}) برابر ${formatPersianPrice(Number(v1.discount_amount) + Number(v2.discount_amount))} تومان است که از قیمت کل غذا (${formatPersianPrice(numericPrice)} تومان) بیشتر می‌شود.`
+          }
+        }
+      }
+    }
+
+    return null
+  }, [numericPrice, selectedVouchers, selectedExtraVouchers, supportsExtraVoucher, voucherTypes])
+
+  const toggleVoucher = (id: number) => {
+    setSelectedVouchers((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    )
+  }
+
+  const toggleExtraVoucher = (id: number) => {
+    setSelectedExtraVouchers((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    )
+  }
+
+  const handleSubmit = async () => {
+    if (!name.trim()) {
+      toast.error("لطفاً نام غذا را وارد کنید")
+      return
+    }
+    if (numericPrice <= 0) {
+      toast.error("لطفاً قیمت معتبر برای غذا وارد کنید")
+      return
+    }
+    if (validationError) {
+      toast.error(validationError)
+      return
+    }
+
+    setIsSubmitting(true)
+    try {
+      const formData = new FormData()
+      formData.append("name", name.trim())
+      if (description.trim()) {
+        formData.append("description", description.trim())
+      }
+      formData.append("price", numericPrice.toString())
+      if (category) {
+        formData.append("category_id", category)
+        formData.append("category", category)
+      }
+      if (imageFile) {
+        formData.append("image", imageFile)
+      }
+      selectedVouchers.forEach((id) => formData.append("allowed_vouchers", id.toString()))
+      if (supportsExtraVoucher) {
+        selectedExtraVouchers.forEach((id) => formData.append("allowed_extra_vouchers", id.toString()))
+      }
+      formData.append("supports_extra_voucher", supportsExtraVoucher.toString())
+
+      if (isEdit && initialFood) {
+        await api.put(createApiUrl(API_ROUTES.UPDATE_FOOD(initialFood.id)), formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        })
+        toast.success("تغییرات غذا با موفقیت ذخیره شد")
+      } else {
+        await api.post(createApiUrl(API_ROUTES.ADD_FOOD), formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        })
+        toast.success("غذای جدید با موفقیت اضافه شد")
+      }
+
+      await onSuccess()
+      onClose()
+    } catch (error: any) {
+      console.error("Error saving food:", error)
+      const errorMsg =
+        error?.response?.data?.allowed_extra_voucher_ids?.[0] ||
+        error?.response?.data?.allowed_voucher_ids?.[0] ||
+        error?.response?.data?.price?.[0] ||
+        error?.response?.data?.name?.[0] ||
+        error?.response?.data?.error ||
+        (isEdit ? "خطا در به‌روزرسانی غذا" : "خطا در افزودن غذای جدید")
+      toast.error(String(errorMsg))
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col h-full" dir="rtl">
+      {/* Sticky Header */}
+      <div className="p-5 sm:p-6 pb-4 border-b border-orange-100/80 bg-white flex items-center gap-3.5">
+        <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-orange-500/10 to-amber-500/20 text-[#F47B20] border border-orange-200/50 flex items-center justify-center shrink-0 shadow-xs">
+          {isEdit ? <Edit className="w-5 h-5" /> : <Utensils className="w-5 h-5" />}
+        </div>
+        <div>
+          <DialogTitle className="text-base sm:text-lg font-black text-gray-900 tracking-tight">
+            {isEdit ? "ویرایش غذا" : "افزودن غذای جدید"}
+          </DialogTitle>
+          <DialogDescription className="text-xs text-gray-500 mt-0.5">
+            {isEdit
+              ? `ویرایش اطلاعات، نرخ آزاد و ژتون‌های مجاز برای «${initialFood?.name}»`
+              : "مشخصات غذا، نرخ پایه و ژتون‌های مجاز را تعیین کنید"}
+          </DialogDescription>
+        </div>
+      </div>
+
+      {/* Scrollable Body */}
+      <div className="p-5 sm:p-6 pt-4 space-y-4 max-h-[calc(85vh-150px)] overflow-y-auto scrollbar-thin scrollbar-thumb-orange-200">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold text-gray-700">
+              نام غذا <span className="text-rose-500">*</span>
+            </Label>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="مثال: زرشک پلو با مرغ"
+              className="form-input-focus rounded-xl h-11 text-sm bg-gray-50/50 hover:bg-white focus:bg-white transition-colors"
+            />
           </div>
-          <div>
-            <DialogTitle className="text-base sm:text-lg font-black text-gray-900 tracking-tight">افزودن غذای جدید</DialogTitle>
-            <DialogDescription className="text-xs text-gray-500 mt-0.5">مشخصات غذا، نرخ پایه و ژتون‌های مجاز را تعیین کنید</DialogDescription>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold text-gray-700">
+              دسته‌بندی غذا <span className="text-rose-500">*</span>
+            </Label>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="flex h-11 w-full rounded-xl border border-input bg-gray-50/50 hover:bg-white focus:bg-white px-3.5 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[#F47B20] focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50 form-input-focus transition-colors"
+            >
+              <option value="">انتخاب دسته‌بندی</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id.toString()}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
-        {/* Scrollable Body */}
-        <div className="p-5 sm:p-6 pt-4 space-y-4 max-h-[calc(85vh-150px)] overflow-y-auto scrollbar-thin scrollbar-thumb-orange-200">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            <div className="space-y-1.5">
-              <Label htmlFor="food" className="text-xs font-bold text-gray-700">نام غذا <span className="text-rose-500">*</span></Label>
-              <Input id="food" placeholder="مثال: زرشک پلو با مرغ" className="form-input-focus rounded-xl h-11 text-sm bg-gray-50/50 hover:bg-white focus:bg-white transition-colors" />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="foodCategory" className="text-xs font-bold text-gray-700">دسته‌بندی غذا <span className="text-rose-500">*</span></Label>
-              <select
-                id="foodCategory"
-                className="flex h-11 w-full rounded-xl border border-input bg-gray-50/50 hover:bg-white focus:bg-white px-3.5 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[#F47B20] focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50 form-input-focus transition-colors"
-              >
-                <option value="">انتخاب دسته‌بندی</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id.toString()}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            <div className="space-y-1.5">
-              <Label htmlFor="foodPrice" className="text-xs font-bold text-gray-700">قیمت آزاد غذا <span className="text-rose-500">*</span></Label>
-              <div className="relative">
-                <Input id="foodPrice" type="text" inputMode="numeric" placeholder="مثال: ۷۵۰۰۰" className="form-input-focus rounded-xl h-11 font-mono text-sm pl-14 bg-gray-50/50 hover:bg-white focus:bg-white transition-colors" />
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-gray-400 pointer-events-none">تومان</span>
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="foodImage" className="text-xs font-bold text-gray-700">تصویر غذا</Label>
-              <Input id="foodImage" type="file" accept="image/*" className="form-input-focus rounded-xl h-11 text-xs cursor-pointer bg-gray-50/50 hover:bg-white focus:bg-white file:cursor-pointer file:rounded-lg file:border-0 file:bg-orange-100/70 file:text-[#F47B20] file:font-bold file:text-xs file:py-1 file:px-2.5 hover:file:bg-orange-100 transition-colors" />
-            </div>
-          </div>
-
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
           <div className="space-y-1.5">
-            <Label htmlFor="foodDescription" className="text-xs font-bold text-gray-700">توضیحات و ترکیبات غذا (اختیاری)</Label>
-            <Input id="foodDescription" placeholder="مثال: برنج ایرانی اعلا به همراه ران مرغ سرخ‌شده و دورچین..." className="form-input-focus rounded-xl h-11 text-sm bg-gray-50/50 hover:bg-white focus:bg-white transition-colors" />
-          </div>
-
-          {/* Toggle for Extra Voucher */}
-          <div className="flex items-center justify-between p-3.5 rounded-2xl border border-orange-200/60 bg-gradient-to-r from-orange-50/60 to-amber-50/30">
-            <div className="space-y-0.5">
-              <Label htmlFor="supports_extra_voucher" className="text-xs font-bold text-gray-900 cursor-pointer flex items-center gap-1.5">
-                <Coins className="w-3.5 h-3.5 text-[#F47B20]" />
-                پشتیبانی از ژتون اضافی / آزاد (غذای دونفره)
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-bold text-gray-700">
+                قیمت آزاد غذا <span className="text-rose-500">*</span>
               </Label>
-              <p className="text-[11px] text-gray-500">
-                امکان رزرو با دو فیش یا سهمیه مازاد دانشجویان (مانند پیتزا دونفره)
-              </p>
+              {numericPrice > 0 && (
+                <span className="text-[11px] font-extrabold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60">
+                  {formatPersianPrice(numericPrice)} تومان
+                </span>
+              )}
             </div>
-            <Switch
-              id="supports_extra_voucher"
-              name="supports_extra_voucher"
-              defaultChecked={false}
-              onCheckedChange={(checked) => {
-                const extraSection = document.getElementById("add_extra_vouchers_section")
-                if (extraSection) {
-                  extraSection.style.display = checked ? "block" : "none"
-                }
-              }}
-            />
+            <div className="relative">
+              <Input
+                type="text"
+                inputMode="numeric"
+                value={priceStr}
+                onChange={(e) => setPriceStr(toPersianDigits(e.target.value))}
+                placeholder="مثال: ۷۵۰۰۰"
+                className="form-input-focus rounded-xl h-11 font-mono text-sm pl-14 bg-gray-50/50 hover:bg-white focus:bg-white transition-colors"
+              />
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-gray-400 pointer-events-none">
+                تومان
+              </span>
+            </div>
           </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold text-gray-700">تصویر غذا</Label>
+            <div className="flex items-center gap-2.5">
+              <Input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+                className="form-input-focus rounded-xl h-11 text-xs cursor-pointer bg-gray-50/50 hover:bg-white focus:bg-white file:cursor-pointer file:rounded-lg file:border-0 file:bg-orange-100/70 file:text-[#F47B20] file:font-bold file:text-xs file:py-1 file:px-2.5 hover:file:bg-orange-100 transition-colors"
+              />
+              {isEdit && initialFood?.image_url && !imageFile && (
+                <div className="relative h-11 w-11 shrink-0 rounded-xl overflow-hidden border border-orange-200 shadow-2xs">
+                  <FoodImage
+                    src={initialFood.image_url}
+                    alt={initialFood.name}
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
 
-          {/* Allowed Extra Vouchers Selection */}
-          <div id="add_extra_vouchers_section" style={{ display: "none" }} className="space-y-2 p-3 rounded-2xl border border-blue-200/80 bg-blue-50/40">
+        <div className="space-y-1.5">
+          <Label className="text-xs font-bold text-gray-700">توضیحات و ترکیبات غذا (اختیاری)</Label>
+          <Input
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="مثال: برنج ایرانی اعلا به همراه ران مرغ سرخ‌شده و دورچین..."
+            className="form-input-focus rounded-xl h-11 text-sm bg-gray-50/50 hover:bg-white focus:bg-white transition-colors"
+          />
+        </div>
+
+        {/* Toggle for Extra Voucher */}
+        <div className="flex items-center justify-between p-3.5 rounded-2xl border border-orange-200/60 bg-gradient-to-r from-orange-50/60 to-amber-50/30">
+          <div className="space-y-0.5">
+            <Label className="text-xs font-bold text-gray-900 cursor-pointer flex items-center gap-1.5">
+              <Coins className="w-3.5 h-3.5 text-[#F47B20]" />
+              پشتیبانی از ژتون اضافی / آزاد (غذای دونفره)
+            </Label>
+            <p className="text-[11px] text-gray-500">
+              امکان رزرو با دو فیش یا سهمیه مازاد دانشجویان (مانند پیتزا دونفره)
+            </p>
+          </div>
+          <Switch
+            checked={supportsExtraVoucher}
+            onCheckedChange={setSupportsExtraVoucher}
+          />
+        </div>
+
+        {/* Allowed Extra Vouchers Selection */}
+        {supportsExtraVoucher && (
+          <div className="space-y-2 p-3 rounded-2xl border border-blue-200/80 bg-blue-50/40 animate-in fade-in duration-200">
             <div className="flex items-center justify-between">
               <Label className="text-xs font-bold text-blue-900 flex items-center gap-1.5">
                 <Ticket className="w-3.5 h-3.5 text-blue-600" />
@@ -1243,40 +1459,47 @@ export default function AdminDashboard() {
               <span className="text-[11px] text-blue-600 font-medium">سهمیه نفر دوم</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-0.5">
-              {voucherTypes.map((vt) => (
-                <label
-                  key={vt.id}
-                  className="relative flex items-center justify-between p-2.5 rounded-xl border border-blue-200/90 hover:border-blue-400 hover:bg-blue-50/60 cursor-pointer text-xs transition-all bg-white has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50/60 has-[:checked]:shadow-2xs group"
-                >
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      name="add_allowed_extra_vouchers"
-                      value={vt.id}
-                      defaultChecked={true}
-                      className="rounded text-blue-600 focus:ring-blue-600 h-4 w-4 border-gray-300"
-                    />
-                    <span className="font-bold text-gray-800">{vt.name}</span>
-                  </div>
-                  <span className="text-blue-700 font-extrabold text-[11px] bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-200/60">
-                    {formatPersianPrice(vt.discount_amount)} ت
-                  </span>
-                </label>
-              ))}
+              {voucherTypes.map((vt) => {
+                const isChecked = selectedExtraVouchers.includes(vt.id)
+                return (
+                  <label
+                    key={vt.id}
+                    className="relative flex items-center justify-between p-2.5 rounded-xl border border-blue-200/90 hover:border-blue-400 hover:bg-blue-50/60 cursor-pointer text-xs transition-all bg-white has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50/60 has-[:checked]:shadow-2xs group"
+                  >
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => toggleExtraVoucher(vt.id)}
+                        className="rounded text-blue-600 focus:ring-blue-600 h-4 w-4 border-gray-300"
+                      />
+                      <span className="font-bold text-gray-800">{vt.name}</span>
+                    </div>
+                    <span className="text-blue-700 font-extrabold text-[11px] bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-200/60">
+                      {formatPersianPrice(vt.discount_amount)} ت
+                    </span>
+                  </label>
+                )
+              })}
             </div>
           </div>
+        )}
 
-          {/* Allowed Vouchers Selection */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
-                <Ticket className="w-3.5 h-3.5 text-[#F47B20]" />
-                ژتون‌های مجاز برای فیش اول (فیش معمولی):
-              </Label>
-              <span className="text-[11px] text-gray-500 font-medium">({toPersianDigits(voucherTypes.length)} نوع ژتون فعال)</span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-0.5">
-              {voucherTypes.map((vt) => (
+        {/* Allowed Vouchers Selection */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
+              <Ticket className="w-3.5 h-3.5 text-[#F47B20]" />
+              ژتون‌های مجاز برای فیش اول (فیش معمولی):
+            </Label>
+            <span className="text-[11px] text-gray-500 font-medium">
+              ({toPersianDigits(voucherTypes.length)} نوع ژتون فعال)
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-0.5">
+            {voucherTypes.map((vt) => {
+              const isChecked = selectedVouchers.includes(vt.id)
+              return (
                 <label
                   key={vt.id}
                   className="relative flex items-center justify-between p-2.5 rounded-xl border border-gray-200/90 hover:border-orange-300 hover:bg-orange-50/40 cursor-pointer text-xs transition-all bg-white has-[:checked]:border-[#F47B20] has-[:checked]:bg-orange-50/60 has-[:checked]:shadow-2xs group"
@@ -1284,9 +1507,8 @@ export default function AdminDashboard() {
                   <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
-                      name="add_allowed_vouchers"
-                      value={vt.id}
-                      defaultChecked={true}
+                      checked={isChecked}
+                      onChange={() => toggleVoucher(vt.id)}
                       className="rounded text-[#F47B20] focus:ring-[#F47B20] h-4 w-4 border-gray-300"
                     />
                     <span className="font-bold text-gray-800">{vt.name}</span>
@@ -1295,372 +1517,89 @@ export default function AdminDashboard() {
                     {formatPersianPrice(vt.discount_amount)} ت
                   </span>
                 </label>
-              ))}
-            </div>
+              )
+            })}
           </div>
         </div>
 
-        {/* Sticky Footer */}
-        <div className="p-4 sm:p-5 border-t border-gray-100 bg-gray-50/80 flex items-center justify-end gap-2.5 mt-auto">
+        {/* Real-time Validation Error Banner */}
+        {validationError && (
+          <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-300/80 text-rose-800 text-xs flex items-start gap-2.5 animate-in fade-in duration-200 shadow-2xs">
+            <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <span className="font-extrabold text-rose-900 block text-xs">
+                خطا در اعتبارسنجی سقف تخفیف فیش‌ها (ثبت غیرمجاز است):
+              </span>
+              <p className="text-[11px] leading-relaxed text-rose-700 font-medium">{validationError}</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Sticky Footer */}
+      <div className="p-4 sm:p-5 border-t border-gray-100 bg-gray-50/80 flex items-center justify-between gap-2.5 mt-auto">
+        <div className="text-[11px] text-gray-500 font-medium hidden sm:block">
+          {validationError ? (
+            <span className="text-rose-600 font-bold">⚠️ لطفاً خطای سقف تخفیف را برطرف کنید</span>
+          ) : numericPrice > 0 ? (
+            <span className="text-emerald-700 font-medium">
+              ✓ قیمت و ژتون‌ها مطابق ضوابط معتبر است
+            </span>
+          ) : null}
+        </div>
+
+        <div className="flex items-center gap-2.5 mr-auto">
           <Button
             type="button"
             variant="outline"
-            onClick={closeDialog}
+            onClick={onClose}
             className="rounded-xl border-gray-200 h-11 px-5 text-gray-700 hover:bg-gray-100 font-semibold text-xs"
           >
             انصراف
           </Button>
           <Button
-            onClick={async () => {
-              const name = (document.getElementById("food") as HTMLInputElement).value
-              const description = (document.getElementById("foodDescription") as HTMLInputElement).value
-              const categorySelect = document.getElementById("foodCategory") as HTMLSelectElement
-              const category = categorySelect?.value || ""
-              const price = parsePersianInt((document.getElementById("foodPrice") as HTMLInputElement).value)
-              const imageFile = (document.getElementById("foodImage") as HTMLInputElement).files?.[0]
-              const switchElement = document.querySelector('button[role="switch"][id="supports_extra_voucher"]')
-              const supportsExtraVoucher = switchElement?.getAttribute('data-state') === 'checked'
-
-              if (!name || !price) {
-                toast.error("لطفاً تمام فیلدها را پر کنید")
-                return
-              }
-
-              const formData = new FormData()
-              formData.append("name", name)
-              if (description) {
-                formData.append("description", description)
-              }
-              formData.append("price", price.toString())
-              if (imageFile) {
-                formData.append("image", imageFile)
-              }
-              if (category) {
-                formData.append("category_id", category)
-                formData.append("category", category)
-              }
-              const selectedVouchers = Array.from(document.querySelectorAll<HTMLInputElement>('input[name="add_allowed_vouchers"]:checked')).map(el => el.value)
-              selectedVouchers.forEach(id => formData.append("allowed_vouchers", id))
-              
-              const selectedExtraVouchers = supportsExtraVoucher
-                ? Array.from(document.querySelectorAll<HTMLInputElement>('input[name="add_allowed_extra_vouchers"]:checked')).map(el => el.value)
-                : []
-              selectedExtraVouchers.forEach(id => formData.append("allowed_extra_vouchers", id))
-              formData.append("supports_extra_voucher", supportsExtraVoucher.toString())
-
-              // Price validation: Discount 1 + Discount 2 <= Food Price
-              if (supportsExtraVoucher && selectedExtraVouchers.length > 0 && selectedVouchers.length > 0) {
-                let invalidMessage = ""
-                for (const v1Id of selectedVouchers) {
-                  const v1 = voucherTypes.find(v => v.id.toString() === v1Id)
-                  for (const v2Id of selectedExtraVouchers) {
-                    const v2 = voucherTypes.find(v => v.id.toString() === v2Id)
-                    if (v1 && v2 && (Number(v1.discount_amount) + Number(v2.discount_amount)) > price) {
-                      invalidMessage = `مجموع تخفیف فیش اول (${v1.name}: ${formatPersianPrice(v1.discount_amount)}) و فیش اضافه (${v2.name}: ${formatPersianPrice(v2.discount_amount)}) برابر ${formatPersianPrice(Number(v1.discount_amount) + Number(v2.discount_amount))} تومان است که از قیمت کل غذا (${formatPersianPrice(price)} تومان) بیشتر می‌شود.`
-                      break
-                    }
-                  }
-                  if (invalidMessage) break
-                }
-                if (invalidMessage) {
-                  toast.error(invalidMessage)
-                  return
-                }
-              }
-
-              try {
-                await api.post(createApiUrl(API_ROUTES.ADD_FOOD), formData, {
-                  headers: { "Content-Type": "multipart/form-data" },
-                })
-                await fetchFoods()
-                closeDialog()
-                toast.success("غذای جدید با موفقیت اضافه شد")
-              } catch (error) {
-                console.error("Error adding food:", error)
-                toast.error("خطا در افزودن غذای جدید")
-              }
-            }}
-            className="bg-gradient-to-r from-[#F47B20] to-[#E06A10] hover:from-[#E06A10] hover:to-[#D05A00] text-white rounded-xl font-bold h-11 px-6 shadow-md shadow-orange-500/20 hover:shadow-lg hover:shadow-orange-500/30 transition-all flex items-center gap-2 text-xs"
+            type="button"
+            disabled={isSubmitting || !name.trim() || numericPrice <= 0 || !!validationError}
+            onClick={handleSubmit}
+            className={`rounded-xl font-bold h-11 px-6 shadow-md transition-all flex items-center gap-2 text-xs ${
+              validationError || !name.trim() || numericPrice <= 0
+                ? "bg-gray-300 text-gray-500 cursor-not-allowed shadow-none hover:bg-gray-300"
+                : "bg-gradient-to-r from-[#F47B20] to-[#E06A10] hover:from-[#E06A10] hover:to-[#D05A00] text-white shadow-orange-500/20 hover:shadow-lg hover:shadow-orange-500/30"
+            }`}
           >
-            <Plus className="w-4 h-4 ml-0.5" />
-            افزودن غذای جدید
+            {isEdit ? <Check className="w-4 h-4 ml-0.5" /> : <Plus className="w-4 h-4 ml-0.5" />}
+            {isSubmitting ? "در حال ثبت..." : isEdit ? "ذخیره تغییرات غذا" : "افزودن غذای جدید"}
           </Button>
         </div>
-      </div>,
+      </div>
+    </div>
+  )
+}
+
+  const handleAddFood = useCallback(() => {
+    openDialog(
+      <FoodFormModalContent
+        categories={categories}
+        voucherTypes={voucherTypes}
+        onClose={closeDialog}
+        onSuccess={fetchFoods}
+      />
     )
   }, [openDialog, closeDialog, fetchFoods, categories, voucherTypes])
 
   const handleEditFood = useCallback(
     (food: Food) => {
       openDialog(
-        <div className="flex flex-col h-full" dir="rtl">
-          {/* Sticky Header */}
-          <div className="p-5 sm:p-6 pb-4 border-b border-orange-100/80 bg-white flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-orange-500/10 to-amber-500/20 text-[#F47B20] border border-orange-200/50 flex items-center justify-center shrink-0 shadow-xs">
-              <Edit className="w-5 h-5" />
-            </div>
-            <div>
-              <DialogTitle className="text-base sm:text-lg font-black text-gray-900 tracking-tight">ویرایش غذا</DialogTitle>
-              <DialogDescription className="text-xs text-gray-500 mt-0.5">ویرایش اطلاعات، نرخ آزاد و ژتون‌های مجاز برای «{food.name}»</DialogDescription>
-            </div>
-          </div>
-
-          {/* Scrollable Body */}
-          <div className="p-5 sm:p-6 pt-4 space-y-4 max-h-[calc(85vh-150px)] overflow-y-auto scrollbar-thin scrollbar-thumb-orange-200">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              <div className="space-y-1.5">
-                <Label htmlFor="food" className="text-xs font-bold text-gray-700">نام غذا <span className="text-rose-500">*</span></Label>
-                <Input id="food" defaultValue={food.name} className="form-input-focus rounded-xl h-11 text-sm bg-gray-50/50 hover:bg-white focus:bg-white transition-colors" />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="foodCategory" className="text-xs font-bold text-gray-700">دسته‌بندی غذا <span className="text-rose-500">*</span></Label>
-                <select
-                  id="foodCategory"
-                  className="flex h-11 w-full rounded-xl border border-input bg-gray-50/50 hover:bg-white focus:bg-white px-3.5 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[#F47B20] focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50 form-input-focus transition-colors"
-                  defaultValue={food.category_id?.toString() || ""}
-                >
-                  <option value="">انتخاب دسته‌بندی</option>
-                  {categories.map((category) => (
-                    <option key={category.id} value={category.id.toString()}>
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              <div className="space-y-1.5">
-                <Label htmlFor="foodPrice" className="text-xs font-bold text-gray-700">قیمت آزاد غذا <span className="text-rose-500">*</span></Label>
-                <div className="relative">
-                  <Input id="foodPrice" type="text" inputMode="numeric" defaultValue={toPersianDigits(food.price)} className="form-input-focus rounded-xl h-11 font-mono text-sm pl-14 bg-gray-50/50 hover:bg-white focus:bg-white transition-colors" />
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-gray-400 pointer-events-none">تومان</span>
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="foodImage" className="text-xs font-bold text-gray-700">تصویر غذا</Label>
-                <div className="flex items-center gap-2.5">
-                  <Input id="foodImage" type="file" accept="image/*" className="form-input-focus rounded-xl h-11 text-xs cursor-pointer bg-gray-50/50 hover:bg-white focus:bg-white file:cursor-pointer file:rounded-lg file:border-0 file:bg-orange-100/70 file:text-[#F47B20] file:font-bold file:text-xs file:py-1 file:px-2.5 hover:file:bg-orange-100 transition-colors" />
-                  {food.image_url && (
-                    <div className="relative h-11 w-11 shrink-0 rounded-xl overflow-hidden border border-orange-200 shadow-2xs">
-                      <FoodImage
-                        src={food.image_url}
-                        alt={food.name}
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="foodDescription" className="text-xs font-bold text-gray-700">توضیحات و ترکیبات غذا (اختیاری)</Label>
-              <Input id="foodDescription" defaultValue={food.description} className="form-input-focus rounded-xl h-11 text-sm bg-gray-50/50 hover:bg-white focus:bg-white transition-colors" />
-            </div>
-
-            {/* Toggle for Extra Voucher */}
-            <div className="flex items-center justify-between p-3.5 rounded-2xl border border-orange-200/60 bg-gradient-to-r from-orange-50/60 to-amber-50/30">
-              <div className="space-y-0.5">
-                <Label htmlFor="supports_extra_voucher" className="text-xs font-bold text-gray-900 cursor-pointer flex items-center gap-1.5">
-                  <Coins className="w-3.5 h-3.5 text-[#F47B20]" />
-                  پشتیبانی از ژتون اضافی / آزاد (غذای دونفره)
-                </Label>
-                <p className="text-[11px] text-gray-500">
-                  امکان رزرو با دو فیش یا سهمیه مازاد دانشجویان (مانند پیتزا دونفره)
-                </p>
-              </div>
-              <Switch
-                id="supports_extra_voucher"
-                name="supports_extra_voucher"
-                defaultChecked={food.supports_extra_voucher || false}
-                onCheckedChange={(checked) => {
-                  const extraSection = document.getElementById("edit_extra_vouchers_section")
-                  if (extraSection) {
-                    extraSection.style.display = checked ? "block" : "none"
-                  }
-                }}
-              />
-            </div>
-
-            {/* Allowed Extra Vouchers Selection */}
-            <div
-              id="edit_extra_vouchers_section"
-              style={{ display: food.supports_extra_voucher ? "block" : "none" }}
-              className="space-y-2 p-3 rounded-2xl border border-blue-200/80 bg-blue-50/40"
-            >
-              <div className="flex items-center justify-between">
-                <Label className="text-xs font-bold text-blue-900 flex items-center gap-1.5">
-                  <Ticket className="w-3.5 h-3.5 text-blue-600" />
-                  ژتون‌های مجاز برای فیش دوم (فیش اضافه / همراه):
-                </Label>
-                <span className="text-[11px] text-blue-600 font-medium">سهمیه نفر دوم</span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-0.5">
-                {voucherTypes.map((vt) => {
-                  const isChecked = food.allowed_extra_vouchers?.some(v => v.id === vt.id) ?? true
-                  return (
-                    <label
-                      key={vt.id}
-                      className="relative flex items-center justify-between p-2.5 rounded-xl border border-blue-200/90 hover:border-blue-400 hover:bg-blue-50/60 cursor-pointer text-xs transition-all bg-white has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50/60 has-[:checked]:shadow-2xs group"
-                    >
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          name="edit_allowed_extra_vouchers"
-                          value={vt.id}
-                          defaultChecked={isChecked}
-                          className="rounded text-blue-600 focus:ring-blue-600 h-4 w-4 border-gray-300"
-                        />
-                        <span className="font-bold text-gray-800">{vt.name}</span>
-                      </div>
-                      <span className="text-blue-700 font-extrabold text-[11px] bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-200/60">
-                        {formatPersianPrice(vt.discount_amount)} ت
-                      </span>
-                    </label>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Multi-tier voucher selection */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
-                  <Ticket className="w-3.5 h-3.5 text-[#F47B20]" />
-                  ژتون‌های مجاز برای فیش اول (فیش معمولی):
-                </Label>
-                <span className="text-[11px] text-gray-500 font-medium">({toPersianDigits(voucherTypes.length)} نوع ژتون فعال)</span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-0.5">
-                {voucherTypes.map((vt) => {
-                  const isChecked = food.allowed_vouchers?.some(v => v.id === vt.id) ?? true
-                  return (
-                    <label
-                      key={vt.id}
-                      className="relative flex items-center justify-between p-2.5 rounded-xl border border-gray-200/90 hover:border-orange-300 hover:bg-orange-50/40 cursor-pointer text-xs transition-all bg-white has-[:checked]:border-[#F47B20] has-[:checked]:bg-orange-50/60 has-[:checked]:shadow-2xs group"
-                    >
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          name="edit_allowed_vouchers"
-                          value={vt.id}
-                          defaultChecked={isChecked}
-                          className="rounded text-[#F47B20] focus:ring-[#F47B20] h-4 w-4 border-gray-300"
-                        />
-                        <span className="font-bold text-gray-800">{vt.name}</span>
-                      </div>
-                      <span className="text-emerald-700 font-extrabold text-[11px] bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200/60">
-                        {formatPersianPrice(vt.discount_amount)} ت
-                      </span>
-                    </label>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* Sticky Footer */}
-          <div className="p-4 sm:p-5 border-t border-gray-100 bg-gray-50/80 flex items-center justify-end gap-2.5 mt-auto">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={closeDialog}
-              className="rounded-xl border-gray-200 h-11 px-5 text-gray-700 hover:bg-gray-100 font-semibold text-xs"
-            >
-              انصراف
-            </Button>
-            <Button
-              onClick={async () => {
-                const foodElement = document.getElementById("food") as HTMLInputElement
-                const descriptionElement = document.getElementById("foodDescription") as HTMLInputElement
-                const categoryElement = document.getElementById("foodCategory") as HTMLSelectElement
-                const priceElement = document.getElementById("foodPrice") as HTMLInputElement
-                const imageElement = document.getElementById("foodImage") as HTMLInputElement
-                const switchElement = document.querySelector('button[role="switch"][id="supports_extra_voucher"]')
-
-                if (!foodElement || !descriptionElement || !priceElement) {
-                  toast.error("خطا در دریافت مقادیر فرم")
-                  return
-                }
-                
-                const name = foodElement.value
-                const description = descriptionElement.value
-                const category = categoryElement?.value
-                const price = parsePersianInt(priceElement.value)
-                const imageFile = imageElement?.files?.[0]
-                const supportsExtraVoucher = switchElement?.getAttribute('data-state') === 'checked'
-
-                if (!name || !price) {
-                  toast.error("لطفاً تمام فیلدها را پر کنید")
-                  return
-                }
-
-                const formData = new FormData()
-                formData.append("name", name)
-                if (description) {
-                  formData.append("description", description)
-                }
-                formData.append("price", price.toString())
-                if (category) {
-                  formData.append("category_id", category)
-                  formData.append("category", category)
-                }
-                if (imageFile) {
-                  formData.append("image", imageFile)
-                }
-                const selectedVouchers = Array.from(document.querySelectorAll<HTMLInputElement>('input[name="edit_allowed_vouchers"]:checked')).map(el => el.value)
-                selectedVouchers.forEach(id => formData.append("allowed_vouchers", id))
-                
-                const selectedExtraVouchers = supportsExtraVoucher
-                  ? Array.from(document.querySelectorAll<HTMLInputElement>('input[name="edit_allowed_extra_vouchers"]:checked')).map(el => el.value)
-                  : []
-                selectedExtraVouchers.forEach(id => formData.append("allowed_extra_vouchers", id))
-                formData.append("supports_extra_voucher", supportsExtraVoucher.toString())
-
-                // Price validation: Discount 1 + Discount 2 <= Food Price
-                if (supportsExtraVoucher && selectedExtraVouchers.length > 0 && selectedVouchers.length > 0) {
-                  let invalidMessage = ""
-                  for (const v1Id of selectedVouchers) {
-                    const v1 = voucherTypes.find(v => v.id.toString() === v1Id)
-                    for (const v2Id of selectedExtraVouchers) {
-                      const v2 = voucherTypes.find(v => v.id.toString() === v2Id)
-                      if (v1 && v2 && (Number(v1.discount_amount) + Number(v2.discount_amount)) > price) {
-                        invalidMessage = `مجموع تخفیف فیش اول (${v1.name}: ${formatPersianPrice(v1.discount_amount)}) و فیش اضافه (${v2.name}: ${formatPersianPrice(v2.discount_amount)}) برابر ${formatPersianPrice(Number(v1.discount_amount) + Number(v2.discount_amount))} تومان است که از قیمت کل غذا (${formatPersianPrice(price)} تومان) بیشتر می‌شود.`
-                        break
-                      }
-                    }
-                    if (invalidMessage) break
-                  }
-                  if (invalidMessage) {
-                    toast.error(invalidMessage)
-                    return
-                  }
-                }
-
-                try {
-                  await api.put(createApiUrl(API_ROUTES.UPDATE_FOOD(food.id)), formData, {
-                    headers: { "Content-Type": "multipart/form-data" },
-                  })
-                  await fetchFoods()
-                  closeDialog()
-                  toast.success("تغییرات با موفقیت ذخیره شد")
-                } catch (error) {
-                  console.error("Error updating food:", error)
-                  toast.error("خطا در به‌روزرسانی غذا")
-                }
-              }}
-              className="bg-gradient-to-r from-[#F47B20] to-[#E06A10] hover:from-[#E06A10] hover:to-[#D05A00] text-white rounded-xl font-bold h-11 px-6 shadow-md shadow-orange-500/20 hover:shadow-lg hover:shadow-orange-500/30 transition-all flex items-center gap-2 text-xs"
-            >
-              <Check className="w-4 h-4 ml-0.5" />
-              ذخیره تغییرات غذا
-            </Button>
-          </div>
-        </div>,
+        <FoodFormModalContent
+          initialFood={food}
+          categories={categories}
+          voucherTypes={voucherTypes}
+          onClose={closeDialog}
+          onSuccess={fetchFoods}
+        />
       )
     },
-    [openDialog, closeDialog, fetchFoods, categories, voucherTypes],
+    [openDialog, closeDialog, fetchFoods, categories, voucherTypes]
   )
 
   const handleDeleteFood = useCallback(

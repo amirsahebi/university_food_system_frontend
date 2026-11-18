@@ -35,9 +35,11 @@ export function toEnglishDigits(input: string | number | null | undefined): stri
  */
 export function parsePersianInt(input: string | number | null | undefined, defaultValue = 0): number {
   if (input === null || input === undefined || input === "") return defaultValue
-  const sanitized = toEnglishDigits(input).replace(/[^\d-]/g, "")
-  const parsed = parseInt(sanitized, 10)
-  return isNaN(parsed) ? defaultValue : parsed
+  const eng = toEnglishDigits(input).trim()
+  // Clean commas (thousands separators) and unwanted characters except digits, dot and minus
+  const sanitized = eng.replace(/,/g, "").replace(/[^\d.-]/g, "")
+  const parsed = parseFloat(sanitized)
+  return isNaN(parsed) ? defaultValue : Math.round(parsed)
 }
 
 /**
