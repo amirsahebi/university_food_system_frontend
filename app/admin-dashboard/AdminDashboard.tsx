@@ -3413,8 +3413,8 @@ function FoodFormModalContent({
               {/* Daily Menu Tab */}
               {activeTab === "daily-menu" && (
                 <div className="space-y-6">
-                  <Card className="glass rounded-2xl border border-glass-border shadow-glass overflow-hidden">
-                    <CardHeader className="border-b border-glass-border pb-4">
+                  <Card className="glass rounded-2xl border border-glass-border shadow-glass overflow-visible relative z-20">
+                    <CardHeader className="border-b border-glass-border pb-4 relative z-30">
                       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                         <div>
                           <CardTitle className="text-lg font-bold text-gray-900 flex items-center gap-2">
@@ -3426,16 +3426,18 @@ function FoodFormModalContent({
                           </p>
                         </div>
                         <div className="flex flex-col sm:flex-row flex-wrap gap-2.5 w-full lg:w-auto items-stretch sm:items-center">
-                          <DatePicker
-                            value={selectedDate}
-                            onChange={handleDateChange}
-                            calendar={persian}
-                            locale={persian_fa}
-                            calendarPosition="bottom-right"
-                            inputClass="w-full px-3 py-2 rounded-xl border border-input bg-white text-xs h-9 form-input-focus"
-                            containerClassName="w-full sm:w-40"
-                            placeholder="انتخاب تاریخ"
-                          />
+                          <div className="relative z-40 w-full sm:w-40">
+                            <DatePicker
+                              value={selectedDate}
+                              onChange={handleDateChange}
+                              calendar={persian}
+                              locale={persian_fa}
+                              calendarPosition="bottom-right"
+                              inputClass="w-full px-3 py-2 rounded-xl border border-input bg-white text-xs h-9 form-input-focus cursor-pointer"
+                              containerClassName="w-full relative z-40"
+                              placeholder="انتخاب تاریخ"
+                            />
+                          </div>
 
                           <Select
                             value={selectedMeal_type}
@@ -3504,7 +3506,7 @@ function FoodFormModalContent({
                         )}
                       </div>
                     </CardHeader>
-                    <CardContent className="p-0">
+                    <CardContent className="p-0 rounded-b-2xl overflow-hidden">
                       {/* Mobile Daily Menu Cards (< md) */}
                       <div className="md:hidden divide-y divide-orange-100/70 p-3 space-y-3">
                         {!dailyMenu || dailyMenu.items.length === 0 ? (

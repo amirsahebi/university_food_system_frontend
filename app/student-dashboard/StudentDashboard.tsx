@@ -503,6 +503,13 @@ export default function StudentDashboard() {
     return selectedExtraVoucher ? Number(selectedExtraVoucher.discount_amount) : 0
   }, [selectedExtraVoucher])
 
+  const surplusAmount = useMemo(() => {
+    if (!selectedFood) return 0
+    const foodPrice = Number(selectedFood.food.price)
+    const totalDiscount = voucherDiscount + (isExtraVoucherEnabled ? extraVoucherDiscount : 0)
+    return Math.max(0, totalDiscount - foodPrice)
+  }, [selectedFood, voucherDiscount, isExtraVoucherEnabled, extraVoucherDiscount])
+
   /* ---------- Dialog & Order Handlers ---------- */
   const handleOpenFood = (item: MenuItem) => {
     const validTimeSlots = (item.time_slots || [])
@@ -1184,73 +1191,114 @@ export default function StudentDashboard() {
         </AnimatePresence>
       </main>
 
-      {/* Food Selection Sheet / Modal */}
+      {/* Food Selection Sheet / Modal - Model 2: Horizontal Fade Peek Slider */}
       <Sheet open={isDialogOpen && !isPaymentDialogOpen} onClose={() => setIsDialogOpen(false)}>
         {selectedFood && (
-          <div className="flex flex-col h-full max-h-[88vh] overflow-hidden">
-            {/* Top Image Banner */}
-            <div className="relative h-44 sm:h-48 w-full shrink-0 overflow-hidden">
+          <div className="flex flex-col h-full max-h-[90vh] overflow-hidden">
+            {/* Top Image Banner - Compact for mobile visibility */}
+            <div className="relative h-32 sm:h-40 w-full shrink-0 overflow-hidden bg-muted">
               <FoodImage
                 src={selectedFood.food.image_url}
                 alt={selectedFood.food.name}
                 fill
                 className="size-full object-cover"
               />
+              <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-black/30 pointer-events-none" />
               <button
                 type="button"
                 aria-label="بستن"
                 onClick={() => setIsDialogOpen(false)}
-                className="glass absolute left-4 top-4 grid size-9 place-items-center rounded-full hover:bg-glass-strong transition cursor-pointer text-foreground shadow-md z-10"
+                className="glass absolute left-3 top-3 grid size-8 place-items-center rounded-full hover:bg-glass-strong transition cursor-pointer text-foreground shadow-md z-10"
               >
                 <X className="size-4" />
               </button>
+              {selectedFood.food.supports_extra_voucher && (
+                <span className="absolute right-3 top-3 px-2 py-0.5 rounded-full text-[10px] font-black bg-primary/90 text-primary-foreground shadow-sm">
+                  پشتیبانی از ۲ فیش
+                </span>
+              )}
             </div>
 
             {/* Scrollable Middle Body */}
-            <div className="flex-1 overflow-y-auto overscroll-contain p-5 space-y-5 custom-scrollbar [touch-action:pan-y] [-webkit-overflow-scrolling:touch]">
+            <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5 space-y-4 custom-scrollbar [touch-action:pan-y] [-webkit-overflow-scrolling:touch]">
               {/* Food Title & Base Price */}
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-extrabold text-foreground">{selectedFood.food.name}</h2>
-                <span className="font-bold text-base sm:text-lg text-primary whitespace-nowrap">
+                <h2 className="text-lg sm:text-xl font-extrabold text-foreground">{selectedFood.food.name}</h2>
+                <span className="font-black text-base text-primary whitespace-nowrap">
                   {formatPersianPrice(selectedFood.food.price)} تومان
                 </span>
               </div>
 
-              {/* Time Slots */}
-              <div>
-                <h4 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-foreground">
-                  <Clock className="size-4 text-primary" />
-                  زمان تحویل
-                </h4>
+              {/* Time Slots - Responsive: Horizontal Scroll on Mobile, 2-Column Grid on Desktop */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-foreground">
+                    <Clock className="size-4 text-primary" />
+                    <span>بازه زمانی تحویل</span>
+                  </h4>
+                  <span className="text-[11px] text-muted-foreground sm:hidden flex items-center gap-1">
+                    <span>اسکرول افقی</span>
+                    <span className="text-primary font-bold animate-pulse">←</span>
+                  </span>
+                </div>
                 {selectedFood.time_slots && selectedFood.time_slots.length > 0 ? (
-                  <div className="grid grid-cols-2 gap-2" dir="ltr">
+                  <div
+                    className="flex sm:grid sm:grid-cols-2 gap-2 overflow-x-auto sm:overflow-visible pb-1.5 sm:pb-0 px-0.5 custom-scrollbar [touch-action:pan-x] sm:[touch-action:auto] overscroll-x-contain scroll-smooth snap-x snap-mandatory"
+                    dir="rtl"
+                  >
                     {[...selectedFood.time_slots]
                       .sort((a, b) => a.start_time.localeCompare(b.start_time))
-                      .map((s) => (
-                        <button
-                          key={s.id}
-                          type="button"
-                          disabled={s.capacity !== undefined && s.capacity <= 0}
-                          onClick={() => setSelectedTimeSlot(s.id)}
-                          className={cn(
-                            "rounded-2xl border p-3 text-center text-sm transition disabled:opacity-40 cursor-pointer",
-                            selectedTimeSlot === s.id
-                              ? "border-primary bg-accent text-accent-foreground font-semibold shadow-sm"
-                              : "border-glass-border bg-glass hover:bg-glass-strong text-foreground"
-                          )}
-                        >
-                          <div className="font-semibold" dir="ltr">
-                            {toPersianDigits(s.start_time.slice(0, 5))} - {toPersianDigits(s.end_time.slice(0, 5))}
-                          </div>
-                          <div className="text-[0.7rem] text-muted-foreground mt-0.5">
-                            {s.capacity !== undefined
-                              ? s.capacity > 0
-                                ? `${toPersianDigits(s.capacity)} ظرفیت`
-                                : "تکمیل"
-                              : ""}
-                          </div>
-                        </button>
-                      ))}
+                      .map((s) => {
+                        const isSelected = selectedTimeSlot === s.id
+                        const isFull = s.capacity !== undefined && s.capacity <= 0
+
+                        return (
+                          <button
+                            key={s.id}
+                            type="button"
+                            disabled={isFull}
+                            onClick={() => setSelectedTimeSlot(s.id)}
+                            className={cn(
+                              "min-w-[135px] sm:min-w-0 shrink-0 sm:shrink snap-start rounded-2xl border p-2.5 text-right transition-all flex flex-col justify-between relative cursor-pointer",
+                              isFull
+                                ? "opacity-40 cursor-not-allowed border-dashed border-glass-border bg-glass/20"
+                                : isSelected
+                                ? "border-primary bg-primary/10 shadow-sm ring-1 ring-primary/60"
+                                : "border-glass-border bg-glass/70 hover:bg-glass-strong"
+                            )}
+                          >
+                            <div className="flex items-center justify-between w-full mb-1">
+                              <span className="text-xs font-bold text-foreground" dir="ltr">
+                                {toPersianDigits(s.start_time.slice(0, 5))} - {toPersianDigits(s.end_time.slice(0, 5))}
+                              </span>
+                              {isSelected && (
+                                <span className="size-4 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] shadow-xs">
+                                  ✓
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center justify-between text-[10px] text-muted-foreground mt-1">
+                              <span>ظرفیت سلف:</span>
+                              <span
+                                className={cn(
+                                  "px-1.5 py-0.5 rounded-md font-semibold",
+                                  isFull
+                                    ? "bg-rose-500/10 text-rose-500"
+                                    : s.capacity && s.capacity <= 15
+                                    ? "bg-amber-500/10 text-amber-500"
+                                    : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                                )}
+                              >
+                                {s.capacity !== undefined
+                                  ? s.capacity > 0
+                                    ? `${toPersianDigits(s.capacity)} نفر`
+                                    : "تکمیل"
+                                  : "نامحدود"}
+                              </span>
+                            </div>
+                          </button>
+                        )
+                      })}
                   </div>
                 ) : (
                   <div className="rounded-xl border border-dashed border-amber-500/40 bg-amber-500/10 p-2.5 text-center text-xs text-amber-700 dark:text-amber-300">
@@ -1259,16 +1307,17 @@ export default function StudentDashboard() {
                 )}
               </div>
 
-              {/* Voucher Selection */}
+              {/* Voucher Selection - Responsive: Horizontal Scroll on Mobile, 2-Column Grid on Desktop */}
               {((selectedFood.food.allowed_vouchers && selectedFood.food.allowed_vouchers.length > 0) || voucherTypes.length > 0) && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <h4 className="flex items-center gap-1.5 text-sm font-bold text-foreground">
+                    <h4 className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-foreground">
                       <Ticket className="size-4 text-primary" />
                       <span>تخصیص فیش / ژتون</span>
                     </h4>
-                    <span className="text-[0.7rem] text-muted-foreground">
-                      {selectedFood.food.supports_extra_voucher ? "پشتیبانی از ۲ فیش" : "یک فیش"}
+                    <span className="text-[11px] text-muted-foreground sm:hidden flex items-center gap-1">
+                      <span>اسکرول افقی</span>
+                      <span className="text-primary font-bold animate-pulse">←</span>
                     </span>
                   </div>
 
@@ -1292,19 +1341,23 @@ export default function StudentDashboard() {
                       )}
                     </div>
 
-                    <div className="flex flex-col gap-1.5 w-full max-h-40 overflow-y-auto pr-1 overscroll-contain custom-scrollbar">
-                      {/* Option: No Voucher */}
+                    <div
+                      className="flex sm:grid sm:grid-cols-2 gap-2 overflow-x-auto sm:overflow-visible pb-1.5 sm:pb-0 px-0.5 custom-scrollbar [touch-action:pan-x] sm:[touch-action:auto] overscroll-x-contain scroll-smooth snap-x snap-mandatory"
+                      dir="rtl"
+                    >
+                      {/* Option: No Voucher (Cash) */}
                       <button
                         type="button"
                         onClick={() => setSelectedVoucherId(null)}
                         className={cn(
-                          "w-full rounded-xl p-2.5 sm:p-3 flex items-center justify-between transition-all cursor-pointer border text-right",
+                          "min-w-[145px] sm:min-w-0 shrink-0 sm:shrink snap-start rounded-2xl p-2.5 sm:p-3 flex flex-col justify-between transition-all border text-right cursor-pointer relative",
                           selectedVoucherId === null
-                            ? "border-primary bg-primary/10 shadow-xs"
+                            ? "border-primary bg-primary/10 shadow-sm ring-1 ring-primary/60"
                             : "border-glass-border bg-glass/60 hover:bg-glass-strong"
                         )}
                       >
-                        <div className="flex items-center gap-2 min-w-0">
+                        <div className="flex items-center justify-between w-full mb-1">
+                          <span className="font-bold text-xs text-foreground">پرداخت آزاد</span>
                           <div
                             className={cn(
                               "size-4 rounded-full border-2 flex items-center justify-center transition-colors shrink-0",
@@ -1313,21 +1366,16 @@ export default function StudentDashboard() {
                                 : "border-muted-foreground/40 bg-transparent"
                             )}
                           >
-                            {selectedVoucherId === null && (
-                              <div className="size-1 rounded-full bg-white" />
-                            )}
-                          </div>
-                          <div>
-                            <div className="font-bold text-xs text-foreground">بدون ژتون</div>
-                            <div className="text-[0.65rem] text-muted-foreground">پرداخت آزاد</div>
+                            {selectedVoucherId === null && <div className="size-1 rounded-full bg-white" />}
                           </div>
                         </div>
-                        <span className="rounded-full bg-glass px-2 py-0.5 text-[0.65rem] font-medium text-muted-foreground border border-glass-border">
+                        <div className="text-[10px] text-muted-foreground mb-2">بدون استفاده از سهمیه</div>
+                        <span className="self-start rounded-full bg-glass px-2 py-0.5 text-[10px] font-medium text-muted-foreground border border-glass-border">
                           قیمت پایه
                         </span>
                       </button>
 
-                      {/* Voucher Options */}
+                      {/* Dynamic Vouchers */}
                       {voucherTypes.map((vt) => {
                         const isAllowed = selectedFood.food.allowed_vouchers?.some((v) => v.id === vt.id)
                         const isTrustBlocked = userProfile?.trust_score !== undefined && userProfile.trust_score < 0
@@ -1341,15 +1389,16 @@ export default function StudentDashboard() {
                             disabled={isDisabled}
                             onClick={() => setSelectedVoucherId(vt.id)}
                             className={cn(
-                              "w-full rounded-xl p-2.5 sm:p-3 flex items-center justify-between transition-all border text-right",
+                              "min-w-[145px] sm:min-w-0 shrink-0 sm:shrink snap-start rounded-2xl p-2.5 sm:p-3 flex flex-col justify-between transition-all border text-right relative",
                               isDisabled
                                 ? "opacity-45 cursor-not-allowed border-dashed border-glass-border bg-glass/30"
                                 : isSelected
-                                ? "border-primary bg-primary/10 shadow-xs cursor-pointer"
+                                ? "border-primary bg-primary/10 shadow-sm ring-1 ring-primary/60 cursor-pointer"
                                 : "border-glass-border bg-glass/60 hover:bg-glass-strong cursor-pointer"
                             )}
                           >
-                            <div className="flex items-center gap-2 min-w-0">
+                            <div className="flex items-center justify-between w-full mb-1">
+                              <span className="font-bold text-xs text-foreground truncate">{vt.name}</span>
                               <div
                                 className={cn(
                                   "size-4 rounded-full border-2 flex items-center justify-center transition-colors shrink-0",
@@ -1360,14 +1409,11 @@ export default function StudentDashboard() {
                               >
                                 {isSelected && <div className="size-1 rounded-full bg-white" />}
                               </div>
-                              <div className="min-w-0">
-                                <div className="font-bold text-xs text-foreground truncate">{vt.name}</div>
-                                <div className="text-[0.65rem] text-muted-foreground truncate">
-                                  {isDisabled ? "غیرمجاز برای این غذا" : "کسر از فیش اول"}
-                                </div>
-                              </div>
                             </div>
-                            <span className="rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-2 py-0.5 text-[0.65rem] font-bold">
+                            <div className="text-[10px] text-muted-foreground truncate mb-2">
+                              {isDisabled ? "غیرمجاز برای این غذا" : "کسر سهمیه فیش اول"}
+                            </div>
+                            <span className="self-start rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-2 py-0.5 text-[10px] font-bold">
                               {formatPersianPrice(vt.discount_amount)}− ت
                             </span>
                           </button>
@@ -1408,10 +1454,15 @@ export default function StudentDashboard() {
                       {/* Extra Voucher Options (Collapsed when Switch is OFF) */}
                       {isExtraVoucherEnabled && (
                         <div className="pt-2 border-t border-blue-200/60 dark:border-blue-900/50 space-y-1.5 animate-in fade-in duration-200">
-                          <div className="text-[10px] font-semibold text-blue-900 dark:text-blue-300">
-                            انتخاب نوع فیش دوم:
+                          <div className="flex items-center justify-between text-[11px] text-blue-900 dark:text-blue-300">
+                            <span className="font-semibold">انتخاب نوع فیش دوم (همراه):</span>
+                            <span className="text-[10px] text-muted-foreground sm:hidden">اسکرول افقی ←</span>
                           </div>
-                          <div className="flex flex-col gap-1.5 w-full max-h-36 overflow-y-auto pr-1 overscroll-contain custom-scrollbar">
+
+                          <div
+                            className="flex sm:grid sm:grid-cols-2 gap-2 overflow-x-auto sm:overflow-visible pb-1.5 sm:pb-0 px-0.5 custom-scrollbar [touch-action:pan-x] sm:[touch-action:auto] overscroll-x-contain scroll-smooth snap-x snap-mandatory"
+                            dir="rtl"
+                          >
                             {voucherTypes.map((vt) => {
                               const isAllowed = selectedFood.food.allowed_extra_vouchers
                                 ? selectedFood.food.allowed_extra_vouchers.some((v) => v.id === vt.id)
@@ -1427,18 +1478,19 @@ export default function StudentDashboard() {
                                   disabled={isDisabled}
                                   onClick={() => setSelectedExtraVoucherId(vt.id)}
                                   className={cn(
-                                    "w-full rounded-xl p-2.5 sm:p-3 flex items-center justify-between transition-all border text-right",
+                                    "min-w-[140px] sm:min-w-0 shrink-0 sm:shrink snap-start rounded-2xl p-2.5 sm:p-3 flex flex-col justify-between transition-all border text-right relative",
                                     isDisabled
                                       ? "opacity-45 cursor-not-allowed border-dashed border-glass-border bg-glass/30"
                                       : isSelected
-                                      ? "border-blue-600 bg-blue-50/80 dark:bg-blue-900/40 shadow-xs cursor-pointer"
+                                      ? "border-blue-600 bg-blue-50/80 dark:bg-blue-950/60 shadow-xs ring-1 ring-blue-500 cursor-pointer"
                                       : "border-glass-border bg-white dark:bg-slate-900/60 hover:bg-glass-strong cursor-pointer"
                                   )}
                                 >
-                                  <div className="flex items-center gap-2 min-w-0">
+                                  <div className="flex items-center justify-between w-full mb-1">
+                                    <span className="font-bold text-xs text-foreground truncate">{vt.name}</span>
                                     <div
                                       className={cn(
-                                        "size-4 rounded-full border-2 flex items-center justify-center transition-colors shrink-0",
+                                        "size-3.5 rounded-full border-2 flex items-center justify-center transition-colors shrink-0",
                                         isSelected
                                           ? "border-blue-600 bg-blue-600"
                                           : "border-muted-foreground/40 bg-transparent"
@@ -1446,14 +1498,11 @@ export default function StudentDashboard() {
                                     >
                                       {isSelected && <div className="size-1 rounded-full bg-white" />}
                                     </div>
-                                    <div className="min-w-0">
-                                      <div className="font-bold text-xs text-foreground truncate">{vt.name} (همراه)</div>
-                                      <div className="text-[0.65rem] text-muted-foreground truncate">
-                                        {isDisabled ? "غیرمجاز به عنوان فیش اضافه" : "کسر از فیش دوم"}
-                                      </div>
-                                    </div>
                                   </div>
-                                  <span className="rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 px-2 py-0.5 text-[0.65rem] font-bold">
+                                  <div className="text-[10px] text-muted-foreground truncate mb-1.5">
+                                    {isDisabled ? "غیرمجاز" : "فیش اضافه"}
+                                  </div>
+                                  <span className="self-start rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 px-2 py-0.5 text-[10px] font-bold">
                                     {formatPersianPrice(vt.discount_amount)}− ت
                                   </span>
                                 </button>
@@ -1466,7 +1515,7 @@ export default function StudentDashboard() {
                   )}
 
                   {/* Live Transparent Price Breakdown Box */}
-                  <div className="rounded-2xl bg-glass/60 p-3 border border-glass-border text-xs space-y-1.5">
+                  <div className="rounded-2xl bg-glass/60 p-3 border border-glass-border text-xs space-y-2">
                     <div className="flex justify-between text-muted-foreground">
                       <span>قیمت پایه غذا:</span>
                       <span>{formatPersianPrice(selectedFood.food.price)} تومان</span>
@@ -1483,16 +1532,32 @@ export default function StudentDashboard() {
                         <span>{formatPersianPrice(extraVoucherDiscount)}− تومان</span>
                       </div>
                     )}
+
+                    {/* Surplus Points Reward Banner */}
+                    {surplusAmount > 0 && (
+                      <div className="rounded-xl bg-gradient-to-r from-emerald-500/15 via-teal-500/15 to-emerald-500/15 border border-emerald-500/40 p-2.5 flex items-center justify-between text-emerald-700 dark:text-emerald-300 shadow-sm animate-in fade-in duration-200">
+                        <div className="flex items-center gap-1.5 font-bold text-xs">
+                          <span className="text-sm">🎉</span>
+                          <span>مازاد فیش ({formatPersianPrice(surplusAmount)} تومان):</span>
+                        </div>
+                        <span className="px-2.5 py-0.5 rounded-full bg-emerald-600 text-white font-black text-xs shadow-xs">
+                          +{toPersianDigits(Math.floor(surplusAmount / 100))} امتیاز باشگاه
+                        </span>
+                      </div>
+                    )}
+
                     <div className="border-t border-glass-border pt-1.5 flex justify-between font-extrabold text-foreground text-sm">
                       <span>مبلغ نهایی پرداختی:</span>
-                      <span className="text-primary font-black">{formatPersianPrice(calculateTotalPrice())} تومان</span>
+                      <span className={cn(calculateTotalPrice() === 0 ? "text-emerald-600 dark:text-emerald-400 font-black" : "text-primary font-black")}>
+                        {calculateTotalPrice() === 0 ? "۰ تومان (رایگان با فیش)" : `${formatPersianPrice(calculateTotalPrice())} تومان`}
+                      </span>
                     </div>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Bottom Footer Separator - Floating/Sticky at bottom with inset separator matching stage 2 */}
+            {/* Bottom Footer Separator - Floating/Sticky at bottom with inset separator */}
             <div className="shrink-0 px-5 pb-5 pt-2" dir="rtl">
               <div className="flex items-center justify-between pt-2 border-t border-glass-border">
                 {/* Right Corner: Button */}
@@ -1503,15 +1568,21 @@ export default function StudentDashboard() {
                   className="gap-1 h-11 rounded-xl px-5 text-sm font-bold shadow-md cursor-pointer"
                 >
                   <ChevronRight className="size-4" />
-                  <span>ادامه به پرداخت</span>
+                  <span>{calculateTotalPrice() === 0 ? "تأیید سفارش رایگان" : "ادامه به پرداخت"}</span>
                 </Button>
 
                 {/* Left Corner: Amount */}
                 <div className="text-left">
                   <div className="text-xs text-muted-foreground">مبلغ نهایی</div>
-                  <div className="text-xl font-extrabold text-foreground">
-                    {formatPersianPrice(calculateTotalPrice())}{" "}
-                    <span className="text-xs font-normal text-muted-foreground">تومان</span>
+                  <div className={cn("text-xl font-extrabold", calculateTotalPrice() === 0 ? "text-emerald-600 dark:text-emerald-400" : "text-foreground")}>
+                    {calculateTotalPrice() === 0 ? (
+                      <span className="text-base font-black">رایگان</span>
+                    ) : (
+                      <>
+                        {formatPersianPrice(calculateTotalPrice())}{" "}
+                        <span className="text-xs font-normal text-muted-foreground">تومان</span>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
