@@ -1209,35 +1209,45 @@ function FoodFormModalContent({
   // Parse price safely
   const numericPrice = parsePersianInt(priceStr)
 
-  // Real-time price ceiling validation
-  const validationError = useMemo(() => {
+  // Real-time informational surplus notice (when voucher combination exceeds food price)
+  const surplusNotice = useMemo(() => {
     if (numericPrice <= 0) return null
 
-    // 1. Single voucher discount cannot exceed food price
-    for (const vId of selectedVouchers) {
-      const v = voucherTypes.find((item) => item.id === vId)
-      if (v && Number(v.discount_amount) > numericPrice) {
-        return `تخفیف ژتون «${v.name}» (${formatPersianPrice(v.discount_amount)} تومان) از قیمت کل غذا (${formatPersianPrice(numericPrice)} تومان) بیشتر است.`
-      }
-    }
+    let maxDiscount = 0
+    let voucherDetail = ""
 
-    // 2. Extra voucher validations when enabled
-    if (supportsExtraVoucher) {
-      for (const v2Id of selectedExtraVouchers) {
-        const v2 = voucherTypes.find((item) => item.id === v2Id)
-        if (v2 && Number(v2.discount_amount) > numericPrice) {
-          return `تخفیف ژتون اضافه «${v2.name}» (${formatPersianPrice(v2.discount_amount)} تومان) از قیمت کل غذا (${formatPersianPrice(numericPrice)} تومان) بیشتر است.`
-        }
-      }
-
+    if (supportsExtraVoucher && selectedExtraVouchers.length > 0) {
       for (const v1Id of selectedVouchers) {
         const v1 = voucherTypes.find((item) => item.id === v1Id)
         for (const v2Id of selectedExtraVouchers) {
           const v2 = voucherTypes.find((item) => item.id === v2Id)
-          if (v1 && v2 && Number(v1.discount_amount) + Number(v2.discount_amount) > numericPrice) {
-            return `مجموع تخفیف فیش اول (${v1.name}: ${formatPersianPrice(v1.discount_amount)}) و فیش اضافه (${v2.name}: ${formatPersianPrice(v2.discount_amount)}) برابر ${formatPersianPrice(Number(v1.discount_amount) + Number(v2.discount_amount))} تومان است که از قیمت کل غذا (${formatPersianPrice(numericPrice)} تومان) بیشتر می‌شود.`
+          if (v1 && v2) {
+            const sum = Number(v1.discount_amount) + Number(v2.discount_amount)
+            if (sum > maxDiscount) {
+              maxDiscount = sum
+              voucherDetail = `مجموع «${v1.name}» (${formatPersianPrice(v1.discount_amount)}) و «${v2.name}» (${formatPersianPrice(v2.discount_amount)}) برابر ${formatPersianPrice(sum)} تومان`
+            }
           }
         }
+      }
+    } else {
+      for (const v1Id of selectedVouchers) {
+        const v1 = voucherTypes.find((item) => item.id === v1Id)
+        if (v1 && Number(v1.discount_amount) > maxDiscount) {
+          maxDiscount = Number(v1.discount_amount)
+          voucherDetail = `تخفیف ژتون «${v1.name}» (${formatPersianPrice(v1.discount_amount)} تومان)`
+        }
+      }
+    }
+
+    if (maxDiscount > numericPrice) {
+      const surplus = maxDiscount - numericPrice
+      const points = Math.floor(surplus / 100)
+      return {
+        surplus,
+        points,
+        voucherDetail,
+        message: `${voucherDetail} بیشتر از نرخ غذا (${formatPersianPrice(numericPrice)} تومان) است. در این حالت مبلغ پرداختی دانشجو ۰ تومان و مازاد (${formatPersianPrice(surplus)} تومان معادل +${toPersianDigits(points)} امتیاز) به عنوان امتیاز باشگاه اهدا می‌شود.`
       }
     }
 
@@ -1263,10 +1273,6 @@ function FoodFormModalContent({
     }
     if (numericPrice <= 0) {
       toast.error("لطفاً قیمت معتبر برای غذا وارد کنید")
-      return
-    }
-    if (validationError) {
-      toast.error(validationError)
       return
     }
 
@@ -1522,15 +1528,15 @@ function FoodFormModalContent({
           </div>
         </div>
 
-        {/* Real-time Validation Error Banner */}
-        {validationError && (
-          <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-300/80 text-rose-800 text-xs flex items-start gap-2.5 animate-in fade-in duration-200 shadow-2xs">
-            <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+        {/* Real-time Surplus Points Info Banner */}
+        {surplusNotice && (
+          <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-300/80 text-emerald-900 text-xs flex items-start gap-2.5 animate-in fade-in duration-200 shadow-2xs">
+            <Sparkles className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
             <div className="space-y-1">
-              <span className="font-extrabold text-rose-900 block text-xs">
-                خطا در اعتبارسنجی سقف تخفیف فیش‌ها (ثبت غیرمجاز است):
+              <span className="font-extrabold text-emerald-950 block text-xs">
+                💡 مجموع فیش‌ها بیشتر از نرخ غذا است (مجاز و فعال):
               </span>
-              <p className="text-[11px] leading-relaxed text-rose-700 font-medium">{validationError}</p>
+              <p className="text-[11px] leading-relaxed text-emerald-800 font-medium">{surplusNotice.message}</p>
             </div>
           </div>
         )}
@@ -1539,8 +1545,10 @@ function FoodFormModalContent({
       {/* Sticky Footer */}
       <div className="p-4 sm:p-5 border-t border-gray-100 bg-gray-50/80 flex items-center justify-between gap-2.5 mt-auto">
         <div className="text-[11px] text-gray-500 font-medium hidden sm:block">
-          {validationError ? (
-            <span className="text-rose-600 font-bold">⚠️ لطفاً خطای سقف تخفیف را برطرف کنید</span>
+          {surplusNotice ? (
+            <span className="text-emerald-700 font-bold">
+              ✓ مازاد تخفیف فیش به عنوان امتیاز باشگاه دانشجو منظور می‌شود
+            </span>
           ) : numericPrice > 0 ? (
             <span className="text-emerald-700 font-medium">
               ✓ قیمت و ژتون‌ها مطابق ضوابط معتبر است
@@ -1559,10 +1567,10 @@ function FoodFormModalContent({
           </Button>
           <Button
             type="button"
-            disabled={isSubmitting || !name.trim() || numericPrice <= 0 || !!validationError}
+            disabled={isSubmitting || !name.trim() || numericPrice <= 0}
             onClick={handleSubmit}
             className={`rounded-xl font-bold h-11 px-6 shadow-md transition-all flex items-center gap-2 text-xs ${
-              validationError || !name.trim() || numericPrice <= 0
+              !name.trim() || numericPrice <= 0
                 ? "bg-gray-300 text-gray-500 cursor-not-allowed shadow-none hover:bg-gray-300"
                 : "bg-gradient-to-r from-[#F47B20] to-[#E06A10] hover:from-[#E06A10] hover:to-[#D05A00] text-white shadow-orange-500/20 hover:shadow-lg hover:shadow-orange-500/30"
             }`}
