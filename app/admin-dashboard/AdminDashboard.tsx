@@ -54,6 +54,16 @@ import {
   Check,
   Coins,
   Info,
+  Users,
+  ArrowUpDown,
+  Download,
+  TrendingUp,
+  Award,
+  ShoppingBag,
+  Percent,
+  CheckCircle,
+  Flame,
+  Filter,
 } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { toast, Toaster } from "react-hot-toast"
@@ -220,6 +230,8 @@ interface Student {
   trust_score: number
   status: "active" | "inactive"
   created_at: string
+  reservations_count?: number
+  total_spent?: number
 }
 
 interface StatCardProps {
@@ -262,7 +274,14 @@ const StatCard = ({
         <div className="flex items-start justify-between gap-1.5">
           <div className="space-y-0.5 sm:space-y-1 min-w-0">
             <p className="text-[11px] sm:text-xs font-semibold text-gray-500 tracking-wide truncate">{title}</p>
-            <h3 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-gray-900 tracking-tight">
+            <h3
+              className={`${
+                typeof value === "string" && value.length > 12
+                  ? "text-sm sm:text-base lg:text-lg"
+                  : "text-xl sm:text-2xl lg:text-3xl"
+              } font-extrabold text-gray-900 tracking-tight truncate`}
+              title={typeof value === "string" ? value : undefined}
+            >
               {displayValue}
             </h3>
             {subtitle && (
@@ -377,6 +396,8 @@ export default function AdminDashboard() {
   const [currentStudent, setCurrentStudent] = useState<Student | null>(null)
   const [isStudentSubmitting, setIsStudentSubmitting] = useState(false)
   const [studentSearch, setStudentSearch] = useState("")
+  const [studentSortBy, setStudentSortBy] = useState<string>("newest")
+  const [studentFilterStatus, setStudentFilterStatus] = useState<string>("all")
   const [studentFormData, setStudentFormData] = useState({
     name: "",
     student_id: "",
@@ -387,22 +408,72 @@ export default function AdminDashboard() {
   })
 
   const filteredStudents = useMemo(() => {
-    if (!studentSearch.trim()) return students
-    const q = normalizeForSearch(studentSearch)
-    return students.filter((s) => {
-      const name = normalizeForSearch(s.name)
-      const sid = normalizeForSearch(s.student_id)
-      const phone = normalizeForSearch(s.phone)
-      const dept = normalizeForSearch(s.department)
-      return name.includes(q) || sid.includes(q) || phone.includes(q) || dept.includes(q)
+    let result = [...students]
+
+    // 1. Status / criteria filter
+    if (studentFilterStatus === "active") {
+      result = result.filter((s) => s.status === "active")
+    } else if (studentFilterStatus === "inactive") {
+      result = result.filter((s) => s.status === "inactive")
+    } else if (studentFilterStatus === "negative_score") {
+      result = result.filter((s) => (s.trust_score ?? 0) < 0)
+    } else if (studentFilterStatus === "top_loyalty") {
+      result = result.filter(
+        (s) => (s.trust_score ?? 0) >= 80 || (s.reservations_count ?? 0) >= 5,
+      )
+    }
+
+    // 2. Search
+    if (studentSearch.trim()) {
+      const q = normalizeForSearch(studentSearch)
+      result = result.filter((s) => {
+        const name = normalizeForSearch(s.name)
+        const sid = normalizeForSearch(s.student_id)
+        const phone = normalizeForSearch(s.phone)
+        const dept = normalizeForSearch(s.department)
+        return name.includes(q) || sid.includes(q) || phone.includes(q) || dept.includes(q)
+      })
+    }
+
+    // 3. Sorting
+    result.sort((a, b) => {
+      switch (studentSortBy) {
+        case "oldest":
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        case "orders_desc":
+          return (b.reservations_count ?? 0) - (a.reservations_count ?? 0)
+        case "orders_asc":
+          return (a.reservations_count ?? 0) - (b.reservations_count ?? 0)
+        case "score_desc":
+          return (b.trust_score ?? 0) - (a.trust_score ?? 0)
+        case "score_asc":
+          return (a.trust_score ?? 0) - (b.trust_score ?? 0)
+        case "spent_desc":
+          return (b.total_spent ?? 0) - (a.total_spent ?? 0)
+        case "name":
+          return a.name.localeCompare(b.name, "fa")
+        case "newest":
+        default:
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      }
     })
-  }, [students, studentSearch])
+
+    return result
+  }, [students, studentSearch, studentSortBy, studentFilterStatus])
 
   // Dashboard stats
   const [totalFoods, setTotalFoods] = useState(0)
   const [totalCategories, setTotalCategories] = useState(0)
   const [totalReservations, setTotalReservations] = useState(0)
   const [todayReservations, setTodayReservations] = useState(0)
+  const [weeklyOrdersCount, setWeeklyOrdersCount] = useState(0)
+  const [studentCount, setStudentCount] = useState(0)
+  const [topFoodThisWeek, setTopFoodThisWeek] = useState<{ name: string; count: number }>({
+    name: "در حال بررسی...",
+    count: 0,
+  })
+  const [upcomingOrderCounts, setUpcomingOrderCounts] = useState<any[]>([])
+  const [analyticsData, setAnalyticsData] = useState<any>(null)
 
   // Filter & Search states
   const [foodSearch, setFoodSearch] = useState("")
@@ -635,33 +706,38 @@ export default function AdminDashboard() {
     plugins: {
       legend: {
         position: "top" as const,
+        rtl: true,
         labels: {
           color: "#4B5563",
-          boxWidth: 20,
+          boxWidth: 16,
+          font: { family: "'Vazirmatn', system-ui, sans-serif", size: 11 },
         },
       },
       title: {
-        display: true,
-        text: "تعداد سفارشات و تحویل‌ها در 7 روز گذشته",
-        color: "#4B5563",
+        display: false,
+      },
+      tooltip: {
+        rtl: true,
       },
     },
     scales: {
       x: {
         grid: {
-          color: "#E5E7EB",
+          color: "rgba(229, 231, 235, 0.6)",
         },
         ticks: {
           color: "#4B5563",
+          font: { family: "'Vazirmatn', system-ui, sans-serif", size: 11 },
         },
       },
       y: {
         beginAtZero: true,
         grid: {
-          color: "#E5E7EB",
+          color: "rgba(229, 231, 235, 0.6)",
         },
         ticks: {
           color: "#4B5563",
+          font: { family: "'Vazirmatn', system-ui, sans-serif", size: 11 },
         },
       },
     },
@@ -669,6 +745,163 @@ export default function AdminDashboard() {
       intersect: false,
       mode: "index" as const,
     },
+  }
+
+  const getUpcoming7DaysOrderData = () => {
+    const now = new Date()
+    const dates: string[] = []
+    const totalOrders: number[] = []
+    const lunchOrders: number[] = []
+    const dinnerOrders: number[] = []
+
+    for (let i = 1; i <= 7; i++) {
+      const date = new Date(now)
+      date.setDate(now.getDate() + i)
+      const faDate = date.toLocaleDateString("fa-IR", { weekday: "short", day: "numeric", month: "short" })
+      dates.push(faDate)
+
+      const dailyData = (upcomingOrderCounts as any[]).find((d) => {
+        if (!d?.reserved_date) return false
+        return new Date(d.reserved_date).toLocaleDateString("fa-IR") === date.toLocaleDateString("fa-IR")
+      })
+
+      totalOrders.push(dailyData?.order_count || 0)
+      lunchOrders.push(dailyData?.lunch_count || 0)
+      dinnerOrders.push(dailyData?.dinner_count || 0)
+    }
+
+    return {
+      labels: dates,
+      datasets: [
+        {
+          label: "مجموع رزروها",
+          data: totalOrders,
+          fill: true,
+          backgroundColor: "rgba(99, 102, 241, 0.08)",
+          borderColor: "#6366F1",
+          tension: 0.35,
+          pointRadius: 5,
+          pointHoverRadius: 8,
+          pointBackgroundColor: "#6366F1",
+          pointBorderColor: "#FFFFFF",
+          pointBorderWidth: 2,
+        },
+        {
+          label: "رزروهای ناهار",
+          data: lunchOrders,
+          fill: false,
+          borderColor: "#F47B20",
+          backgroundColor: "#F47B20",
+          tension: 0.35,
+          pointRadius: 4,
+          pointHoverRadius: 7,
+          pointBackgroundColor: "#F47B20",
+          pointBorderColor: "#F47B20",
+          borderDash: [5, 5],
+        },
+        {
+          label: "رزروهای شام",
+          data: dinnerOrders,
+          fill: false,
+          borderColor: "#8B5CF6",
+          backgroundColor: "#8B5CF6",
+          tension: 0.35,
+          pointRadius: 4,
+          pointHoverRadius: 7,
+          pointBackgroundColor: "#8B5CF6",
+          pointBorderColor: "#8B5CF6",
+          borderDash: [3, 3],
+        },
+      ],
+    }
+  }
+
+  const upcomingChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: "top" as const,
+        rtl: true,
+        labels: {
+          color: "#4B5563",
+          boxWidth: 16,
+          font: { family: "'Vazirmatn', system-ui, sans-serif", size: 11 },
+        },
+      },
+      title: {
+        display: false,
+      },
+      tooltip: {
+        rtl: true,
+      },
+    },
+    scales: {
+      x: {
+        grid: {
+          color: "rgba(229, 231, 235, 0.5)",
+        },
+        ticks: {
+          color: "#4B5563",
+          font: { family: "'Vazirmatn', system-ui, sans-serif", size: 10 },
+        },
+      },
+      y: {
+        beginAtZero: true,
+        ticks: {
+          stepSize: 1,
+          color: "#4B5563",
+          font: { family: "'Vazirmatn', system-ui, sans-serif", size: 10 },
+        },
+        grid: {
+          color: "rgba(229, 231, 235, 0.5)",
+        },
+      },
+    },
+    interaction: {
+      intersect: false,
+      mode: "index" as const,
+    },
+  }
+
+  const exportReservationsCSV = () => {
+    if (!reservationLogs || reservationLogs.length === 0) {
+      toast.error("داده‌ای برای خروجی وجود ندارد")
+      return
+    }
+    const headers = [
+      "شناسه",
+      "دانشجو",
+      "شماره دانشجویی",
+      "غذا",
+      "وعده",
+      "مبلغ پرداختی (تومان)",
+      "وضعیت",
+      "تاریخ رزرو",
+      "تاریخ ثبت",
+    ]
+    const rows = reservationLogs.map((log: any) => [
+      log.id,
+      `"${log.student || "-"}"`,
+      `"${log.student_number || "-"}"`,
+      `"${log.food || "-"}"`,
+      log.meal_type === "lunch" ? "ناهار" : log.meal_type === "dinner" ? "شام" : log.meal_type || "-",
+      log.price || 0,
+      getStatusText(log.status),
+      log.reserved_date || "-",
+      log.created_at || "-",
+    ])
+
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map((r: any[]) => r.join(","))].join("\n")
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.setAttribute("href", url)
+    link.setAttribute("download", `reservation-logs-${new Date().toISOString().slice(0, 10)}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    toast.success("فایل گزارش اکسل (CSV) با موفقیت دانلود شد")
   }
 
   const fetchFoods = useCallback(async () => {
@@ -860,8 +1093,25 @@ export default function AdminDashboard() {
   const fetchDailyOrderCounts = useCallback(async () => {
     try {
       const response = await api.get(createApiUrl(API_ROUTES.GET_DAILY_ORDER_COUNTS))
-      console.log(response.data)
-      setDailyOrderCounts(response.data)
+      const data = response.data
+      if (Array.isArray(data)) {
+        setDailyOrderCounts(data)
+      } else if (data) {
+        setDailyOrderCounts(data.past_7_days || [])
+        setUpcomingOrderCounts(data.upcoming_7_days || [])
+        if (typeof data.weekly_order_count === "number") {
+          setWeeklyOrdersCount(data.weekly_order_count)
+        }
+        if (typeof data.student_count === "number") {
+          setStudentCount(data.student_count)
+        }
+        if (data.top_food_this_week) {
+          setTopFoodThisWeek(data.top_food_this_week)
+        }
+        if (data.analytics) {
+          setAnalyticsData(data.analytics)
+        }
+      }
     } catch (error) {
       console.error("Error fetching daily order counts:", error)
       toast.error("خطا در دریافت آمار سفارشات روزانه")
@@ -883,6 +1133,9 @@ export default function AdminDashboard() {
     try {
       const response = await api.get(createApiUrl(API_ROUTES.GET_STUDENTS))
       setStudents(response.data)
+      if (Array.isArray(response.data)) {
+        setStudentCount(response.data.length)
+      }
     } catch (error) {
       console.error("Error fetching students:", error)
       toast.error("خطا در دریافت لیست دانشجویان")
@@ -2672,22 +2925,26 @@ function FoodFormModalContent({
                   {/* 4 StatCards */}
                   <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
                     <StatCard
-                      icon={Utensils}
-                      title="غذاهای منو"
-                      value={totalFoods}
+                      icon={Users}
+                      title="دانشجویان ثبت‌نامی"
+                      value={studentCount || students.length}
                       gradient="from-[#F47B20] to-amber-500"
-                      subtitle="غذاهای تعریف‌شده در سیستم"
-                      trend="فعال در سلف"
-                      onClick={() => setActiveTab("food")}
+                      subtitle="کل دانشجویان دارای حساب در سامانه"
+                      trend="دانشجوی فعال"
+                      onClick={() => setActiveTab("students")}
                     />
                     <StatCard
-                      icon={Clipboard}
-                      title="دسته‌بندی‌های فعال"
-                      value={totalCategories}
+                      icon={Flame}
+                      title="پرفروش‌ترین غذای هفته"
+                      value={topFoodThisWeek.name || "هنوز ثبت نشده"}
                       gradient="from-amber-500 to-orange-400"
-                      subtitle="گروه‌بندی اقلام غذایی"
-                      trend="گروه فعال"
-                      onClick={() => setActiveTab("categories")}
+                      subtitle={
+                        topFoodThisWeek.count > 0
+                          ? `${toPersianDigits(topFoodThisWeek.count)} سفارش ثبت‌شده در این هفته`
+                          : "سفارشات هفته جاری"
+                      }
+                      trend="محبوب‌ترین هفته"
+                      onClick={() => setActiveTab("food")}
                     />
                     <StatCard
                       icon={Calendar}
@@ -2699,40 +2956,55 @@ function FoodFormModalContent({
                       onClick={() => setActiveTab("analytics")}
                     />
                     <StatCard
-                      icon={User}
-                      title="کل سفارشات ثبت‌شده"
-                      value={totalReservations}
+                      icon={ShoppingBag}
+                      title="سفارشات هفته جاری"
+                      value={weeklyOrdersCount}
                       gradient="from-blue-500 to-indigo-500"
-                      subtitle="تاریخچه کلی رزروها"
-                      trend="کل تراکنش‌ها"
+                      subtitle="رزروهای از شنبه تا جمعه"
+                      trend="کل تراکنش‌های هفته"
                       onClick={() => setActiveTab("analytics")}
                     />
                   </div>
 
-                  {/* Order Chart */}
-                  <Card className="glass rounded-2xl border border-glass-border shadow-glass overflow-hidden">
-                    <CardHeader className="border-b border-glass-border pb-4">
-                      <div className="flex items-center justify-between">
-                        <div>
+                  {/* Order Charts: Past 7 Days & Future 7 Days Forecast */}
+                  <div className="space-y-6">
+                    {/* Past 7 Days Order Chart */}
+                    <Card className="glass rounded-2xl border border-glass-border shadow-glass overflow-hidden">
+                      <CardHeader className="border-b border-glass-border pb-3 sm:pb-4">
+                        <div className="flex items-center justify-between">
                           <CardTitle className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
                             <Activity className="h-5 w-5 text-[#F47B20]" />
-                            آمار سفارشات و تحویل‌های روزانه (۷ روز اخیر)
+                            سفارشات ۷ روز گذشته
                           </CardTitle>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            روند تغییرات سفارشات دریافت شده در مقایسه با غذاهای تحویل داده شده به دانشجویان
-                          </p>
                         </div>
-                        <Badge variant="outline" className="bg-orange-50 text-[#F47B20] border-orange-200 text-xs">
-                          بروزرسانی زنده
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="p-4 sm:p-6">
-                      <div className="w-full h-[320px]">
-                        <Line data={getPast7DaysOrderData()} options={chartOptions} />
-                      </div>
-                    </CardContent>
-                  </Card>
+                      </CardHeader>
+                      <CardContent className="p-3 sm:p-6">
+                        <div className="w-full h-[280px] sm:h-[320px]">
+                          <Line data={getPast7DaysOrderData()} options={chartOptions} />
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Future 7 Days Orders & Forecast Chart */}
+                    <Card className="glass rounded-2xl border border-glass-border shadow-glass overflow-hidden">
+                      <CardHeader className="border-b border-glass-border pb-3 sm:pb-4">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
+                            <TrendingUp className="h-5 w-5 text-indigo-500" />
+                            پیش‌بینی و رزروهای ۷ روز آینده
+                          </CardTitle>
+                          <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200 text-[11px] sm:text-xs">
+                            برنامه‌ریزی سلف
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-3 sm:p-6">
+                        <div className="w-full h-[280px] sm:h-[320px]">
+                          <Line data={getUpcoming7DaysOrderData()} options={upcomingChartOptions} />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
 
                   {/* 2 Columns: Recent Foods + Recent Reservations */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -3932,10 +4204,10 @@ function FoodFormModalContent({
                 <div className="space-y-6">
                   <Card className="glass rounded-2xl border border-glass-border shadow-glass overflow-hidden">
                     <CardHeader className="border-b border-glass-border pb-4">
-                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                         <div>
                           <CardTitle className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                            <User className="h-5 w-5 text-[#F47B20]" />
+                            <Users className="h-5 w-5 text-[#F47B20]" />
                             مدیریت و پرونده دانشجویان
                           </CardTitle>
                           <p className="text-xs text-muted-foreground mt-0.5">
@@ -3943,7 +4215,20 @@ function FoodFormModalContent({
                           </p>
                         </div>
                         <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center">
-                          <div className="relative w-full sm:w-72">
+                          <Button
+                            onClick={handleAddStudent}
+                            className="bg-[#F47B20] hover:bg-[#E06A10] text-white shadow-sm flex items-center justify-center gap-1.5 rounded-xl text-xs font-semibold h-9 px-4 shrink-0"
+                          >
+                            <Plus className="w-4 h-4 ml-1" /> افزودن دانشجو
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Search, Sort & Quick Filter Bar */}
+                      <div className="mt-4 pt-3 border-t border-orange-100/70 space-y-3">
+                        <div className="flex flex-col md:flex-row gap-2.5 items-stretch md:items-center justify-between">
+                          {/* Search Input */}
+                          <div className="relative w-full md:w-80">
                             <Search className="absolute right-3 top-2.5 h-4 w-4 text-gray-400" />
                             <Input
                               value={studentSearch}
@@ -3953,12 +4238,97 @@ function FoodFormModalContent({
                               dir="rtl"
                             />
                           </div>
-                          <Button
-                            onClick={handleAddStudent}
-                            className="bg-[#F47B20] hover:bg-[#E06A10] text-white shadow-sm flex items-center gap-1.5 rounded-xl text-xs font-semibold h-9 px-4 shrink-0"
+
+                          {/* Sort Dropdown */}
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-500 shrink-0 flex items-center gap-1">
+                              <ArrowUpDown className="w-3.5 h-3.5 text-[#F47B20]" />
+                              مرتب‌سازی:
+                            </span>
+                            <Select value={studentSortBy} onValueChange={(v) => setStudentSortBy(v)}>
+                              <SelectTrigger className="w-full sm:w-56 h-9 rounded-xl text-xs bg-white border-orange-200">
+                                <SelectValue placeholder="مرتب‌سازی بر اساس..." />
+                              </SelectTrigger>
+                              <SelectContent align="end" className="text-xs">
+                                <SelectItem value="newest">جدیدترین ثبت‌نام</SelectItem>
+                                <SelectItem value="oldest">قدیمی‌ترین ثبت‌نام</SelectItem>
+                                <SelectItem value="orders_desc">بیشترین تعداد سفارش</SelectItem>
+                                <SelectItem value="orders_asc">کمترین تعداد سفارش</SelectItem>
+                                <SelectItem value="score_desc">بالاترین امتیاز اعتبار</SelectItem>
+                                <SelectItem value="score_asc">کمترین امتیاز (منفی‌ها)</SelectItem>
+                                <SelectItem value="spent_desc">بیشترین مبلغ خرید</SelectItem>
+                                <SelectItem value="name">نام دانشجو (الفبا)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
+                        {/* Filter Chips */}
+                        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => setStudentFilterStatus("all")}
+                            className={`text-xs px-3 py-1.5 rounded-xl font-medium transition-all ${
+                              studentFilterStatus === "all"
+                                ? "bg-[#F47B20] text-white shadow-2xs"
+                                : "bg-orange-50/70 text-gray-600 hover:bg-orange-100/70"
+                            }`}
                           >
-                            <Plus className="w-4 h-4 ml-1" /> افزودن دانشجو
-                          </Button>
+                            همه ({toPersianDigits(students.length)})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setStudentFilterStatus("active")}
+                            className={`text-xs px-3 py-1.5 rounded-xl font-medium transition-all ${
+                              studentFilterStatus === "active"
+                                ? "bg-emerald-600 text-white shadow-2xs"
+                                : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                            }`}
+                          >
+                            فعال ({toPersianDigits(students.filter((s) => s.status === "active").length)})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setStudentFilterStatus("inactive")}
+                            className={`text-xs px-3 py-1.5 rounded-xl font-medium transition-all ${
+                              studentFilterStatus === "inactive"
+                                ? "bg-gray-700 text-white shadow-2xs"
+                                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                            }`}
+                          >
+                            غیرفعال ({toPersianDigits(students.filter((s) => s.status === "inactive").length)})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setStudentFilterStatus("negative_score")}
+                            className={`text-xs px-3 py-1.5 rounded-xl font-medium transition-all flex items-center gap-1 ${
+                              studentFilterStatus === "negative_score"
+                                ? "bg-rose-600 text-white shadow-2xs"
+                                : "bg-rose-50 text-rose-700 hover:bg-rose-100"
+                            }`}
+                          >
+                            <AlertTriangle className="w-3 h-3" />
+                            امتیاز منفی / محروم از ژتون (
+                            {toPersianDigits(students.filter((s) => (s.trust_score ?? 0) < 0).length)})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setStudentFilterStatus("top_loyalty")}
+                            className={`text-xs px-3 py-1.5 rounded-xl font-medium transition-all flex items-center gap-1 ${
+                              studentFilterStatus === "top_loyalty"
+                                ? "bg-amber-600 text-white shadow-2xs"
+                                : "bg-amber-50 text-amber-800 hover:bg-amber-100"
+                            }`}
+                          >
+                            <Award className="w-3 h-3 text-amber-500" />
+                            دانشجویان وفادار / برتر (
+                            {toPersianDigits(
+                              students.filter(
+                                (s) => (s.trust_score ?? 0) >= 80 || (s.reservations_count ?? 0) >= 5,
+                              ).length,
+                            )}
+                            )
+                          </button>
                         </div>
                       </div>
                     </CardHeader>
@@ -4004,6 +4374,18 @@ function FoodFormModalContent({
                                 <div>
                                   <span className="text-gray-400 text-[10px] block">شماره تماس:</span>
                                   <span className="font-mono text-gray-800 text-[11px]">{toPersianDigits(student.phone)}</span>
+                                </div>
+                                <div>
+                                  <span className="text-gray-400 text-[10px] block">تعداد سفارش‌ها:</span>
+                                  <span className="font-semibold text-gray-900 text-[11px]">
+                                    {toPersianDigits(student.reservations_count || 0)} سفارش
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-gray-400 text-[10px] block">مجموع خرید:</span>
+                                  <span className="font-semibold text-[#F47B20] text-[11px]">
+                                    {formatPersianPrice(student.total_spent || 0)}
+                                  </span>
                                 </div>
                               </div>
 
@@ -4068,6 +4450,8 @@ function FoodFormModalContent({
                               <TableHead className="text-right font-bold text-gray-700 text-xs py-3.5 px-4">شماره دانشجویی</TableHead>
                               <TableHead className="text-right font-bold text-gray-700 text-xs py-3.5 px-4">دانشکده</TableHead>
                               <TableHead className="text-right font-bold text-gray-700 text-xs py-3.5 px-4">اطلاعات تماس</TableHead>
+                              <TableHead className="text-center font-bold text-gray-700 text-xs py-3.5 px-4">تعداد سفارش</TableHead>
+                              <TableHead className="text-center font-bold text-gray-700 text-xs py-3.5 px-4">مجموع خرید</TableHead>
                               <TableHead className="text-center font-bold text-gray-700 text-xs py-3.5 px-4">امتیاز اعتبار</TableHead>
                               <TableHead className="text-center font-bold text-gray-700 text-xs py-3.5 px-4">وضعیت</TableHead>
                               <TableHead className="text-center font-bold text-gray-700 text-xs py-3.5 px-4">عملیات</TableHead>
@@ -4076,7 +4460,7 @@ function FoodFormModalContent({
                           <TableBody>
                             {filteredStudents.length === 0 ? (
                               <TableRow>
-                                <TableCell colSpan={7} className="text-center py-12 text-gray-400">
+                                <TableCell colSpan={9} className="text-center py-12 text-gray-400">
                                   هیچ دانشجویی یافت نشد
                                 </TableCell>
                               </TableRow>
@@ -4096,6 +4480,12 @@ function FoodFormModalContent({
                                   <TableCell className="text-xs text-gray-500 py-3.5 px-4">
                                     <div>{toPersianDigits(student.phone)}</div>
                                     <div className="text-[10px] text-gray-400">{student.email}</div>
+                                  </TableCell>
+                                  <TableCell className="text-xs font-semibold text-gray-800 py-3.5 px-4 text-center">
+                                    {toPersianDigits(student.reservations_count || 0)}
+                                  </TableCell>
+                                  <TableCell className="text-xs font-semibold text-[#F47B20] py-3.5 px-4 text-center">
+                                    {formatPersianPrice(student.total_spent || 0)}
                                   </TableCell>
                                   <TableCell className="py-3.5 px-4 text-center">
                                     <div className="flex items-center justify-center gap-1.5">
@@ -4425,24 +4815,253 @@ function FoodFormModalContent({
                 </div>
               )}
 
-              {/* Analytics Tab */}
+              {/* Analytics & Reports Tab */}
               {activeTab === "analytics" && (
                 <div className="space-y-6">
+                  {/* Top Bar: Title, CSV Export, and Refresh */}
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white/70 backdrop-blur-md p-4 rounded-2xl border border-glass-border shadow-xs">
+                    <div>
+                      <h2 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center gap-2">
+                        <BarChart2 className="h-5 w-5 text-[#F47B20]" />
+                        آمار، هوش تجاری و گزارشات جامع سلف
+                      </h2>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        تحلیل عملکرد مالی، رفتار سفارش‌دهی دانشجویان، توزیع وعده‌ها و کالاهای محبوب
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        onClick={exportReservationsCSV}
+                        variant="outline"
+                        className="bg-white hover:bg-orange-50 text-gray-700 border-orange-200 text-xs rounded-xl h-9 flex items-center gap-1.5"
+                      >
+                        <Download className="w-4 h-4 text-[#F47B20]" />
+                        خروجی گزارش (CSV)
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          fetchDailyOrderCounts()
+                          fetchReservationLogs()
+                          toast.success("آمار و داده‌ها بروزرسانی شد")
+                        }}
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 text-gray-500 hover:text-[#F47B20] hover:bg-orange-50 rounded-xl"
+                        title="بروزرسانی داده‌ها"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* 4 Executive KPI Cards */}
+                  <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+                    <StatCard
+                      icon={CheckCircle}
+                      title="نرخ تحویل موفق"
+                      value={`${toPersianDigits(analyticsData?.fulfillment_rate ?? 100)}٪`}
+                      gradient="from-emerald-500 to-teal-500"
+                      subtitle={`${toPersianDigits(analyticsData?.status_distribution?.picked_up ?? 0)} تحویل موفق به دانشجو`}
+                      trend="تکمیل سفارش"
+                    />
+                    <StatCard
+                      icon={Ticket}
+                      title="یارانه پرداختی ژتون‌ها"
+                      value={formatPersianPrice(analyticsData?.total_subsidies ?? 0)}
+                      gradient="from-[#F47B20] to-amber-500"
+                      subtitle="سهم حمایت مالی دانشگاه"
+                      trend="تخفیف ژتون"
+                    />
+                    <StatCard
+                      icon={Coins}
+                      title="درآمد نقدی دریافتی"
+                      value={formatPersianPrice(analyticsData?.total_cash ?? 0)}
+                      gradient="from-blue-500 to-indigo-500"
+                      subtitle="پرداخت مستقیم درگاه"
+                      trend="فروش خالص"
+                    />
+                    <StatCard
+                      icon={Activity}
+                      title="میانگین سفارش روزانه"
+                      value={`${toPersianDigits(analyticsData?.avg_daily_orders ?? 0)}`}
+                      gradient="from-purple-500 to-pink-500"
+                      subtitle="نرخ رزرو روزانه ۳۰ روز اخیر"
+                      trend="سفارش / روز"
+                    />
+                  </div>
+
+                  {/* Visual Distribution & Popular Foods Grid */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Meal & Status Breakdown Card */}
+                    <Card className="glass rounded-2xl border border-glass-border shadow-glass overflow-hidden">
+                      <CardHeader className="border-b border-glass-border pb-3">
+                        <CardTitle className="text-sm sm:text-base font-bold text-gray-900 flex items-center gap-2">
+                          <Activity className="h-4 w-4 text-[#F47B20]" />
+                          الگوی مصرف وعده‌ها و وضعیت سفارش‌ها
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-4 sm:p-5 space-y-5">
+                        {/* Lunch vs Dinner Breakdown */}
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-xs font-semibold">
+                            <span className="text-gray-700 flex items-center gap-1.5">
+                              <span className="w-2.5 h-2.5 rounded-full bg-[#F47B20]" />
+                              وعده ناهار: {toPersianDigits(analyticsData?.meal_distribution?.lunch ?? 0)} سفارش
+                            </span>
+                            <span className="text-gray-700 flex items-center gap-1.5">
+                              <span className="w-2.5 h-2.5 rounded-full bg-indigo-500" />
+                              وعده شام: {toPersianDigits(analyticsData?.meal_distribution?.dinner ?? 0)} سفارش
+                            </span>
+                          </div>
+                          {/* Progress split */}
+                          {(() => {
+                            const lunch = analyticsData?.meal_distribution?.lunch ?? 0
+                            const dinner = analyticsData?.meal_distribution?.dinner ?? 0
+                            const total = lunch + dinner || 1
+                            const lunchPct = Math.round((lunch / total) * 100)
+                            return (
+                              <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden flex">
+                                <div
+                                  style={{ width: `${lunchPct}%` }}
+                                  className="h-full bg-gradient-to-r from-orange-400 to-[#F47B20] transition-all"
+                                  title={`ناهار: ${toPersianDigits(lunchPct)}٪`}
+                                />
+                                <div
+                                  style={{ width: `${100 - lunchPct}%` }}
+                                  className="h-full bg-gradient-to-r from-indigo-500 to-purple-600 transition-all"
+                                  title={`شام: ${toPersianDigits(100 - lunchPct)}٪`}
+                                />
+                              </div>
+                            )
+                          })()}
+                        </div>
+
+                        {/* Order Status Bars */}
+                        <div className="space-y-2.5 pt-2 border-t border-orange-100/60">
+                          <span className="text-xs font-bold text-gray-800 block">وضعیت سفارشات ثبت شده:</span>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+                            <div className="bg-emerald-50/70 border border-emerald-200/70 rounded-xl p-2.5">
+                              <span className="text-[10px] text-emerald-700 block">تحویل شده</span>
+                              <span className="text-base font-bold text-emerald-800">
+                                {toPersianDigits(analyticsData?.status_distribution?.picked_up ?? 0)}
+                              </span>
+                            </div>
+                            <div className="bg-blue-50/70 border border-blue-200/70 rounded-xl p-2.5">
+                              <span className="text-[10px] text-blue-700 block">آماده تحویل</span>
+                              <span className="text-base font-bold text-blue-800">
+                                {toPersianDigits(analyticsData?.status_distribution?.ready_to_pickup ?? 0)}
+                              </span>
+                            </div>
+                            <div className="bg-amber-50/70 border border-amber-200/70 rounded-xl p-2.5">
+                              <span className="text-[10px] text-amber-700 block">در حال آماده‌سازی</span>
+                              <span className="text-base font-bold text-amber-800">
+                                {toPersianDigits(analyticsData?.status_distribution?.preparing ?? 0)}
+                              </span>
+                            </div>
+                            <div className="bg-rose-50/70 border border-rose-200/70 rounded-xl p-2.5">
+                              <span className="text-[10px] text-rose-700 block">تحویل نگرفته</span>
+                              <span className="text-base font-bold text-rose-800">
+                                {toPersianDigits(analyticsData?.status_distribution?.not_picked_up ?? 0)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Voucher Utilization */}
+                        <div className="pt-2 border-t border-orange-100/60 flex items-center justify-between text-xs text-gray-600">
+                          <span className="text-gray-500">الگوی فیش:</span>
+                          <span className="font-medium">
+                            ژتون اصلی: {toPersianDigits(analyticsData?.voucher_distribution?.has_voucher ?? 0)} | ژتون مازاد: {toPersianDigits(analyticsData?.voucher_distribution?.has_extra_voucher ?? 0)}
+                          </span>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Top 10 Popular Foods Ranking */}
+                    <Card className="glass rounded-2xl border border-glass-border shadow-glass overflow-hidden">
+                      <CardHeader className="border-b border-glass-border pb-3">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-sm sm:text-base font-bold text-gray-900 flex items-center gap-2">
+                            <Flame className="h-4 w-4 text-[#F47B20]" />
+                            پرفروش‌ترین و محبوب‌ترین غذاها
+                          </CardTitle>
+                          <span className="text-xs text-gray-400">۱۰ غذای برتر</span>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-3 sm:p-4">
+                        {!analyticsData?.top_foods || analyticsData.top_foods.length === 0 ? (
+                          <div className="text-center py-10 text-gray-400 text-xs">
+                            هنوز داده‌ای برای رتبه‌بندی غذاها ثبت نشده است.
+                          </div>
+                        ) : (
+                          <div className="divide-y divide-orange-100/60 max-h-[290px] overflow-y-auto pr-1">
+                            {analyticsData.top_foods.map((food: any, idx: number) => {
+                              const maxCount = analyticsData.top_foods[0]?.count || 1
+                              const pct = Math.round((food.count / maxCount) * 100)
+                              return (
+                                <div key={food.id || idx} className="py-2.5 flex items-center justify-between gap-3">
+                                  <div className="flex items-center gap-2.5 min-w-0">
+                                    <span
+                                      className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
+                                        idx === 0
+                                          ? "bg-amber-100 text-amber-700 border border-amber-300"
+                                          : idx === 1
+                                          ? "bg-slate-100 text-slate-700 border border-slate-300"
+                                          : idx === 2
+                                          ? "bg-orange-100 text-orange-700 border border-orange-300"
+                                          : "bg-gray-50 text-gray-500"
+                                      }`}
+                                    >
+                                      {toPersianDigits(idx + 1)}
+                                    </span>
+                                    <div className="min-w-0">
+                                      <h5 className="font-bold text-xs text-gray-900 truncate">{food.name}</h5>
+                                      <div className="w-24 sm:w-36 h-1.5 bg-gray-100 rounded-full mt-1 overflow-hidden">
+                                        <div
+                                          style={{ width: `${pct}%` }}
+                                          className="h-full bg-gradient-to-r from-amber-400 to-[#F47B20] rounded-full"
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="text-left shrink-0">
+                                    <span className="font-bold text-xs text-gray-900 block">
+                                      {toPersianDigits(food.count)} سفارش
+                                    </span>
+                                    <span className="text-[10px] text-gray-400">
+                                      {formatPersianPrice(food.total_revenue || 0)}
+                                    </span>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Comprehensive Reservation Logs & History Card */}
                   <Card className="glass rounded-2xl border border-glass-border shadow-glass overflow-hidden">
                     <CardHeader className="border-b border-glass-border pb-4">
-                      <CardTitle className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                        <BarChart2 className="h-5 w-5 text-[#F47B20]" />
-                        آمار، گزارشات و تحلیل مصرف غذای دانشگاه
-                      </CardTitle>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        تحلیل نموداری سفارشات روزانه و فهرست کامل گزارش رزروهای دانشجویان
-                      </p>
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <CardTitle className="text-base font-bold text-gray-900 flex items-center gap-2">
+                          <Clipboard className="h-5 w-5 text-[#F47B20]" />
+                          فهرست ریز تراکنش‌ها و گزارش کامل رزروها
+                        </CardTitle>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs bg-orange-50 text-[#F47B20] border-orange-200">
+                            {toPersianDigits(reservationLogs.length)} رکورد ثبت‌شده
+                          </Badge>
+                        </div>
+                      </div>
                     </CardHeader>
                     <CardContent className="p-4 sm:p-6">
                       <Tabs defaultValue="reservation-logs" className="w-full">
-                        <TabsList className="mb-4 bg-orange-50/60 p-1 rounded-xl w-full sm:w-auto grid grid-cols-2 sm:inline-flex">
+                        <TabsList className="mb-4 bg-orange-50/60 p-1 rounded-xl w-full sm:w-auto grid grid-cols-3 sm:inline-flex">
                           <TabsTrigger value="reservation-logs" className="rounded-lg text-xs">گزارش کلی رزروها</TabsTrigger>
-                          <TabsTrigger value="daily-orders" className="rounded-lg text-xs">نمودار سفارشات روزانه</TabsTrigger>
+                          <TabsTrigger value="past-orders" className="rounded-lg text-xs">نمودار ۷ روز گذشته</TabsTrigger>
+                          <TabsTrigger value="upcoming-orders" className="rounded-lg text-xs">پیش‌بینی ۷ روز آینده</TabsTrigger>
                         </TabsList>
                         <TabsContent value="reservation-logs">
                           {/* Mobile Cards for Reservation Logs */}
@@ -4452,7 +5071,7 @@ function FoodFormModalContent({
                                 هیچ رزروی یافت نشد
                               </div>
                             ) : (
-                              reservationLogs.map((log) => (
+                              reservationLogs.map((log: any) => (
                                 <div key={log.id} className="p-3.5 space-y-2">
                                   <div className="flex items-center justify-between">
                                     <span className="font-bold text-gray-900 text-sm">{log.student}</span>
@@ -4461,8 +5080,12 @@ function FoodFormModalContent({
                                     </Badge>
                                   </div>
                                   <div className="flex items-center justify-between text-xs text-gray-600">
-                                    <span>{log.food}</span>
-                                    <span className="text-[11px] text-gray-400">{formatPersianDateTime(log.created_at)}</span>
+                                    <span>{log.food} ({log.meal_type === 'lunch' ? 'ناهار' : log.meal_type === 'dinner' ? 'شام' : '-'})</span>
+                                    <span className="font-semibold text-[#F47B20]">{formatPersianPrice(log.price || 0)}</span>
+                                  </div>
+                                  <div className="flex items-center justify-between text-[11px] text-gray-400 pt-1 border-t border-orange-50">
+                                    <span>تاریخ رزرو: {log.reserved_date || '-'}</span>
+                                    <span>{formatPersianDateTime(log.created_at)}</span>
                                   </div>
                                 </div>
                               ))
@@ -4476,24 +5099,40 @@ function FoodFormModalContent({
                                 <TableRow className="bg-orange-50/50 hover:bg-orange-50/50">
                                   <TableHead className="text-right font-bold text-gray-700 text-xs py-3.5 px-4">شناسه / دانشجو</TableHead>
                                   <TableHead className="text-right font-bold text-gray-700 text-xs py-3.5 px-4">نام غذا</TableHead>
-                                  <TableHead className="text-right font-bold text-gray-700 text-xs py-3.5 px-4">تاریخ و زمان رزرو</TableHead>
+                                  <TableHead className="text-center font-bold text-gray-700 text-xs py-3.5 px-4">وعده</TableHead>
+                                  <TableHead className="text-center font-bold text-gray-700 text-xs py-3.5 px-4">مبلغ پرداختی</TableHead>
+                                  <TableHead className="text-right font-bold text-gray-700 text-xs py-3.5 px-4">تاریخ رزرو</TableHead>
                                   <TableHead className="text-center font-bold text-gray-700 text-xs py-3.5 px-4">وضعیت سفارش</TableHead>
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
                                 {reservationLogs.length === 0 ? (
                                   <TableRow>
-                                    <TableCell colSpan={4} className="text-center py-12 text-gray-400">
+                                    <TableCell colSpan={6} className="text-center py-12 text-gray-400">
                                       هیچ رزروی یافت نشد
                                     </TableCell>
                                   </TableRow>
                                 ) : (
-                                  reservationLogs.map((log) => (
+                                  reservationLogs.map((log: any) => (
                                     <TableRow key={log.id} className="hover:bg-orange-50/40 transition-colors">
-                                      <TableCell className="font-bold text-gray-900 py-3.5 px-4">{log.student}</TableCell>
+                                      <TableCell className="font-bold text-gray-900 py-3.5 px-4">
+                                        <div>{log.student}</div>
+                                        {log.student_number && (
+                                          <div className="text-[10px] text-gray-400 font-mono">{toPersianDigits(log.student_number)}</div>
+                                        )}
+                                      </TableCell>
                                       <TableCell className="text-sm text-gray-800 py-3.5 px-4">{log.food}</TableCell>
+                                      <TableCell className="text-xs text-gray-600 py-3.5 px-4 text-center">
+                                        <Badge variant="outline" className="text-[11px] bg-orange-50 text-gray-700 border-orange-200">
+                                          {log.meal_type === 'lunch' ? 'ناهار' : log.meal_type === 'dinner' ? 'شام' : '-'}
+                                        </Badge>
+                                      </TableCell>
+                                      <TableCell className="text-xs font-semibold text-[#F47B20] py-3.5 px-4 text-center">
+                                        {formatPersianPrice(log.price || 0)}
+                                      </TableCell>
                                       <TableCell className="text-xs text-gray-600 py-3.5 px-4">
-                                        {formatPersianDateTime(log.created_at)}
+                                        <div>{log.reserved_date || '-'}</div>
+                                        <div className="text-[10px] text-gray-400">{formatPersianDateTime(log.created_at)}</div>
                                       </TableCell>
                                       <TableCell className="py-3.5 px-4 text-center">
                                         <Badge variant="outline" className={`text-xs ${getStatusBadgeClass(log.status)}`}>
@@ -4507,9 +5146,14 @@ function FoodFormModalContent({
                             </Table>
                           </div>
                         </TabsContent>
-                        <TabsContent value="daily-orders">
+                        <TabsContent value="past-orders">
                           <div className="w-full h-[320px] sm:h-[400px] p-2">
                             <Line data={getPast7DaysOrderData()} options={chartOptions} />
+                          </div>
+                        </TabsContent>
+                        <TabsContent value="upcoming-orders">
+                          <div className="w-full h-[320px] sm:h-[400px] p-2">
+                            <Line data={getUpcoming7DaysOrderData()} options={upcomingChartOptions} />
                           </div>
                         </TabsContent>
                       </Tabs>
