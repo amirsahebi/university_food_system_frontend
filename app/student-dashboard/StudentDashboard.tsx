@@ -1535,14 +1535,21 @@ export default function StudentDashboard() {
 
                     {/* Surplus Points Reward Banner */}
                     {surplusAmount > 0 && (
-                      <div className="rounded-xl bg-gradient-to-r from-emerald-500/15 via-teal-500/15 to-emerald-500/15 border border-emerald-500/40 p-2.5 flex items-center justify-between text-emerald-700 dark:text-emerald-300 shadow-sm animate-in fade-in duration-200">
+                      <div className="rounded-xl bg-gradient-to-r from-emerald-500/15 via-teal-500/15 to-emerald-500/15 border border-emerald-500/40 p-2.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1.5 text-emerald-700 dark:text-emerald-300 shadow-sm animate-in fade-in duration-200">
                         <div className="flex items-center gap-1.5 font-bold text-xs">
                           <span className="text-sm">🎉</span>
                           <span>مازاد فیش ({formatPersianPrice(surplusAmount)} تومان):</span>
                         </div>
-                        <span className="px-2.5 py-0.5 rounded-full bg-emerald-600 text-white font-black text-xs shadow-xs">
-                          +{toPersianDigits(Math.floor(surplusAmount / 100))} امتیاز باشگاه
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="px-2.5 py-0.5 rounded-full bg-emerald-600 text-white font-black text-xs shadow-xs">
+                            {Math.floor(surplusAmount / 100000) > 0
+                              ? `+${toPersianDigits(Math.floor(surplusAmount / 100000))} امتیاز باشگاه`
+                              : `ثبت در سابقه وفاداری`}
+                          </span>
+                          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                            (پس از تحویل سفارش • هر ۱۰۰ هزار تومن = ۱+ امتیاز)
+                          </span>
+                        </div>
                       </div>
                     )}
 

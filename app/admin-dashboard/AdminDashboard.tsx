@@ -1242,12 +1242,12 @@ function FoodFormModalContent({
 
     if (maxDiscount > numericPrice) {
       const surplus = maxDiscount - numericPrice
-      const points = Math.floor(surplus / 100)
+      const points = Math.floor(surplus / 100000)
       return {
         surplus,
         points,
         voucherDetail,
-        message: `${voucherDetail} بیشتر از نرخ غذا (${formatPersianPrice(numericPrice)} تومان) است. در این حالت مبلغ پرداختی دانشجو ۰ تومان و مازاد (${formatPersianPrice(surplus)} تومان معادل +${toPersianDigits(points)} امتیاز) به عنوان امتیاز باشگاه اهدا می‌شود.`
+        message: `${voucherDetail} بیشتر از نرخ غذا (${formatPersianPrice(numericPrice)} تومان) است. در این حالت مبلغ پرداختی دانشجو ۰ تومان بوده و مازاد فیش (${formatPersianPrice(surplus)} تومان) پس از تحویل سفارش (به ازای هر ۱۰۰ هزار تومان، ۱+ امتیاز) به سابقه امتیاز دانشجو اضافه خواهد شد.`
       }
     }
 
@@ -1547,7 +1547,7 @@ function FoodFormModalContent({
         <div className="text-[11px] text-gray-500 font-medium hidden sm:block">
           {surplusNotice ? (
             <span className="text-emerald-700 font-bold">
-              ✓ مازاد تخفیف فیش به عنوان امتیاز باشگاه دانشجو منظور می‌شود
+              ✓ مازاد فیش پس از تحویل سفارش (هر ۱۰۰ هزار تومان = ۱+ امتیاز) منظور می‌شود
             </span>
           ) : numericPrice > 0 ? (
             <span className="text-emerald-700 font-medium">
